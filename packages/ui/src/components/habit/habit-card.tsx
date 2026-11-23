@@ -3,13 +3,14 @@ import { Check, Plus } from "lucide-react";
 import type { ColorId, Kind } from "@streakky/core";
 import { cn } from "@streakky/ui/lib/utils";
 
-/** Today's state on a build habit: an empty ring, filled with a tick once logged. */
+/** Today's state on a build habit: an empty ring, filled with a tick once checked in. */
 export function CheckInTick({ checkedIn, className }: { checkedIn: boolean; className?: string }) {
   return (
     <span
       data-slot="check-in-tick"
       className={cn(
         "grid size-[22px] flex-none place-items-center rounded-full text-habit-foreground",
+        "transition-[background-color,box-shadow] duration-200 ease-ui",
         checkedIn ? "bg-habit" : "shadow-[inset_0_0_0_1.5px_var(--habit)]",
         className,
       )}
@@ -19,14 +20,48 @@ export function CheckInTick({ checkedIn, className }: { checkedIn: boolean; clas
   );
 }
 
-const tile = [
+/** The tick as a toggle: checks a build habit in today, or undoes it. A 44px target around it. */
+export function CheckInButton({
+  name,
+  checkedIn,
+  onToggle,
+  className,
+}: {
+  name: string;
+  checkedIn: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-slot="check-in-button"
+      aria-label={`Check in ${name} today`}
+      aria-pressed={checkedIn}
+      onClick={onToggle}
+      className={cn(
+        "grid size-11 place-items-center rounded-full outline-none",
+        "transition-[background-color,transform,scale] duration-120 ease-ui",
+        "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
+        "focus-visible:outline-2 focus-visible:outline-ring",
+        className,
+      )}
+    >
+      <CheckInTick checkedIn={checkedIn} />
+    </button>
+  );
+}
+
+const tileGround = [
   "w-full border border-transparent text-left outline-none",
   "bg-habit/9 dark:bg-habit/16",
   "transition-[transform,border-color,box-shadow,background-color,translate,scale] duration-120 ease-ui",
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
-  "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_12px_24px_-14px_rgb(0_0_0/0.28)] hover-fine:duration-180",
-  "active:scale-[0.98] active:duration-90",
 ].join(" ");
+const tileLift =
+  "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_12px_24px_-14px_rgb(0_0_0/0.28)] hover-fine:duration-180";
+const focusRing =
+  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+const tile = [tileGround, tileLift, focusRing, "active:scale-[0.98] active:duration-90"].join(" ");
 
 type HabitFace = {
   name: string;
@@ -41,35 +76,96 @@ type HabitFace = {
   className?: string;
 };
 
-/** Grid face: the name on top, the big count in the habit's colour at the bottom. */
-export function HabitCard({
+const summaryOf = ({
   name,
   days,
   label,
   kind,
-  color,
   checkedIn,
-  onClick,
-  className,
-}: HabitFace) {
-  return (
-    <button
-      type="button"
-      data-slot="habit-card"
-      data-habit-color={color}
-      onClick={onClick}
-      aria-label={`${name}: ${days} ${label}${kind === "build" ? (checkedIn ? ", done today" : ", not logged today") : ""}`}
-      className={cn(tile, "flex h-[168px] flex-col rounded-3xl p-4", className)}
-    >
+}: Pick<HabitFace, "name" | "days" | "label" | "kind" | "checkedIn">) =>
+  `${name}: ${days} ${label}${kind === "build" ? (checkedIn ? ", checked in today" : ", not checked in today") : ""}`;
+
+/**
+ * Grid face: the name on top, the big count in the habit's colour at the bottom.
+ * With `onCheckIn`, a build habit's tick becomes its own button; `onClick` then opens the habit
+ * from anywhere else on the card, and without it the card is not a button at all.
+ */
+export function HabitCard({
+  onCheckIn,
+  ...face
+}: Omit<HabitFace, "onClick"> & { onClick?: () => void; onCheckIn?: () => void }) {
+  const { name, days, label, kind, color, checkedIn, onClick, className } = face;
+  const summary = summaryOf(face);
+  const tickIsButton = kind === "build" && onCheckIn !== undefined;
+  const body = (
+    <>
       <span className="flex items-start justify-between gap-2">
         <span className="line-clamp-2 text-sm leading-tight font-medium">{name}</span>
-        {kind === "build" && <CheckInTick checkedIn={checkedIn} className="-mt-px -mr-0.5" />}
+        {kind === "build" &&
+          (tickIsButton ? (
+            <span className="size-[22px] flex-none" />
+          ) : (
+            <CheckInTick checkedIn={checkedIn} className="-mt-px -mr-0.5" />
+          ))}
       </span>
       <span className="mt-auto font-display text-[52px] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
         {days}
       </span>
       <span className="mt-1.5 text-[13px] text-muted-foreground">{label}</span>
-    </button>
+    </>
+  );
+  const shape = "flex h-[168px] flex-col rounded-3xl p-4";
+
+  if (!tickIsButton && onClick) {
+    return (
+      <button
+        type="button"
+        data-slot="habit-card"
+        data-habit-color={color}
+        onClick={onClick}
+        aria-label={summary}
+        className={cn(tile, shape, className)}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div
+      data-slot="habit-card"
+      data-habit-color={color}
+      className={cn(
+        tileGround,
+        "relative",
+        onClick && [tileLift, "has-[>[data-slot=habit-open]:active]:scale-[0.98]"],
+        shape,
+        className,
+      )}
+    >
+      {onClick && (
+        <button
+          type="button"
+          data-slot="habit-open"
+          onClick={onClick}
+          aria-label={summary}
+          className={cn("absolute inset-0 rounded-[inherit]", focusRing)}
+        />
+      )}
+      <span
+        aria-hidden={onClick ? true : undefined}
+        className="pointer-events-none relative flex flex-1 flex-col"
+      >
+        {body}
+      </span>
+      {tickIsButton && (
+        <CheckInButton
+          name={name}
+          checkedIn={checkedIn}
+          onToggle={onCheckIn}
+          className="absolute top-1 right-[3px]"
+        />
+      )}
+    </div>
   );
 }
 

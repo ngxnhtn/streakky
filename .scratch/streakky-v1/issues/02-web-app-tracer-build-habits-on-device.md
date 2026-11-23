@@ -10,20 +10,31 @@ This is the riskiest ticket, because TanStack DB is still a release candidate an
 
 **Blocked by:** 01 (Rename core to the glossary vocabulary)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The web app is a plain Vite single-page app with no server rendering. It opens straight into Home, and its dev script runs it.
-- [ ] A New habit flow creates a build habit from a name and a colour. New habits appear on Home after the existing ones.
-- [ ] The today button checks in and undoes. The current streak and its "day streak" label update immediately, and a habit with no current streak says "log today to start".
-- [ ] Habits and check-ins survive a reload, and the app keeps working with the network turned off once it's loaded. Opening it offline comes in 11.
-- [ ] Habits and day records follow the spec's synced data shape:
-  - [ ] ids generated on the device;
-  - [ ] an edit time for each field;
-  - [ ] day records with a logged flag, where removing a check-in writes `logged: false`.
-- [ ] Screens are built from UI package components and contain no storage code. They use only the habit store's commands and live queries.
-- [ ] The test harness can create a simulated device: a real habit store with in-memory persistence and a controlled clock. Tests cover:
-  - [ ] creating a build habit;
-  - [ ] checking in and undoing;
-  - [ ] the current streak as days pass;
-  - [ ] data surviving a restart of the store on the same storage.
-- [ ] `vp check` and `vp test` pass.
+- [x] The web app is a plain Vite single-page app with no server rendering. It opens straight into Home, and its dev script runs it.
+- [x] A New habit flow creates a build habit from a name and a colour. New habits appear on Home after the existing ones.
+- [x] The today button checks in and undoes. The current streak and its "day streak" label update immediately, and a habit with no current streak says "log today to start".
+- [x] Habits and check-ins survive a reload, and the app keeps working with the network turned off once it's loaded. Opening it offline comes in 11.
+- [x] Habits and day records follow the spec's synced data shape:
+  - [x] ids generated on the device;
+  - [x] an edit time for each field;
+  - [x] day records with a logged flag, where removing a check-in writes `logged: false`.
+- [x] Screens are built from UI package components and contain no storage code. They use only the habit store's commands and live queries.
+- [x] The test harness can create a simulated device: a real habit store with in-memory persistence and a controlled clock. Tests cover:
+  - [x] creating a build habit;
+  - [x] checking in and undoing;
+  - [x] the current streak as days pass;
+  - [x] data surviving a restart of the store on the same storage.
+- [x] `vp check` and `vp test` pass.
+
+## Comments
+
+**Done (2026-11-24).** Notes for later tickets:
+
+- **Checked in a real browser:** OPFS SQLite works under both `vp dev` and the production build (`vp build` + `vp preview`) in headless Chrome. Creating a habit, checking in and undoing all survive reloads and a full browser restart. With the network off after load, checking in and creating habits still work, and there were no console errors.
+- **Check-in from Home:** the card's tick is now its own 44px toggle (`CheckInButton` in the UI package), so a build habit is checked in from Home with one tap. `TodayButton` stays for the habit detail screen (04). List rows need the same toggle (noted in 05).
+- **Clock:** the store takes its edit times from the device clock (`Date.now()`), and tests control it with Vitest's fake `Date`. Ticket 14's "devices with different clocks" scenario will need a clock injected per device.
+- **Day records:** keyed by habit and day with no stored id, matching the spec's synced shape. `deleted` is a tombstone without an edit time (ADR-0002).
+- **Two tabs:** they share the browser database through TanStack's `BrowserCollectionCoordinator`.
+- **Bundle size:** the production bundle is 191 kB of gzipped JS plus 535 kB of gzipped SQLite wasm, which is worth revisiting for load time.

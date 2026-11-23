@@ -18,7 +18,7 @@ Settings belong to this device. They're stored separately from habit data, survi
 - [ ] Settings is reachable from Home, and back returns to Home.
 - [ ] Theme (light, dark or system) applies immediately, and "system" follows the operating system's appearance.
 - [ ] Choosing one of the five palettes recolours the app immediately.
-- [ ] The layout setting switches Home between grid and list.
+- [ ] The layout setting switches Home between grid and list. List rows keep the one-tap check-in that grid cards got in 02 (the tick is its own 44px button).
 - [ ] Week start (Monday or Sunday) is used by every calendar.
 - [ ] Settings live in device-local storage outside the habit store's synced data, and survive a reload.
 - [ ] `vp check` and `vp test` pass.

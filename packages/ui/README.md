@@ -82,16 +82,16 @@ ground, in both modes; every habit colour holds 4.6:1 or more on every ground.
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
 `@streakky/core` and callbacks, and keep no app state.
 
-| Component       | What it is                                                                              |
-| --------------- | --------------------------------------------------------------------------------------- |
-| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together            |
-| `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                              |
-| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `NewHabitTile`, `HabitCollection` |
-| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                       |
-| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                |
-| `stats`         | `HabitStats`: four tiles and the streaks chart                                          |
-| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                 |
-| `color-picker`  | `HabitColorPicker`                                                                      |
+| Component       | What it is                                                                                                                                 |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                               |
+| `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                                                                                 |
+| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `CheckInButton` (the tick as its own 44px toggle), `NewHabitTile`, `HabitCollection` |
+| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                          |
+| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                   |
+| `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                             |
+| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                    |
+| `color-picker`  | `HabitColorPicker`                                                                                                                         |
 
 Hooks: `@streakky/ui/hooks/use-tween` (`useTween`, `prefersReducedMotion`).
 
