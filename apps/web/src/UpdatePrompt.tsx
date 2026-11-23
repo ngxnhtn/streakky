@@ -1,4 +1,4 @@
-import { useId, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import { Button } from "@streakky/ui/components/button";
 import { cn } from "@streakky/ui/lib/utils";
 import { readyUpdate, subscribeToUpdates, type Update } from "./service-worker.ts";
@@ -8,14 +8,23 @@ const actionClasses = "h-11";
 
 /**
  * A one-line notice along the bottom of the window once a new version is ready: Reload switches
- * to it, Not now leaves it for a later open. It never takes focus, and it sits under the scrim of
- * an open dialog, so whatever is being typed there stays put until the person chooses.
+ * to it, Not now hides it until the app is opened again or comes back from the background. It
+ * never takes focus, and it sits under the scrim of an open dialog, so whatever is being typed
+ * there stays put until the person chooses.
  */
 export function UpdatePrompt() {
   const update = useSyncExternalStore(subscribeToUpdates, readyUpdate);
   // the update the person said "Not now" to; a newer one shows the notice again
   const [dismissed, setDismissed] = useState<Update | null>(null);
   const messageId = useId();
+  // coming back to the app (a phone app resumed, a tab shown again) offers a waiting update again
+  useEffect(() => {
+    const offerAgain = () => {
+      if (document.visibilityState === "visible") setDismissed(null);
+    };
+    document.addEventListener("visibilitychange", offerAgain);
+    return () => document.removeEventListener("visibilitychange", offerAgain);
+  }, []);
   const shown = update !== null && update !== dismissed;
   return (
     // always in the page, so screen readers announce what appears in it; the explicit aria-live
