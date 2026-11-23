@@ -1,9 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { registerServiceWorker } from "./service-worker.ts";
 import { openBrowserHabitStore } from "./store/browser.ts";
 import { HabitStoreProvider } from "./store/react.tsx";
 import "./styles.css";
+
+registerServiceWorker();
 
 const root = createRoot(document.getElementById("root")!);
 
