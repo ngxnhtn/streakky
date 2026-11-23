@@ -4,10 +4,13 @@ import { codeSentTo, emailsSentTo, online, startServer, type Server } from "./se
 
 const owner = "owner@example.com";
 const partner = "partner@example.com";
+// the signed-in device tests sign in often; their own address keeps them under the Worker's
+// per-address daily limit (ten codes a day) that the other tests also count against
+const regular = "regular@example.com";
 
 let server: Server;
 beforeAll(async () => {
-  server = await startServer({ allowlist: [owner, partner] });
+  server = await startServer({ allowlist: [owner, partner, regular] });
 });
 afterAll(() => server?.stop());
 
@@ -124,8 +127,8 @@ describe("a signed-in device", () => {
   const signedIn = async () => {
     const storage = createStorage();
     const device = await openDevice(storage, online(server));
-    await device.requestSignInCode(owner);
-    await device.signIn(owner, codeSentTo(server, owner));
+    await device.requestSignInCode(regular);
+    await device.signIn(regular, codeSentTo(server, regular));
     return { storage, device };
   };
 
@@ -134,7 +137,7 @@ describe("a signed-in device", () => {
     await device.close();
     const restarted = await openDevice(storage, online(server));
     await restarted.checkSession();
-    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: owner });
+    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: regular });
   });
 
   it("is still signed in after a restart with no server reachable", async () => {
@@ -142,7 +145,7 @@ describe("a signed-in device", () => {
     await device.close();
     const restarted = await openDevice(storage);
     await restarted.checkSession();
-    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: owner });
+    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: regular });
   });
 
   it("keeps its habits when it signs out", async () => {

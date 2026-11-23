@@ -26,6 +26,7 @@ export type SignInFailure =
   | "used-up-code"
   /** too many tries from this network for now */
   | "rate-limited"
+  | "limit-today"
   /** the server couldn't be reached */
   | "offline"
   /** the server failed */
@@ -144,8 +145,10 @@ export function openAccount({
 }
 
 async function failure(response: Response): Promise<SignInError> {
-  if (response.status === 429) return new SignInError("rate-limited");
   const body = (await response.json().catch(() => null)) as { code?: string } | null;
+  // the Worker's per-address daily limit (apps/api/src/auth.ts, TOO_MANY_TODAY)
+  if (body?.code === "TOO_MANY_SIGN_IN_ATTEMPTS_TODAY") return new SignInError("limit-today");
+  if (response.status === 429) return new SignInError("rate-limited");
   return new SignInError(FAILURES[body?.code ?? ""] ?? "server");
 }
 

@@ -22,6 +22,7 @@ const MESSAGES: Record<SignInFailure, string> = {
   "expired-code": "That code has expired. Send a new one.",
   "used-up-code": "That code has had too many wrong tries. Send a new one.",
   "rate-limited": "Too many tries for now. Wait a minute, then try again.",
+  "limit-today": "Too many sign-in tries for this address today. Try again tomorrow.",
   offline: "Streakky can't be reached. Check your connection and try again.",
   server: "Something went wrong on Streakky's side. Try again.",
 };

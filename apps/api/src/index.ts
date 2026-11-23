@@ -41,10 +41,26 @@ function authFor(request: Request, env: Env) {
         secret: env.BETTER_AUTH_SECRET,
         allowlist: env.SIGN_IN_ALLOWLIST,
         sendCode: (code) => sendSignInCode(env, code),
+        countAttempt: (email, path) => countAttempt(env.DB, email, path),
       }),
     };
   }
   return auth.instance;
+}
+
+/** Counts a sign-in step for an address in today's row (UTC), dropping rows from before yesterday. */
+async function countAttempt(db: D1Database, email: string, path: string): Promise<number> {
+  const day = Math.floor(Date.now() / 86_400_000);
+  const [, counted] = await db.batch<{ count: number }>([
+    db.prepare("DELETE FROM sign_in_attempts WHERE day < ?").bind(day - 1),
+    db
+      .prepare(
+        `INSERT INTO sign_in_attempts (email, path, day, count) VALUES (?, ?, ?, 1)
+         ON CONFLICT (email, path, day) DO UPDATE SET count = count + 1 RETURNING count`,
+      )
+      .bind(email, path, day),
+  ]);
+  return counted.results[0]?.count ?? 0;
 }
 
 /**

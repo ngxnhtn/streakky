@@ -20,7 +20,25 @@ export type AuthConfig = {
   /** The addresses that may sign in, separated by commas or spaces (the SIGN_IN_ALLOWLIST var). */
   allowlist: string;
   sendCode: (code: SignInCode) => Promise<void>;
+  /**
+   * Counts one sign-in step (`path`) for an address today, across every client IP, and returns
+   * today's count so far. The Worker keeps the counts in D1; without it there's no daily limit.
+   */
+  countAttempt?: (email: string, path: string) => Promise<number>;
 };
+
+/**
+ * Sign-in steps an address may take per UTC day, whatever IPs they come from. Per-IP limits
+ * alone let someone with many addresses keep guessing; with these, guessing a 6-digit code gets
+ * at most 20 tries a day. The cost: such an attacker can use up the owner's tries for the day.
+ */
+export const DAILY_LIMITS: Record<string, number> = {
+  "/email-otp/send-verification-otp": 10,
+  "/sign-in/email-otp": 20,
+};
+
+/** The code a refused address gets after using up today's sign-in steps. */
+export const TOO_MANY_TODAY = "TOO_MANY_SIGN_IN_ATTEMPTS_TODAY";
 
 /** The code a refused address gets, which the app tells apart from other failures. */
 export const NOT_ALLOWED = "EMAIL_NOT_ALLOWED";
@@ -76,6 +94,16 @@ export function authOptions(config: AuthConfig) {
         const body: unknown = ctx.body;
         if (typeof body !== "object" || body === null || !("email" in body)) return;
         if (!isAllowed(body.email)) throw notAllowed();
+        const limit = DAILY_LIMITS[ctx.path];
+        if (limit && config.countAttempt) {
+          const count = await config.countAttempt(String(body.email).toLowerCase(), ctx.path);
+          if (count > limit) {
+            throw new APIError("TOO_MANY_REQUESTS", {
+              code: TOO_MANY_TODAY,
+              message: "Too many sign-in tries for this address today. Try again tomorrow.",
+            });
+          }
+        }
         if (
           ctx.path === "/email-otp/send-verification-otp" &&
           "type" in body &&
@@ -103,10 +131,9 @@ export function authOptions(config: AuthConfig) {
       customRules: {
         // read-only and asked on every app start: not worth a D1 write each time
         "/get-session": false,
-        // more than the plugin's 3 a minute, so a fourth try at a code used up by three wrong
-        // ones hears that, not "wait a minute"; guessing stays capped by 3 tries a code and
-        // 3 codes a minute
-        "/sign-in/email-otp": { window: 60, max: 10 },
+        // one more than the 3 tries a code allows, so a fourth try at a used-up code hears
+        // that rather than "wait a minute"; DAILY_LIMITS caps tries across every IP
+        "/sign-in/email-otp": { window: 60, max: 4 },
       },
     },
     advanced: {
