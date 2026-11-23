@@ -1,22 +1,38 @@
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { Home } from "./screens/Home.tsx";
+import { Settings } from "./screens/Settings.tsx";
+import { ScreenStack, type Route } from "./screens/stack.tsx";
+import { useSettings } from "./store/react.tsx";
 
-/** The phone layout: one screen filling the window. Colours follow the system until Settings exist. */
+/** The phone layout: a stack of screens filling the window, in this device's theme and palette. */
 export function App() {
-  const dark = useMedia("(prefers-color-scheme: dark)");
+  const { theme, palette } = useSettings();
+  const systemDark = useMedia("(prefers-color-scheme: dark)");
+  const dark = theme === "dark" || (theme === "system" && systemDark);
+
+  // the design system reads its theme from the page: data-palette and the dark class
   useLayoutEffect(() => {
     const root = document.documentElement;
-    root.dataset.palette = "teal";
+    root.dataset.palette = palette;
     root.classList.toggle("dark", dark);
     const ground = getComputedStyle(root).getPropertyValue("--background").trim();
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", ground);
-  }, [dark]);
+  }, [palette, dark]);
 
   return (
-    <div className="flex h-dvh flex-col bg-background text-[15px] leading-[1.4] text-foreground transition-colors duration-300">
-      <Home />
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[15px] leading-[1.4] text-foreground transition-colors duration-300">
+      <ScreenStack screen={screenOf} />
     </div>
   );
+}
+
+function screenOf(route: Route): ReactNode {
+  switch (route.name) {
+    case "home":
+      return <Home />;
+    case "settings":
+      return <Settings />;
+  }
 }
 
 function useMedia(query: string): boolean {

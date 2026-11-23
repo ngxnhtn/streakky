@@ -4,7 +4,15 @@ import {
   type PersistedCollectionPersistence,
 } from "@tanstack/db-sqlite-persistence-core";
 import { generateKeyBetween } from "fractional-indexing";
-import { canToggle, todayISO, type ColorId, type Habit, type Kind } from "@streakky/core";
+import {
+  canToggle,
+  defaultSettings,
+  todayISO,
+  type ColorId,
+  type Habit,
+  type Kind,
+  type Settings,
+} from "@streakky/core";
 
 /** The habit fields a device can change; each keeps the device time of its last change, for sync. */
 export const EDITABLE_FIELDS = ["name", "color", "goal", "quitDay", "archived", "order"] as const;
@@ -54,17 +62,56 @@ export type HabitStore = {
   toggleDay(habitId: string, day?: string): Promise<void>;
   /** Active habits in the person's order. The same array until something changes. */
   habits: () => Habit[];
+  /** Changes some of this device's settings; the rest stay as they are. */
+  changeSettings(change: Partial<Settings>): void;
+  /** This device's settings: never synced, kept on sign-out. The same object until one changes. */
+  settings: () => Settings;
   subscribe: (listener: () => void) => () => void;
   /** Stops the store; its data stays on the device for the next open. */
   close(): Promise<void>;
 };
 
-export type HabitStoreOptions = { persistence: PersistedCollectionPersistence };
+/**
+ * Device-local key-value storage, such as the browser's localStorage. Device settings live here,
+ * apart from the habit and day records, so they are never synced and they survive sign-out.
+ */
+export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+
+export type HabitStoreOptions = {
+  persistence: PersistedCollectionPersistence;
+  keyValueStorage: KeyValueStorage;
+};
+
+const SETTINGS_KEY = "streakky.settings";
+
+/**
+ * The stored settings over the defaults, so settings added later start at their default.
+ * Unreadable or blocked storage gives `fallback` rather than failing.
+ */
+function readSettings(storage: KeyValueStorage, fallback = defaultSettings): Settings {
+  try {
+    const stored: unknown = JSON.parse(storage.getItem(SETTINGS_KEY) ?? "{}");
+    return typeof stored === "object" ? { ...defaultSettings, ...stored } : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeSettings(storage: KeyValueStorage, settings: Settings) {
+  try {
+    storage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // full or blocked storage: the change still applies until the app is reopened
+  }
+}
 
 const byOrder = (a: HabitRecord, b: HabitRecord) =>
   a.order < b.order ? -1 : a.order > b.order ? 1 : 0;
 
-export async function openHabitStore({ persistence }: HabitStoreOptions): Promise<HabitStore> {
+export async function openHabitStore({
+  persistence,
+  keyValueStorage,
+}: HabitStoreOptions): Promise<HabitStore> {
   const habitRecords = createCollection(
     persistedCollectionOptions<HabitRecord, string>({
       id: "habits",
@@ -82,6 +129,7 @@ export async function openHabitStore({ persistence }: HabitStoreOptions): Promis
     }),
   );
   await Promise.all([habitRecords.preload(), dayRecords.preload()]);
+  let settings = readSettings(keyValueStorage);
 
   let snapshot: Habit[] | null = null;
   const listeners = new Set<() => void>();
@@ -146,7 +194,14 @@ export async function openHabitStore({ persistence }: HabitStoreOptions): Promis
         : dayRecords.insert({ habitId, day, logged: true, edited: Date.now() });
       await tx.when("settled");
     },
+    changeSettings(change) {
+      // onto the stored settings, not this store's copy, so a change made in another tab stays
+      settings = { ...readSettings(keyValueStorage, settings), ...change };
+      writeSettings(keyValueStorage, settings);
+      for (const listener of listeners) listener();
+    },
     habits,
+    settings: () => settings,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

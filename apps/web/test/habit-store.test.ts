@@ -54,6 +54,40 @@ describe("a device on its own", () => {
   });
 });
 
+describe("device settings", () => {
+  it("start with the system theme, teal palette, grid layout and Monday weeks", async () => {
+    const device = await openDevice(createStorage());
+    expect(device.settings()).toMatchObject({
+      theme: "system",
+      palette: "teal",
+      layout: "grid",
+      weekStart: 1,
+    });
+  });
+
+  it("change straight away, and the screens hear of it", async () => {
+    const device = await openDevice(createStorage());
+    const heard: string[] = [];
+    device.subscribe(() => heard.push(device.settings().theme));
+    device.changeSettings({ theme: "dark" });
+    expect([heard, device.settings()]).toMatchObject([
+      ["dark"],
+      { theme: "dark", palette: "teal", layout: "grid", weekStart: 1 },
+    ]);
+  });
+
+  it("keep a change made in another tab when this tab changes a different one", async () => {
+    const storage = createStorage();
+    const [tab, otherTab] = [await openDevice(storage), await openDevice(storage)];
+    otherTab.changeSettings({ theme: "dark" });
+    tab.changeSettings({ palette: "olive" });
+    await Promise.all([tab.close(), otherTab.close()]);
+
+    const reopened = await openDevice(storage);
+    expect(reopened.settings()).toMatchObject({ theme: "dark", palette: "olive" });
+  });
+});
+
 describe("a device after a restart", () => {
   it("still has its habits and check-ins", async () => {
     const storage = createStorage();
@@ -64,5 +98,21 @@ describe("a device after a restart", () => {
 
     const after = await openDevice(storage);
     expect(after.habits()).toMatchObject([{ name: "Morning run", checkIns: ["2026-11-24"] }]);
+  });
+
+  it("still has its settings", async () => {
+    const storage = createStorage();
+    const before = await openDevice(storage);
+    before.changeSettings({ theme: "dark", palette: "oxblood" });
+    before.changeSettings({ layout: "list", weekStart: 0 });
+    await before.close();
+
+    const after = await openDevice(storage);
+    expect(after.settings()).toMatchObject({
+      theme: "dark",
+      palette: "oxblood",
+      layout: "list",
+      weekStart: 0,
+    });
   });
 });

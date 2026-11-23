@@ -26,11 +26,14 @@ export function CheckInButton({
   checkedIn,
   onToggle,
   className,
+  tickClassName,
 }: {
   name: string;
   checkedIn: boolean;
   onToggle: () => void;
   className?: string;
+  /** sizes the tick inside the 44px target */
+  tickClassName?: string;
 }) {
   return (
     <button
@@ -47,7 +50,7 @@ export function CheckInButton({
         className,
       )}
     >
-      <CheckInTick checkedIn={checkedIn} />
+      <CheckInTick checkedIn={checkedIn} className={tickClassName} />
     </button>
   );
 }
@@ -169,44 +172,92 @@ export function HabitCard({
   );
 }
 
-/** List face: the name and today's state on the left, the count on the right. */
+/**
+ * List face: the name and today's state on the left, the count on the right.
+ * With `onCheckIn`, a build habit's tick becomes its own button, as on `HabitCard`.
+ */
 export function HabitRow({
-  name,
-  days,
-  label,
-  kind,
-  color,
-  checkedIn,
+  onCheckIn,
   status,
-  onClick,
-  className,
-}: HabitFace & { status: string }) {
-  return (
-    <button
-      type="button"
-      data-slot="habit-row"
-      data-habit-color={color}
-      onClick={onClick}
-      className={cn(
-        tile,
-        "flex min-h-[76px] items-center justify-between gap-4 rounded-[20px] px-[18px] py-3",
-        className,
-      )}
-    >
+  ...face
+}: Omit<HabitFace, "onClick"> & { status: string; onClick?: () => void; onCheckIn?: () => void }) {
+  const { name, days, label, kind, color, checkedIn, onClick, className } = face;
+  const tickIsButton = kind === "build" && onCheckIn !== undefined;
+  // with an open button over the row, it names the habit and the text is hidden from readers;
+  // the tick button sits in the text, so the text is hidden span by span
+  const hideText = tickIsButton && onClick ? true : undefined;
+  const body = (
+    <>
       <span className="flex min-w-0 flex-col gap-1">
-        <span className="truncate text-base font-medium">{name}</span>
+        <span aria-hidden={hideText} className="truncate text-base font-medium">
+          {name}
+        </span>
         <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
-          {kind === "build" && <CheckInTick checkedIn={checkedIn} className="size-4" />}
-          {status}
+          {kind === "build" &&
+            (tickIsButton ? (
+              // the 44px target overhangs the 16px tick, so the line keeps its height
+              <CheckInButton
+                name={name}
+                checkedIn={checkedIn}
+                onToggle={onCheckIn}
+                tickClassName="size-4"
+                className="pointer-events-auto -m-3.5"
+              />
+            ) : (
+              <CheckInTick checkedIn={checkedIn} className="size-4" />
+            ))}
+          <span aria-hidden={hideText}>{status}</span>
         </span>
       </span>
-      <span className="flex flex-none flex-col items-end gap-0.5">
+      <span aria-hidden={hideText} className="flex flex-none flex-col items-end gap-0.5">
         <span className="font-display text-[34px] leading-[0.95] font-medium tracking-[-0.04em] text-habit tabular-nums [font-stretch:96%]">
           {days}
         </span>
         <span className="text-xs text-muted-foreground">{label}</span>
       </span>
-    </button>
+    </>
+  );
+  const shape =
+    "flex min-h-[76px] items-center justify-between gap-4 rounded-[20px] px-[18px] py-3";
+
+  if (!tickIsButton && onClick) {
+    return (
+      <button
+        type="button"
+        data-slot="habit-row"
+        data-habit-color={color}
+        onClick={onClick}
+        className={cn(tile, shape, className)}
+      >
+        {body}
+      </button>
+    );
+  }
+  return (
+    <div
+      data-slot="habit-row"
+      data-habit-color={color}
+      className={cn(
+        tileGround,
+        "relative",
+        onClick && [tileLift, "has-[>[data-slot=habit-open]:active]:scale-[0.98]"],
+        shape,
+        className,
+      )}
+    >
+      {onClick && (
+        <button
+          type="button"
+          data-slot="habit-open"
+          onClick={onClick}
+          aria-label={summaryOf(face)}
+          className={cn("absolute inset-0 rounded-[inherit]", focusRing)}
+        />
+      )}
+      <span className="pointer-events-none relative flex min-w-0 flex-1 items-center justify-between gap-4">
+        {body}
+      </span>
+    </div>
   );
 }
 

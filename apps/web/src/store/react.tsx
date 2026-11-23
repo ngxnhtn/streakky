@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
-import type { Habit } from "@streakky/core";
+import type { Habit, Settings } from "@streakky/core";
 import type { HabitStore } from "./habit-store.ts";
 
 const StoreContext = createContext<HabitStore | null>(null);
@@ -25,4 +25,10 @@ export function useHabitStore(): HabitStore {
 export function useHabits(): Habit[] {
   const store = useHabitStore();
   return useSyncExternalStore(store.subscribe, store.habits);
+}
+
+/** This device's settings; the screen re-renders whenever one changes. */
+export function useSettings(): Settings {
+  const store = useHabitStore();
+  return useSyncExternalStore(store.subscribe, store.settings);
 }
