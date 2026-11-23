@@ -1,0 +1,13 @@
+{
+  "name": "@streakky/core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Streakky's streak model: types, dates, runs, goals and sample data. No UI.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

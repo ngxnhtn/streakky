@@ -1,0 +1,339 @@
+/*
+  Streakky design system: tokens.
+
+  Import once per app:   @import "@streakky/ui/globals.css";
+  Load the fonts in the app's HTML: Instrument Sans (wdth 75..100, wght 400..700) and DM Mono (400, 500).
+
+  Three switches, each an attribute or class on any element (they cascade to its subtree):
+    data-palette="teal|cobalt|olive|oxblood|graphite"   the app colour theme (default teal)
+    class="dark"                                        dark mode (the palette's ink becomes the ground)
+    data-streak-color="teal|red|blue|ochre|rose|green"  one streak's colour, read as bg-streak, text-streak …
+
+  The palettes are two-tone sets from the design library (one ink on one paper), each with a
+  dark set. Every pair holds 4.5:1 or more for muted text on surfaces, 8:1 or more for ink on
+  the ground. Streak colours hold 4.6:1 or more on every ground.
+*/
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* this package's components; apps add their own sources automatically */
+@source "../";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────── App colour themes (raw palette) ───────────── */
+
+:root,
+[data-palette="teal"] {
+  --p-bg: #f7f9f8;
+  --p-surface: #ebf0ee;
+  --p-ink: #06525c;
+  --p-muted: #2f737d;
+  --p-inv-bg: #06525c;
+  --p-inv-surface: #205d66;
+  --p-inv-ink: #f7f9f8;
+  --p-inv-muted: #c1d0d2;
+}
+[data-palette="cobalt"] {
+  --p-bg: #e6dbc7;
+  --p-surface: #ddd0b9;
+  --p-ink: #062b8a;
+  --p-muted: #31509e;
+  --p-inv-bg: #062b8a;
+  --p-inv-surface: #1e3f96;
+  --p-inv-ink: #efe7d8;
+  --p-inv-muted: #bcc6e6;
+}
+[data-palette="olive"] {
+  --p-bg: #ecebe7;
+  --p-surface: #e1dfd9;
+  --p-ink: #38450f;
+  --p-muted: #535e30;
+  --p-inv-bg: #2f3a0c;
+  --p-inv-surface: #414d1d;
+  --p-inv-ink: #ecebe7;
+  --p-inv-muted: #c6cab2;
+}
+[data-palette="oxblood"] {
+  --p-bg: #e2e2e2;
+  --p-surface: #d6d6d6;
+  --p-ink: #7d0c14;
+  --p-muted: #7a4a4e;
+  --p-inv-bg: #6e0b12;
+  --p-inv-surface: #842229;
+  --p-inv-ink: #efe9e9;
+  --p-inv-muted: #e2bcbe;
+}
+[data-palette="graphite"] {
+  --p-bg: #f6f6f4;
+  --p-surface: #ebebe8;
+  --p-ink: #161616;
+  --p-muted: #5c5c59;
+  --p-inv-bg: #141414;
+  --p-inv-surface: #242424;
+  --p-inv-ink: #f1f1ee;
+  --p-inv-muted: #a8a8a4;
+}
+
+/* ───────────── Semantic tokens (shadcn names) ───────────── */
+
+/* resolved again on every [data-palette] element, so a subtree can carry its own theme */
+:root,
+[data-palette] {
+  --background: var(--p-bg);
+  --foreground: var(--p-ink);
+  --card: var(--p-bg);
+  --card-foreground: var(--p-ink);
+  --popover: var(--p-bg);
+  --popover-foreground: var(--p-ink);
+  --primary: var(--p-ink);
+  --primary-foreground: var(--p-bg);
+  --primary-hover: color-mix(in oklab, var(--p-ink) 82%, black);
+  --secondary: var(--p-surface);
+  --secondary-foreground: var(--p-ink);
+  --muted: var(--p-surface);
+  --muted-foreground: var(--p-muted);
+  --accent: color-mix(in oklab, var(--p-ink) 5%, var(--p-surface));
+  --accent-foreground: var(--p-ink);
+  --press: color-mix(in oklab, var(--p-ink) 10%, var(--p-surface));
+  --destructive: #b3261e;
+  --destructive-foreground: #ffffff;
+  --border: color-mix(in oklab, var(--p-ink) 12%, transparent);
+  --input: color-mix(in oklab, var(--p-ink) 26%, transparent);
+  --ring: var(--p-ink);
+  --scrim: color-mix(in oklab, var(--p-ink) 34%, transparent);
+  /* a streak's own colour; data-streak-color sets it, the primary ink otherwise */
+  --streak: var(--p-ink);
+  --streak-foreground: #ffffff;
+  --radius: 1.25rem;
+  color-scheme: light;
+}
+
+.dark,
+.dark [data-palette] {
+  --background: var(--p-inv-bg);
+  --foreground: var(--p-inv-ink);
+  --card: var(--p-inv-bg);
+  --card-foreground: var(--p-inv-ink);
+  --popover: color-mix(in oklab, var(--p-inv-ink) 6%, var(--p-inv-bg));
+  --popover-foreground: var(--p-inv-ink);
+  --primary: var(--p-inv-ink);
+  --primary-foreground: var(--p-inv-bg);
+  --primary-hover: color-mix(in oklab, var(--p-inv-ink) 88%, var(--p-inv-bg));
+  --secondary: var(--p-inv-surface);
+  --secondary-foreground: var(--p-inv-ink);
+  --muted: var(--p-inv-surface);
+  --muted-foreground: var(--p-inv-muted);
+  --accent: color-mix(in oklab, var(--p-inv-ink) 5%, var(--p-inv-surface));
+  --accent-foreground: var(--p-inv-ink);
+  --press: color-mix(in oklab, var(--p-inv-ink) 10%, var(--p-inv-surface));
+  --destructive: #ffb4ab;
+  --destructive-foreground: #4a0b06;
+  --border: color-mix(in oklab, var(--p-inv-ink) 12%, transparent);
+  --input: color-mix(in oklab, var(--p-inv-ink) 26%, transparent);
+  --ring: var(--p-inv-ink);
+  --scrim: rgb(0 0 0 / 0.45);
+  --streak: var(--p-inv-ink);
+  --streak-foreground: var(--p-inv-bg);
+  color-scheme: dark;
+}
+
+/* ───────────── Streak colours (light, then dark) ───────────── */
+
+[data-streak-color="teal"] {
+  --streak: #06525c;
+}
+[data-streak-color="red"] {
+  --streak: #b3372b;
+}
+[data-streak-color="blue"] {
+  --streak: #2453a0;
+}
+[data-streak-color="ochre"] {
+  --streak: #7a5900;
+}
+[data-streak-color="rose"] {
+  --streak: #a12e72;
+}
+[data-streak-color="green"] {
+  --streak: #2f6b2a;
+}
+:where(.dark) [data-streak-color="teal"],
+[data-streak-color="teal"]:where(.dark) {
+  --streak: #f7f9f8;
+}
+:where(.dark) [data-streak-color="red"],
+[data-streak-color="red"]:where(.dark) {
+  --streak: #ffa597;
+}
+:where(.dark) [data-streak-color="blue"],
+[data-streak-color="blue"]:where(.dark) {
+  --streak: #a9c8f5;
+}
+:where(.dark) [data-streak-color="ochre"],
+[data-streak-color="ochre"]:where(.dark) {
+  --streak: #efd27a;
+}
+:where(.dark) [data-streak-color="rose"],
+[data-streak-color="rose"]:where(.dark) {
+  --streak: #f6b0dc;
+}
+:where(.dark) [data-streak-color="green"],
+[data-streak-color="green"]:where(.dark) {
+  --streak: #b4dea0;
+}
+
+/* ───────────── Tailwind theme ───────────── */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-hover: var(--primary-hover);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-press: var(--press);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-scrim: var(--scrim);
+  --color-streak: var(--streak);
+  --color-streak-foreground: var(--streak-foreground);
+
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  /* Tailwind's radius scale stays as it is (lg 8px, 2xl 16px, 3xl 24px); components set their
+     own radii: pills rounded-full, tiles 20px, cards 24-28px, sheets 32px */
+
+  /* motion: one ease for UI steps, one for entrances */
+  --ease-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-enter: cubic-bezier(0.22, 1, 0.36, 1);
+
+  --animate-push-in: push-in 340ms var(--ease-enter) both;
+  --animate-push-in-left: push-in-left 340ms var(--ease-enter) both;
+  --animate-push-out: push-out 260ms var(--ease-ui) both;
+  --animate-push-out-left: push-out-left 260ms var(--ease-ui) both;
+  --animate-sheet-in: sheet-in 380ms var(--ease-enter) both;
+  --animate-sheet-out: sheet-out 200ms var(--ease-ui) both;
+  --animate-dialog-in: dialog-in 280ms var(--ease-enter) both;
+  --animate-dialog-out: dialog-out 160ms var(--ease-ui) both;
+  --animate-fade-in: fade-in 240ms var(--ease-ui) both;
+  --animate-fade-out: fade-out 200ms var(--ease-ui) both;
+  --animate-rise: rise 200ms var(--ease-ui) both;
+  --animate-tick-pop: tick-pop 420ms var(--ease-enter);
+
+  @keyframes push-in {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes push-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes push-out {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes push-out-left {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(calc(100% + 24px));
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      transform: translateY(calc(100% + 24px));
+    }
+  }
+  /* the centring lives in Tailwind's translate property, so these only move and scale */
+  @keyframes dialog-in {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.97);
+    }
+  }
+  @keyframes dialog-out {
+    to {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+  @keyframes tick-pop {
+    0% {
+      transform: scale(0.6);
+    }
+    60% {
+      transform: scale(1.12);
+    }
+  }
+}
+
+/* pointer-only hover: hover styles never stick on touch */
+@custom-variant hover-fine {
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      @slot;
+    }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}

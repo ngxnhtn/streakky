@@ -1,0 +1,9 @@
+/* Tailwind, tokens, colour themes and dark mode come from the design system */
+@import "@streakky/ui/globals.css";
+
+@layer base {
+  html,
+  body {
+    min-height: 100%;
+  }
+}
