@@ -60,7 +60,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
   };
 
   return (
-    <form className="grid gap-[18px]" onSubmit={submit} noValidate>
+    <form className="grid gap-[1.125rem]" onSubmit={submit} noValidate>
       <div className="grid gap-2">
         <Segmented
           label="Kind of habit"
@@ -71,7 +71,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
             { value: "quit", label: "Quit a habit" },
           ]}
         />
-        <p className="text-[13px] text-muted-foreground">{HINT[kind]}</p>
+        <p className="text-[0.8125rem] text-muted-foreground">{HINT[kind]}</p>
       </div>
       <Field label="Name" error={error}>
         {({ id, describedBy, invalid }) => (

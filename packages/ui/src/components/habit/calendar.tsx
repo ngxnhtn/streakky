@@ -82,13 +82,13 @@ export function HabitCalendar({
 
   return (
     <div data-slot="habit-calendar" className={className}>
-      <div className="mb-[18px] flex items-center justify-between gap-3">
+      <div className="mb-[1.125rem] flex items-center justify-between gap-3">
         <Segmented
           size="xs"
           label="Calendar view"
           value={view}
           onValueChange={onViewChange}
-          className="w-[168px]"
+          className="w-[10.5rem]"
           options={[
             { value: "weeks", label: "Weeks" },
             { value: "month", label: "Month" },
@@ -105,7 +105,7 @@ export function HabitCalendar({
         </Button>
       </div>
       {editing && (
-        <p className="-mt-1.5 mb-4 text-[13px] text-muted-foreground">
+        <p className="-mt-1.5 mb-4 text-[0.8125rem] text-muted-foreground">
           {habit.kind === "build"
             ? "Tap a day to check in or undo it."
             : "Tap a day to log a slip on it, or tap again to remove it."}
@@ -124,14 +124,14 @@ export function HabitCalendar({
         <MonthGrid firstDay={firstDay} weekStart={weekStart} info={info} cell={cell} />
       )}
 
-      <ul className="mt-[18px] flex flex-wrap gap-x-[18px] gap-y-2 text-[13px] text-muted-foreground">
+      <ul className="mt-[1.125rem] flex flex-wrap gap-x-[1.125rem] gap-y-2 text-[0.8125rem] text-muted-foreground">
         <li className="flex items-center gap-2">
           <i className="h-2.5 w-4 rounded-full bg-habit" />
           {habit.kind === "quit" ? "Clean day" : "Check-in"}
         </li>
         {habit.kind === "quit" ? (
           <li className="flex items-center gap-2">
-            <i className="mx-1.5 size-[5px] rounded-full bg-habit" />
+            <i className="mx-1.5 size-[0.3125rem] rounded-full bg-habit" />
             Slip
           </li>
         ) : (
@@ -192,7 +192,7 @@ function Day({
 }
 
 const slipDot =
-  "after:absolute after:left-1/2 after:size-[5px] after:-translate-x-1/2 after:rounded-full after:bg-habit";
+  "after:absolute after:left-1/2 after:size-[0.3125rem] after:-translate-x-1/2 after:rounded-full after:bg-habit";
 
 function WeeksGrid({
   firstDay,
@@ -234,17 +234,17 @@ function WeeksGrid({
     if (el) el.scrollLeft = el.scrollWidth;
   }, []);
 
-  const rows = "grid grid-rows-[18px_repeat(7,28px)] gap-1";
+  const rows = "grid grid-rows-[1.125rem_repeat(7,1.75rem)] gap-1";
   return (
     <div className="-mr-1 flex gap-2">
       <div
         ref={scroller}
-        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,#000_20px)] [&::-webkit-scrollbar]:hidden"
+        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,#000_1.25rem)] [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex w-max gap-1 pl-4">
           {cols.map((c, i) => (
             <div key={toISO(c)} className={cn(rows, "w-7")}>
-              <span className="self-end font-mono text-[10px] whitespace-nowrap text-muted-foreground">
+              <span className="self-end font-mono text-[0.625rem] whitespace-nowrap text-muted-foreground">
                 {labelOf(i)}
               </span>
               {Array.from({ length: 7 }, (_, j) => {
@@ -257,14 +257,14 @@ function WeeksGrid({
                     d={d}
                     ctx={cell}
                     className={cn(
-                      "relative grid size-7 place-items-center rounded-lg text-[11px] tabular-nums transition-[background-color,box-shadow,transform,translate,scale] duration-120",
+                      "relative grid size-7 place-items-center rounded-lg text-[0.6875rem] tabular-nums transition-[background-color,box-shadow,transform,translate,scale] duration-120",
                       d.inStreak
                         ? "bg-habit text-habit-foreground"
                         : "bg-muted text-muted-foreground",
                       d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
                       d.isToday &&
                         d.inStreak &&
-                        "shadow-[inset_0_0_0_2px_var(--habit),inset_0_0_0_3.5px_var(--habit-foreground)]",
+                        "shadow-[inset_0_0_0_2px_var(--habit),inset_0_0_0_0.21875rem_var(--habit-foreground)]",
                       d.slip && cn(slipDot, "after:bottom-0.5"),
                       cell.editing &&
                         d.editable &&
@@ -282,7 +282,10 @@ function WeeksGrid({
       <div aria-hidden="true" className={cn(rows, "flex-none")}>
         <span />
         {rotate(NAMES, weekStart).map((n) => (
-          <span key={n} className="flex items-center font-mono text-[10px] text-muted-foreground">
+          <span
+            key={n}
+            className="flex items-center font-mono text-[0.625rem] text-muted-foreground"
+          >
             {n}
           </span>
         ))}
@@ -314,7 +317,7 @@ function MonthGrid({
   const go = (n: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + n, 1));
 
   return (
-    <div className="max-w-[460px]">
+    <div className="max-w-[28.75rem]">
       <div className="-mt-2 mb-1.5 -mr-2.5 flex items-center justify-between">
         <p className="text-lg font-medium tracking-[-0.01em]">{monthFmt.format(month)}</p>
         <div className="flex">
@@ -352,7 +355,7 @@ function MonthGrid({
             return (
               <span
                 key={toISO(date)}
-                className="grid h-[42px] place-items-center text-[15px] text-muted-foreground opacity-45"
+                className="grid h-[2.625rem] place-items-center text-[0.9375rem] text-muted-foreground opacity-45"
               >
                 {date.getDate()}
               </span>
@@ -368,7 +371,7 @@ function MonthGrid({
               d={d}
               ctx={cell}
               className={cn(
-                "relative grid h-[42px] place-items-center text-[15px] tabular-nums",
+                "relative grid h-[2.625rem] place-items-center text-[0.9375rem] tabular-nums",
                 cell.editing &&
                   d.editable &&
                   "active:[&>span]:scale-90 hover-fine:[&>span]:shadow-[inset_0_0_0_1.5px_var(--foreground)]",
@@ -381,7 +384,7 @@ function MonthGrid({
             >
               <span
                 className={cn(
-                  "relative z-10 grid size-[34px] place-items-center rounded-full transition-[box-shadow,transform,translate,scale] duration-120",
+                  "relative z-10 grid size-[2.125rem] place-items-center rounded-full transition-[box-shadow,transform,translate,scale] duration-120",
                   d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
                   d.isToday && d.inStreak && "bg-habit-foreground text-habit shadow-none",
                 )}

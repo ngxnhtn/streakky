@@ -20,7 +20,7 @@ export function App() {
   }, [palette, dark]);
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[15px] leading-[1.4] text-foreground transition-colors duration-300">
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
       <ScreenStack screen={screenOf} />
     </div>
   );

@@ -88,7 +88,7 @@ export function Detail({ id }: { id: string }) {
               ))}
             </TabsList>
           </div>
-          <TabsContent value="calendar" className="min-h-[380px] px-5 pt-6">
+          <TabsContent value="calendar" className="min-h-[23.75rem] px-5 pt-6">
             <HabitCalendar
               habit={habit}
               weekStart={settings.weekStart}
@@ -97,10 +97,10 @@ export function Detail({ id }: { id: string }) {
               onToggleDay={(day) => dispatch({ type: "toggle-day", id, day })}
             />
           </TabsContent>
-          <TabsContent value="stats" className="min-h-[380px] px-5 pt-6">
+          <TabsContent value="stats" className="min-h-[23.75rem] px-5 pt-6">
             <HabitStats habit={habit} />
           </TabsContent>
-          <TabsContent value="goal" className="min-h-[380px] px-5 pt-6">
+          <TabsContent value="goal" className="min-h-[23.75rem] px-5 pt-6">
             <HabitGoal
               habit={habit}
               onGoalChange={(goal) => dispatch({ type: "goal", id, goal })}

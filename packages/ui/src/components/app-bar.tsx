@@ -16,7 +16,10 @@ export function AppBar({
   return (
     <div
       data-slot="app-bar"
-      className={cn("grid h-14 flex-none grid-cols-[56px_1fr_56px] items-center px-2", className)}
+      className={cn(
+        "grid h-14 flex-none grid-cols-[3.5rem_1fr_3.5rem] items-center px-2",
+        className,
+      )}
     >
       <div>{left}</div>
       {title ? <p className="truncate text-center text-base font-medium">{title}</p> : <span />}

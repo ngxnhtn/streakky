@@ -39,7 +39,7 @@ function ToggleChip({
     <ToggleGroupPrimitive.Item
       data-slot="toggle-chip"
       className={cn(
-        "inline-flex h-11 min-w-14 items-center justify-center gap-1 rounded-full border border-input px-4 text-[15px] font-medium tabular-nums",
+        "inline-flex h-11 min-w-14 items-center justify-center gap-1 rounded-full border border-input px-4 text-[0.9375rem] font-medium tabular-nums",
         "transition-[background-color,border-color,color,transform,translate,scale] duration-120 ease-ui outline-hidden",
         "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring",
         "active:scale-96 active:duration-90 hover-fine:border-foreground",

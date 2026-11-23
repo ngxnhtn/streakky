@@ -61,6 +61,13 @@ Tokens follow shadcn's names (`bg-background`, `text-foreground`, `bg-muted`,
 Every palette holds 4.5:1 or more for muted text on surfaces and 8:1 or more for ink on the
 ground, in both modes; every habit colour holds 4.6:1 or more on every ground.
 
+## Units
+
+Everything is sized in rem (Tailwind's scale, or arbitrary values such as `text-[0.8125rem]`), so the
+whole interface grows with the reader's browser text size. Only hairlines of 2px or less (borders,
+outlines, inset ring strokes, the 1px hover and press steps) stay in px. Tap targets are at least
+2.75rem (`size-11`), which is 44px at the default size.
+
 ## Components
 
 `@streakky/ui/components/…`
@@ -85,16 +92,16 @@ ground, in both modes; every habit colour holds 4.6:1 or more on every ground.
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
 `@streakky/core` and callbacks, and keep no app state.
 
-| Component       | What it is                                                                                                                                        |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                      |
-| `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                                                                                        |
-| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `CheckInButton`, `SlipIcon`, `SlipButton` (44px toggles), `NewHabitTile`, `HabitCollection` |
-| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                                 |
-| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                          |
-| `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                    |
-| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                           |
-| `color-picker`  | `HabitColorPicker`                                                                                                                                |
+| Component       | What it is                                                                                                                                           |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                         |
+| `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                                                                                           |
+| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `CheckInButton`, `SlipIcon`, `SlipButton` (2.75rem toggles), `NewHabitTile`, `HabitCollection` |
+| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                                    |
+| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                             |
+| `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                       |
+| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                              |
+| `color-picker`  | `HabitColorPicker`                                                                                                                                   |
 
 Hooks: `@streakky/ui/hooks/use-tween` (`useTween`, `prefersReducedMotion`).
 

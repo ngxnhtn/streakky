@@ -97,7 +97,7 @@ export function SettingsBody({ className }: { className?: string }) {
             />
           </ListItem>
           <ListItem className={cn(!settings.reminder && "[&>*]:opacity-40")}>
-            <label htmlFor={timeId} className="text-[15px] font-medium">
+            <label htmlFor={timeId} className="text-[0.9375rem] font-medium">
               Time
             </label>
             <input
@@ -106,7 +106,7 @@ export function SettingsBody({ className }: { className?: string }) {
               value={settings.reminderTime}
               disabled={!settings.reminder}
               onChange={(e) => set({ reminderTime: e.target.value })}
-              className="min-h-9 border-0 bg-transparent text-right text-[15px] text-foreground tabular-nums"
+              className="min-h-9 border-0 bg-transparent text-right text-[0.9375rem] text-foreground tabular-nums"
             />
           </ListItem>
           <ListItem>

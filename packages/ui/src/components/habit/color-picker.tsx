@@ -25,7 +25,7 @@ export function HabitColorPicker({
           value={c.id}
           aria-label={c.name}
           data-habit-color={c.id}
-          className="grid size-12 place-items-center rounded-full outline-hidden transition-transform duration-120 before:size-[30px] before:rounded-full before:bg-habit before:transition-shadow focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring active:scale-92 data-[state=on]:before:shadow-[0_0_0_3px_var(--background),0_0_0_5px_var(--habit)]"
+          className="grid size-12 place-items-center rounded-full outline-hidden transition-transform duration-120 before:size-[1.875rem] before:rounded-full before:bg-habit before:transition-shadow focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring active:scale-92 data-[state=on]:before:shadow-[0_0_0_0.1875rem_var(--background),0_0_0_0.3125rem_var(--habit)]"
         />
       ))}
     </ToggleGroup>

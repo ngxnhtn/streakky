@@ -23,15 +23,15 @@ export function StatTile({
     <div
       data-slot="stat"
       className={cn(
-        "flex flex-col-reverse justify-end gap-1 rounded-[20px] bg-muted px-4 pt-3.5 pb-4 transition-colors",
+        "flex flex-col-reverse justify-end gap-1 rounded-[1.25rem] bg-muted px-4 pt-3.5 pb-4 transition-colors",
         className,
       )}
     >
-      <dt className="text-[13px] text-muted-foreground">{label}</dt>
-      <dd className="font-display text-[30px] leading-[1.1] font-medium tracking-[-0.03em] tabular-nums">
+      <dt className="text-[0.8125rem] text-muted-foreground">{label}</dt>
+      <dd className="font-display text-[1.875rem] leading-[1.1] font-medium tracking-[-0.03em] tabular-nums">
         {value}
         {unit && (
-          <span className="font-sans text-[15px] font-normal tracking-normal text-muted-foreground">
+          <span className="font-sans text-[0.9375rem] font-normal tracking-normal text-muted-foreground">
             {" "}
             {unit}
           </span>

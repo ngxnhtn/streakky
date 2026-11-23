@@ -26,7 +26,7 @@ const buttonVariants = cva(
           "bg-transparent text-foreground shadow-[inset_0_0_0_1px_var(--input)] hover-fine:bg-muted",
         ghost:
           "text-foreground hover-fine:bg-muted hover-fine:not-active:translate-y-0 active:translate-y-0 active:scale-92",
-        ring: "text-foreground before:absolute before:inset-[3px] before:rounded-full before:border-[1.5px] before:border-current hover-fine:bg-muted hover-fine:not-active:translate-y-0 active:translate-y-0 active:scale-92",
+        ring: "text-foreground before:absolute before:inset-[0.1875rem] before:rounded-full before:border-[1.5px] before:border-current hover-fine:bg-muted hover-fine:not-active:translate-y-0 active:translate-y-0 active:scale-92",
         destructive:
           "bg-destructive text-destructive-foreground hover-fine:bg-[color-mix(in_oklab,var(--destructive)_86%,var(--foreground))]",
         "outline-destructive":
@@ -36,11 +36,11 @@ const buttonVariants = cva(
         link: "text-foreground underline decoration-input underline-offset-4 hover-fine:decoration-current hover-fine:not-active:translate-y-0",
       },
       size: {
-        default: "h-[52px] px-6 text-base",
+        default: "h-[3.25rem] px-6 text-base",
         sm: "h-9 px-3.5 text-sm",
         lg: "h-14 px-7 text-base",
         icon: "size-11",
-        "icon-sm": "size-10 [&_svg:not([class*='size-'])]:size-[18px]",
+        "icon-sm": "size-10 [&_svg:not([class*='size-'])]:size-[1.125rem]",
       },
     },
     defaultVariants: {

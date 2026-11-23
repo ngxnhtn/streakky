@@ -19,7 +19,7 @@ export function ListGroup({
       className={cn("mt-6 first:mt-2", className)}
     >
       {title && (
-        <h2 id={id} className="mx-1 mb-2.5 text-[13px] font-medium text-muted-foreground">
+        <h2 id={id} className="mx-1 mb-2.5 text-[0.8125rem] font-medium text-muted-foreground">
           {title}
         </h2>
       )}
@@ -33,7 +33,7 @@ export function List({ className, ...props }: React.ComponentProps<"ul">) {
     <ul
       data-slot="list"
       className={cn(
-        "overflow-hidden rounded-[20px] bg-muted transition-colors [&>li+li]:border-t [&>li+li]:border-border",
+        "overflow-hidden rounded-[1.25rem] bg-muted transition-colors [&>li+li]:border-t [&>li+li]:border-border",
         className,
       )}
       {...props}
@@ -71,7 +71,7 @@ export function ListButton({
         data-slot="list-button"
         className={cn(
           row,
-          "text-[15px] font-medium transition-colors duration-120 ease-ui outline-hidden",
+          "text-[0.9375rem] font-medium transition-colors duration-120 ease-ui outline-hidden",
           "focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
           "hover-fine:bg-accent hover-fine:duration-150 active:bg-press active:duration-90 disabled:opacity-40",
           "[&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg]:text-muted-foreground",
@@ -85,5 +85,5 @@ export function ListButton({
 }
 
 export function ListLabel({ className, ...props }: React.ComponentProps<"span">) {
-  return <span className={cn("text-[15px] font-medium", className)} {...props} />;
+  return <span className={cn("text-[0.9375rem] font-medium", className)} {...props} />;
 }

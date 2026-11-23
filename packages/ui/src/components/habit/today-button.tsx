@@ -3,7 +3,7 @@ import type { Kind } from "@streakky/core";
 import { cn } from "@streakky/ui/lib/utils";
 
 const base = [
-  "inline-flex h-[52px] min-w-[220px] items-center justify-center gap-2.5 rounded-full text-base font-medium",
+  "inline-flex h-[3.25rem] min-w-[13.75rem] items-center justify-center gap-2.5 rounded-full text-base font-medium",
   "transition-[background-color,color,transform,box-shadow,translate,scale] duration-200 ease-ui outline-hidden",
   "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring",
   "active:translate-y-px active:scale-[0.985] active:duration-90 hover-fine:not-active:-translate-y-px",
@@ -48,7 +48,7 @@ export function TodayButton({
         <span
           aria-hidden="true"
           className={cn(
-            "grid size-[26px] place-items-center rounded-full",
+            "grid size-[1.625rem] place-items-center rounded-full",
             loggedToday
               ? "animate-tick-pop bg-habit text-habit-foreground"
               : "shadow-[inset_0_0_0_1.75px_currentColor]",
@@ -57,7 +57,7 @@ export function TodayButton({
           <Check
             strokeWidth={2.25}
             className={cn(
-              "size-[15px] transition-[opacity,transform,translate,scale] duration-300 ease-enter",
+              "size-[0.9375rem] transition-[opacity,transform,translate,scale] duration-300 ease-enter",
               loggedToday ? "scale-100 opacity-100" : "scale-40 opacity-0",
             )}
           />

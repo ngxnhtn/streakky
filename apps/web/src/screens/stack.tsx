@@ -73,7 +73,7 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
                 entry.animate &&
                   (fromLeft(entry.route) ? "animate-push-in-left" : "animate-push-in"),
                 isLeaving && (fromLeft(entry.route) ? "animate-push-out-left" : "animate-push-out"),
-                (entry.animate || isLeaving) && "shadow-[0_0_40px_rgb(0_0_0/0.12)]",
+                (entry.animate || isLeaving) && "shadow-[0_0_2.5rem_rgb(0_0_0/0.12)]",
               )}
             >
               {screen(entry.route)}
@@ -88,7 +88,7 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
 /** A screen's scrolling body under its app bar, with room left for the home indicator. */
 export function ScreenScroll({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[72px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[4.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {children}
     </main>
   );

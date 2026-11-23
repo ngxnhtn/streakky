@@ -7,13 +7,13 @@ import { cn } from "@streakky/ui/lib/utils";
  * transform alone. `--n` options, the chosen one at `--i`.
  */
 export const segmentTrack =
-  "relative grid h-11 grid-cols-[repeat(var(--n),minmax(0,1fr))] rounded-full bg-muted p-[3px] transition-colors";
+  "relative grid h-11 grid-cols-[repeat(var(--n),minmax(0,1fr))] rounded-full bg-muted p-[0.1875rem] transition-colors";
 export const segmentPill =
-  "pointer-events-none absolute inset-y-[3px] left-[3px] w-[calc((100%-6px)/var(--n))] translate-x-[calc(var(--i)*100%)] rounded-full bg-habit transition-transform duration-240 ease-ui";
+  "pointer-events-none absolute inset-y-[0.1875rem] left-[0.1875rem] w-[calc((100%-0.375rem)/var(--n))] translate-x-[calc(var(--i)*100%)] rounded-full bg-habit transition-transform duration-240 ease-ui";
 export const segmentItem =
-  "relative z-10 flex items-center justify-center rounded-full px-2 text-sm font-medium text-foreground transition-colors duration-240 outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=on]:text-habit-foreground data-[state=active]:text-habit-foreground [&_svg]:size-[18px]";
+  "relative z-10 flex items-center justify-center rounded-full px-2 text-sm font-medium text-foreground transition-colors duration-240 outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=on]:text-habit-foreground data-[state=active]:text-habit-foreground [&_svg]:size-[1.125rem]";
 
-const sizes = { md: "h-11", sm: "h-10", xs: "h-9 text-[13px]" } as const;
+const sizes = { md: "h-11", sm: "h-10", xs: "h-9 text-[0.8125rem]" } as const;
 
 export type SegmentOption<T extends string> = {
   value: T;
@@ -58,7 +58,7 @@ export function Segmented<T extends string>({
           key={o.value}
           value={o.value}
           aria-label={o.icon ? o.label : undefined}
-          className={cn(segmentItem, size === "xs" && "text-[13px]")}
+          className={cn(segmentItem, size === "xs" && "text-[0.8125rem]")}
         >
           {o.icon ?? o.label}
         </ToggleGroupPrimitive.Item>

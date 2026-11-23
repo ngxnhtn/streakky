@@ -30,7 +30,7 @@ export function StreakRing({
   return (
     <div
       data-slot="streak-ring"
-      className={cn("relative mx-auto aspect-square w-[280px]", className)}
+      className={cn("relative mx-auto aspect-square w-[17.5rem]", className)}
     >
       <svg viewBox="0 0 280 280" aria-hidden="true" className="block size-full overflow-visible">
         <path
@@ -51,12 +51,12 @@ export function StreakRing({
         aria-label={goal === null ? `${days} ${label}` : `${days} ${label}, goal ${goal} days`}
         className="absolute inset-0 flex flex-col items-center justify-center pb-2"
       >
-        <span className="font-display text-[96px] leading-[0.9] font-medium tracking-[-0.05em] tabular-nums [font-stretch:96%]">
+        <span className="font-display text-[6rem] leading-[0.9] font-medium tracking-[-0.05em] tabular-nums [font-stretch:96%]">
           {Math.round(shown)}
         </span>
         <span className="mt-2 text-base text-muted-foreground">{label}</span>
       </div>
-      <span className="absolute inset-x-0 bottom-[22px] text-center font-mono text-xs text-muted-foreground">
+      <span className="absolute inset-x-0 bottom-[1.375rem] text-center font-mono text-xs text-muted-foreground">
         {since}
       </span>
     </div>

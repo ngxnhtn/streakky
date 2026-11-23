@@ -9,7 +9,7 @@ export function CheckInTick({ checkedIn, className }: { checkedIn: boolean; clas
     <span
       data-slot="check-in-tick"
       className={cn(
-        "grid size-[22px] flex-none place-items-center rounded-full text-habit-foreground",
+        "grid size-[1.375rem] flex-none place-items-center rounded-full text-habit-foreground",
         "transition-[background-color,box-shadow] duration-200 ease-ui",
         checkedIn ? "bg-habit" : "shadow-[inset_0_0_0_1.5px_var(--habit)]",
         className,
@@ -20,7 +20,7 @@ export function CheckInTick({ checkedIn, className }: { checkedIn: boolean; clas
   );
 }
 
-/** The tick as a toggle: checks a build habit in today, or undoes it. A 44px target around it. */
+/** The tick as a toggle: checks a build habit in today, or undoes it. A 2.75rem target around it. */
 export function CheckInButton({
   name,
   checkedIn,
@@ -32,7 +32,7 @@ export function CheckInButton({
   checkedIn: boolean;
   onToggle: () => void;
   className?: string;
-  /** sizes the tick inside the 44px target */
+  /** sizes the tick inside the 2.75rem target */
   tickClassName?: string;
 }) {
   return (
@@ -61,7 +61,7 @@ export function SlipIcon({ slipped, className }: { slipped: boolean; className?:
     <span
       data-slot="slip-icon"
       className={cn(
-        "grid size-[22px] flex-none place-items-center rounded-full",
+        "grid size-[1.375rem] flex-none place-items-center rounded-full",
         "transition-[background-color,box-shadow,color] duration-200 ease-ui",
         slipped
           ? "bg-habit text-habit-foreground"
@@ -75,7 +75,7 @@ export function SlipIcon({ slipped, className }: { slipped: boolean; className?:
 }
 
 /**
- * The slip icon as a toggle: logs today's slip on a quit habit, or removes it. A 44px target
+ * The slip icon as a toggle: logs today's slip on a quit habit, or removes it. A 2.75rem target
  * around it. A slip ends the current streak, so ask before calling `onToggle` to log one.
  * `disabled` on the quit day itself, which can't have a slip.
  */
@@ -122,7 +122,7 @@ const tileGround = [
   "transition-[transform,border-color,box-shadow,background-color,translate,scale] duration-120 ease-ui",
 ].join(" ");
 const tileLift =
-  "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_12px_24px_-14px_rgb(0_0_0/0.28)] hover-fine:duration-180";
+  "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_0.75rem_1.5rem_-0.875rem_rgb(0_0_0/0.28)] hover-fine:duration-180";
 const focusRing =
   "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring";
 const tile = [tileGround, tileLift, focusRing, "active:scale-[0.98] active:duration-90"].join(" ");
@@ -180,19 +180,19 @@ export function HabitCard({
         <span className="line-clamp-2 text-sm leading-tight font-medium">{name}</span>
         {kind === "build" &&
           (tickIsButton ? (
-            <span className="size-[22px] flex-none" />
+            <span className="size-[1.375rem] flex-none" />
           ) : (
             <CheckInTick checkedIn={checkedIn} className="-mt-px -mr-0.5" />
           ))}
-        {slipIsButton && <span className="size-[22px] flex-none" />}
+        {slipIsButton && <span className="size-[1.375rem] flex-none" />}
       </span>
-      <span className="mt-auto font-display text-[52px] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
+      <span className="mt-auto font-display text-[3.25rem] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
         {days}
       </span>
-      <span className="mt-1.5 text-[13px] text-muted-foreground">{label}</span>
+      <span className="mt-1.5 text-[0.8125rem] text-muted-foreground">{label}</span>
     </>
   );
-  const shape = "flex h-[168px] flex-col rounded-3xl p-4";
+  const shape = "flex h-[10.5rem] flex-col rounded-3xl p-4";
 
   if (!tickIsButton && !slipIsButton && onClick) {
     return (
@@ -240,7 +240,7 @@ export function HabitCard({
           name={name}
           checkedIn={checkedIn}
           onToggle={onCheckIn}
-          className="absolute top-1 right-[3px]"
+          className="absolute top-1 right-[0.1875rem]"
         />
       )}
       {slipIsButton && (
@@ -249,7 +249,7 @@ export function HabitCard({
           slipped={slipped}
           disabled={slipLocked}
           onToggle={onSlip}
-          className="absolute top-1 right-[3px]"
+          className="absolute top-1 right-[0.1875rem]"
         />
       )}
     </div>
@@ -290,10 +290,10 @@ export function HabitRow({
         <span aria-hidden={hideText} className="truncate text-base font-medium">
           {name}
         </span>
-        <span className="flex items-center gap-1.5 text-[13px] text-muted-foreground">
+        <span className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
           {kind === "build" &&
             (tickIsButton ? (
-              // the 44px target overhangs the 16px tick, so the line keeps its height
+              // the 2.75rem target overhangs the 1rem tick, so the line keeps its height
               <CheckInButton
                 name={name}
                 checkedIn={checkedIn}
@@ -318,7 +318,7 @@ export function HabitRow({
         </span>
       </span>
       <span aria-hidden={hideText} className="flex flex-none flex-col items-end gap-0.5">
-        <span className="font-display text-[34px] leading-[0.95] font-medium tracking-[-0.04em] text-habit tabular-nums [font-stretch:96%]">
+        <span className="font-display text-[2.125rem] leading-[0.95] font-medium tracking-[-0.04em] text-habit tabular-nums [font-stretch:96%]">
           {days}
         </span>
         <span className="text-xs text-muted-foreground">{label}</span>
@@ -326,7 +326,7 @@ export function HabitRow({
     </>
   );
   const shape =
-    "flex min-h-[76px] items-center justify-between gap-4 rounded-[20px] px-[18px] py-3";
+    "flex min-h-[4.75rem] items-center justify-between gap-4 rounded-[1.25rem] px-[1.125rem] py-3";
 
   if (!todayIsButton && onClick) {
     return (
@@ -388,7 +388,9 @@ export function NewHabitTile({
         "flex w-full items-center justify-center gap-2 border-[1.5px] border-dashed border-input text-sm font-medium text-muted-foreground outline-hidden",
         "transition-[border-color,color,transform,translate,scale] duration-120 ease-ui focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
         "hover-fine:border-foreground hover-fine:text-foreground active:scale-[0.98]",
-        layout === "grid" ? "h-[168px] flex-col rounded-3xl" : "min-h-[60px] rounded-[20px]",
+        layout === "grid"
+          ? "h-[10.5rem] flex-col rounded-3xl"
+          : "min-h-[3.75rem] rounded-[1.25rem]",
         "[&_svg]:size-5 [&_svg]:stroke-[1.75]",
         className,
       )}
@@ -418,8 +420,8 @@ export function HabitCollection({
       className={cn(
         "grid animate-rise",
         layout === "grid"
-          ? "grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5"
-          : "grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))] gap-2",
+          ? "grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2.5"
+          : "grid-cols-[repeat(auto-fill,minmax(min(100%,22.5rem),1fr))] gap-2",
         className,
       )}
     >

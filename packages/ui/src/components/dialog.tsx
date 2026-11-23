@@ -44,9 +44,9 @@ type Shape = "sheet" | "center";
 
 const shapes: Record<Shape, string> = {
   sheet:
-    "inset-x-2 bottom-2 max-h-[calc(100%-64px)] rounded-[32px] px-5 pt-2.5 pb-6 data-open:animate-sheet-in data-closed:animate-sheet-out",
+    "inset-x-2 bottom-2 max-h-[calc(100%-4rem)] rounded-[2rem] px-5 pt-2.5 pb-6 data-open:animate-sheet-in data-closed:animate-sheet-out",
   center:
-    "top-1/2 left-1/2 w-[min(440px,calc(100%-48px))] max-h-[calc(100%-96px)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] p-7 data-open:animate-dialog-in data-closed:animate-dialog-out",
+    "top-1/2 left-1/2 w-[min(27.5rem,calc(100%-3rem))] max-h-[calc(100%-6rem)] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] p-7 data-open:animate-dialog-in data-closed:animate-dialog-out",
 };
 
 function DialogContent({
@@ -63,7 +63,7 @@ function DialogContent({
         data-shape={shape}
         aria-describedby={undefined}
         className={cn(
-          "fixed z-50 overflow-y-auto bg-popover text-popover-foreground shadow-[0_-8px_40px_rgb(0_0_0/0.14)] outline-hidden",
+          "fixed z-50 overflow-y-auto bg-popover text-popover-foreground shadow-[0_-0.5rem_2.5rem_rgb(0_0_0/0.14)] outline-hidden",
           shapes[shape],
           className,
         )}
@@ -72,7 +72,7 @@ function DialogContent({
         {shape === "sheet" && (
           <span
             aria-hidden="true"
-            className="mx-auto mb-4 block h-[5px] w-9 rounded-full bg-input"
+            className="mx-auto mb-4 block h-[0.3125rem] w-9 rounded-full bg-input"
           />
         )}
         {children}
@@ -85,7 +85,7 @@ function DialogTitle({ className, ...props }: React.ComponentProps<typeof Dialog
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("mb-4 font-display text-[22px] font-medium tracking-[-0.02em]", className)}
+      className={cn("mb-4 font-display text-[1.375rem] font-medium tracking-[-0.02em]", className)}
       {...props}
     />
   );
@@ -98,7 +98,7 @@ function DialogDescription({
   return (
     <DialogPrimitive.Description
       data-slot="dialog-description"
-      className={cn("-mt-1.5 mb-5 text-[15px] text-muted-foreground", className)}
+      className={cn("-mt-1.5 mb-5 text-[0.9375rem] text-muted-foreground", className)}
       {...props}
     />
   );

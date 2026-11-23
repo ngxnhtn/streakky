@@ -25,9 +25,9 @@ export function Field({
     <div data-slot="field" className={cn("grid min-w-0 gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
       {children({ id, describedBy: error ? errId : undefined, invalid: Boolean(error) })}
-      {hint && !error && <p className="text-[13px] text-muted-foreground">{hint}</p>}
+      {hint && !error && <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>}
       {error && (
-        <p id={errId} className="text-[13px] text-destructive">
+        <p id={errId} className="text-[0.8125rem] text-destructive">
           {error}
         </p>
       )}
@@ -47,7 +47,9 @@ export function FieldSet({
 }) {
   return (
     <fieldset data-slot="fieldset" className={cn("grid min-w-0 gap-2 border-0 p-0", className)}>
-      <legend className="mb-2 p-0 text-[13px] font-medium text-muted-foreground">{legend}</legend>
+      <legend className="mb-2 p-0 text-[0.8125rem] font-medium text-muted-foreground">
+        {legend}
+      </legend>
       {children}
     </fieldset>
   );

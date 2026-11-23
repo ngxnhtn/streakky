@@ -28,7 +28,7 @@ export function LayoutSwitch() {
       label="Layout"
       value={settings.layout}
       onValueChange={(layout) => dispatch({ type: "settings", patch: { layout } })}
-      className="mb-0.5 w-[92px] flex-none"
+      className="mb-0.5 w-[5.75rem] flex-none"
       options={[
         { value: "grid", label: "Grid", icon: <LayoutGrid strokeWidth={1.75} /> },
         { value: "list", label: "List", icon: <Rows2 strokeWidth={1.75} /> },

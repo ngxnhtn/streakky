@@ -22,7 +22,7 @@ openBrowserHabitStore().then(
   (error: unknown) => {
     console.error(error);
     root.render(
-      <main className="mx-auto max-w-[420px] px-6 py-16 text-foreground">
+      <main className="mx-auto max-w-[26.25rem] px-6 py-16 text-foreground">
         <h1 className="text-xl font-medium">Streakky can't open its storage</h1>
         <p className="mt-2 text-muted-foreground">
           This browser won't let the app keep data on this device. Try an up-to-date Chrome, Edge,

@@ -138,7 +138,7 @@ function EditForm({
     onSave(n, color);
   };
   return (
-    <form className="grid gap-[18px]" onSubmit={submit} noValidate>
+    <form className="grid gap-[1.125rem]" onSubmit={submit} noValidate>
       <Field label="Name" error={error}>
         {({ id, describedBy, invalid }) => (
           <Input

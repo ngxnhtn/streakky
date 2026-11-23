@@ -31,7 +31,7 @@ import { useStore } from "../store.tsx";
 type Page = { name: "all" } | { name: "habit"; id: string } | { name: "settings" };
 
 const sideItem =
-  "flex min-h-11 w-full items-center gap-2.5 rounded-[14px] px-3 py-2 text-left text-sm font-medium outline-hidden transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring hover-fine:not-aria-[current=page]:bg-accent active:bg-press aria-[current=page]:bg-muted";
+  "flex min-h-11 w-full items-center gap-2.5 rounded-[0.875rem] px-3 py-2 text-left text-sm font-medium outline-hidden transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring hover-fine:not-aria-[current=page]:bg-accent active:bg-press aria-[current=page]:bg-muted";
 
 /** The desktop web app: habits down the side, the chosen page in the main column. */
 export function WebApp() {
@@ -49,14 +49,17 @@ export function WebApp() {
       <PortalContainerProvider container={root}>
         <div
           ref={setRoot}
-          className="grid h-dvh grid-cols-[272px_minmax(0,1fr)] bg-background text-[15px] text-foreground max-[900px]:grid-cols-[224px_minmax(0,1fr)]"
+          className="grid h-dvh grid-cols-[17rem_minmax(0,1fr)] bg-background text-[0.9375rem] text-foreground max-[56.25rem]:grid-cols-[14rem_minmax(0,1fr)]"
         >
           <aside className="flex min-h-0 flex-col gap-5 overflow-y-auto border-r border-border px-4 pt-6 pb-5">
             <p className="flex items-center gap-2 px-3 py-1 text-lg font-semibold tracking-[-0.025em]">
               <Logo />
               Streakky
             </p>
-            <Button className="h-[46px] gap-1.5 text-[15px]" onClick={() => setAdding(true)}>
+            <Button
+              className="h-[2.875rem] gap-1.5 text-[0.9375rem]"
+              onClick={() => setAdding(true)}
+            >
               <Plus strokeWidth={1.75} />
               New habit
             </Button>
@@ -68,12 +71,12 @@ export function WebApp() {
                 onClick={() => setPage({ name: "all" })}
               >
                 <span className="flex-1">All habits</span>
-                <span className="text-[13px] text-muted-foreground tabular-nums">
+                <span className="text-[0.8125rem] text-muted-foreground tabular-nums">
                   {habits.length}
                 </span>
               </button>
               {habits.length > 0 && (
-                <p className="mx-3 mt-[18px] mb-1.5 text-xs font-medium text-muted-foreground">
+                <p className="mx-3 mt-[1.125rem] mb-1.5 text-xs font-medium text-muted-foreground">
                   Your habits
                 </p>
               )}
@@ -95,7 +98,7 @@ export function WebApp() {
                       {s.kind === "build" && (
                         <CheckInTick checkedIn={loggedToday(s)} className="size-4" />
                       )}
-                      <span className="min-w-6 text-right text-[13px] text-muted-foreground tabular-nums">
+                      <span className="min-w-6 text-right text-[0.8125rem] text-muted-foreground tabular-nums">
                         {currentStreakDays(s)}
                       </span>
                     </button>
@@ -133,7 +136,7 @@ export function WebApp() {
             )}
             {page.name === "settings" && (
               <Page title="Settings">
-                <SettingsBody className="max-w-[560px] [&_[data-slot=list-group]:first-child]:mt-0" />
+                <SettingsBody className="max-w-[35rem] [&_[data-slot=list-group]:first-child]:mt-0" />
               </Page>
             )}
           </main>
@@ -173,11 +176,11 @@ function Page({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-[1180px] px-12 pt-10 pb-[72px] max-[900px]:px-7 max-[900px]:pt-7">
+    <div className="mx-auto max-w-[73.75rem] px-12 pt-10 pb-[4.5rem] max-[56.25rem]:px-7 max-[56.25rem]:pt-7">
       <header className="mb-7 flex items-end justify-between gap-6">
         <div>
           {eyebrow && <p className="text-sm text-muted-foreground">{eyebrow}</p>}
-          <h1 className="mt-0.5 font-display text-[40px] leading-[1.05] font-medium tracking-[-0.035em] [font-stretch:96%]">
+          <h1 className="mt-0.5 font-display text-[2.5rem] leading-[1.05] font-medium tracking-[-0.035em] [font-stretch:96%]">
             {title}
           </h1>
         </div>
@@ -198,7 +201,7 @@ function AllPage({ onOpen, onAdd }: { onOpen: (id: string) => void; onAdd: () =>
         <HabitFaces
           onOpen={onOpen}
           onAdd={onAdd}
-          className="data-[layout=grid]:grid-cols-[repeat(auto-fill,minmax(200px,1fr))] data-[layout=grid]:gap-3 data-[layout=list]:grid-cols-[repeat(auto-fill,minmax(380px,1fr))] data-[layout=grid]:[&_[data-slot=new-habit]]:h-[184px] [&_[data-slot=habit-card]]:h-[184px]"
+          className="data-[layout=grid]:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] data-[layout=grid]:gap-3 data-[layout=list]:grid-cols-[repeat(auto-fill,minmax(23.75rem,1fr))] data-[layout=grid]:[&_[data-slot=new-habit]]:h-[11.5rem] [&_[data-slot=habit-card]]:h-[11.5rem]"
         />
       )}
     </Page>
@@ -239,8 +242,8 @@ function HabitPage({ id, onGone }: { id: string; onGone: () => void }) {
         <div
           className={cn(
             "grid gap-4",
-            "grid-cols-[minmax(300px,340px)_minmax(0,1fr)] [grid-template-areas:'hero_cal'_'goal_stats']",
-            "max-[1100px]:grid-cols-1 max-[1100px]:[grid-template-areas:'hero'_'cal'_'stats'_'goal']",
+            "grid-cols-[minmax(18.75rem,21.25rem)_minmax(0,1fr)] [grid-template-areas:'hero_cal'_'goal_stats']",
+            "max-[68.75rem]:grid-cols-1 max-[68.75rem]:[grid-template-areas:'hero'_'cal'_'stats'_'goal']",
           )}
         >
           <Card
@@ -276,7 +279,7 @@ function HabitPage({ id, onGone }: { id: string; onGone: () => void }) {
           </Card>
           <Card className="[grid-area:stats]">
             <CardTitle>Stats</CardTitle>
-            <HabitStats habit={habit} tilesClassName="grid-cols-4 max-[900px]:grid-cols-2" />
+            <HabitStats habit={habit} tilesClassName="grid-cols-4 max-[56.25rem]:grid-cols-2" />
           </Card>
           <Card className="[grid-area:goal]">
             <CardTitle>Goal</CardTitle>

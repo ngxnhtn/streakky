@@ -34,11 +34,11 @@ export function StreaksChart({
 
   return (
     <figure data-slot="streaks-chart" className={cn("m-0", className)}>
-      <figcaption className="text-[13px] font-medium text-muted-foreground">
+      <figcaption className="text-[0.8125rem] font-medium text-muted-foreground">
         Every streak
       </figcaption>
       <div
-        className="mt-2 flex h-[148px] items-stretch gap-0.5 border-b border-input pt-[22px]"
+        className="mt-2 flex h-[9.25rem] items-stretch gap-0.5 border-b border-input pt-[1.375rem]"
         onPointerLeave={() => setPointed(null)}
       >
         {streaks.map((streak, i) => (
@@ -54,7 +54,7 @@ export function StreaksChart({
             <span
               style={{ height: `${Math.max(2, (streak.days / max) * 100)}%` }}
               className={cn(
-                "relative w-[min(36px,72%)] rounded-t-[4px] transition-[background-color,height] duration-600 ease-enter",
+                "relative w-[min(2.25rem,72%)] rounded-t-[0.25rem] transition-[background-color,height] duration-600 ease-enter",
                 streak.current
                   ? "bg-habit"
                   : i === active
@@ -71,7 +71,7 @@ export function StreaksChart({
           </button>
         ))}
       </div>
-      <p aria-live="polite" className="mt-2.5 text-[13px] text-muted-foreground tabular-nums">
+      <p aria-live="polite" className="mt-2.5 text-[0.8125rem] text-muted-foreground tabular-nums">
         <span className="mr-1.5 font-medium text-foreground">
           {pick.current ? "This streak" : `Streak ${active + 1}`}
         </span>

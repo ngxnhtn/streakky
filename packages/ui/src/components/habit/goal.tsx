@@ -24,7 +24,7 @@ export function HabitGoal({
         : [`${plural(goal - days, unit)} to go`, `${goal}-day goal on ${fmtShort(on)}`];
   return (
     <div data-slot="habit-goal" className={className}>
-      <p className="font-display text-[26px] leading-[1.15] font-medium tracking-[-0.025em]">
+      <p className="font-display text-[1.625rem] leading-[1.15] font-medium tracking-[-0.025em]">
         {big}
       </p>
       <p className="mt-1 text-muted-foreground">{sub}</p>
@@ -42,7 +42,7 @@ export function HabitGoal({
           </div>
         </div>
       )}
-      <h3 className="mt-7 mb-3 text-[13px] font-medium text-muted-foreground">Change goal</h3>
+      <h3 className="mt-7 mb-3 text-[0.8125rem] font-medium text-muted-foreground">Change goal</h3>
       <ToggleGroup
         value={goal === null ? "none" : String(goal)}
         onValueChange={(v) => onGoalChange(v === "none" ? null : Number(v))}

@@ -49,12 +49,15 @@ export function App({ initial, framed }: { initial: Route[]; framed: boolean }) 
   return (
     <NavCtx.Provider value={nav}>
       <ShapeContext.Provider
-        value={{ shape: "sheet", className: framed ? "bottom-[22px] rounded-[40px]" : undefined }}
+        value={{
+          shape: "sheet",
+          className: framed ? "bottom-[1.375rem] rounded-[2.5rem]" : undefined,
+        }}
       >
         <PortalContainerProvider container={root}>
           <div
             ref={setRoot}
-            className="relative flex h-full flex-col overflow-hidden bg-background text-[15px] leading-[1.4] text-foreground transition-colors duration-300"
+            className="relative flex h-full flex-col overflow-hidden bg-background text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300"
           >
             {framed && <StatusBar />}
             <div className="relative min-h-0 flex-1">
@@ -82,7 +85,7 @@ export function App({ initial, framed }: { initial: Route[]; framed: boolean }) 
                       e.animate && (fromLeft(e.route) ? "animate-push-in-left" : "animate-push-in"),
                       isLeaving &&
                         (fromLeft(e.route) ? "animate-push-out-left" : "animate-push-out"),
-                      (e.animate || isLeaving) && "shadow-[0_0_40px_rgb(0_0_0/0.12)]",
+                      (e.animate || isLeaving) && "shadow-[0_0_2.5rem_rgb(0_0_0/0.12)]",
                     )}
                   >
                     <Screen route={e.route} />
@@ -93,7 +96,7 @@ export function App({ initial, framed }: { initial: Route[]; framed: boolean }) 
             {framed && (
               <span
                 aria-hidden="true"
-                className="pointer-events-none absolute bottom-2 left-1/2 z-40 h-[5px] w-[136px] -translate-x-1/2 rounded-full bg-foreground/85"
+                className="pointer-events-none absolute bottom-2 left-1/2 z-40 h-[0.3125rem] w-[8.5rem] -translate-x-1/2 rounded-full bg-foreground/85"
               />
             )}
           </div>
@@ -117,7 +120,7 @@ function Screen({ route }: { route: Route }): ReactNode {
 /** Scrolls under the app bar; leaves room for the home indicator. */
 export function ScreenScroll({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[72px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[4.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {children}
     </div>
   );
@@ -127,7 +130,7 @@ function StatusBar() {
   return (
     <div
       aria-hidden="true"
-      className="flex h-[54px] flex-none items-center justify-between pt-3.5 pr-[34px] pl-[46px] text-base font-semibold tracking-[-0.01em]"
+      className="flex h-[3.375rem] flex-none items-center justify-between pt-3.5 pr-[2.125rem] pl-[2.875rem] text-base font-semibold tracking-[-0.01em]"
     >
       <span>9:41</span>
       <svg width="68" height="12" viewBox="0 0 68 12" fill="currentColor">
