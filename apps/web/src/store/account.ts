@@ -3,13 +3,16 @@
  * signed in, so the app knows while offline. The session itself is the server's cookie, which
  * the browser keeps. Screens reach all of this through the habit store.
  */
-import type { KeyValueStorage } from "./habit-store.ts";
+import type { HabitStore, KeyValueStorage } from "./habit-store.ts";
 
 /** Calls the API Worker: `fetch` on the app's own origin in the browser. */
 export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
 /** Whether this device is signed in, and as whom. Sync (ticket 14) adds its own state here. */
 export type SyncStatus = { signedIn: false } | { signedIn: true; email: string };
+
+/** The codes the server emails: how many digits, and how many minutes each works (auth.ts). */
+export const SIGN_IN_CODE = { length: 6, minutes: 5 } as const;
 
 /** Why a code wasn't sent, or a sign-in didn't go through. */
 export type SignInFailure =
@@ -53,13 +56,11 @@ const FAILURES: Record<string, SignInFailure> = {
   TOO_MANY_ATTEMPTS: "used-up-code",
 };
 
-export type Account = {
-  status: () => SyncStatus;
-  requestCode(email: string): Promise<void>;
-  signIn(email: string, code: string): Promise<void>;
-  signOut(): Promise<void>;
-  checkSession(): Promise<void>;
-};
+/** The habit store's sign-in commands and status, which the store hands on as they are. */
+export type Account = Pick<
+  HabitStore,
+  "requestSignInCode" | "signIn" | "signOut" | "checkSession" | "syncStatus"
+>;
 
 export function openAccount({
   api,
@@ -109,8 +110,8 @@ export function openAccount({
   };
 
   return {
-    status: () => status,
-    async requestCode(email) {
+    syncStatus: () => status,
+    async requestSignInCode(email) {
       const response = await post("/email-otp/send-verification-otp", {
         email: email.trim(),
         type: "sign-in",

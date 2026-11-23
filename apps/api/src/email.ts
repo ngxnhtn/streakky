@@ -1,7 +1,7 @@
 import { CODE_MINUTES, type SignInCode } from "./auth.ts";
 
 /** Resend's endpoint for sending one email. */
-export const RESEND_EMAILS_URL = "https://api.resend.com/emails";
+const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
 /**
  * Sends a sign-in code. With EMAIL_DELIVERY "resend" (deployed) it goes out through Resend, from

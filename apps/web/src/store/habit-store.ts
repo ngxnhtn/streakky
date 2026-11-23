@@ -17,7 +17,13 @@ import {
 } from "@streakky/core";
 import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
 
-export { SignInError, type ApiFetch, type SignInFailure, type SyncStatus } from "./account.ts";
+export {
+  SIGN_IN_CODE,
+  SignInError,
+  type ApiFetch,
+  type SignInFailure,
+  type SyncStatus,
+} from "./account.ts";
 
 /** The habit fields a device can change; each keeps the device time of its last change, for sync. */
 export const EDITABLE_FIELDS = ["name", "color", "goal", "quitDay", "archived", "order"] as const;
@@ -256,11 +262,7 @@ export async function openHabitStore({
     },
     habits,
     settings: () => settings,
-    requestSignInCode: (email) => account.requestCode(email),
-    signIn: (email, code) => account.signIn(email, code),
-    signOut: () => account.signOut(),
-    checkSession: () => account.checkSession(),
-    syncStatus: () => account.status(),
+    ...account,
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

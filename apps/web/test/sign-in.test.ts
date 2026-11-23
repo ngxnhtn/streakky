@@ -34,12 +34,13 @@ describe("signing in with an email code", () => {
     });
   });
 
-  it("refuses an address that isn't on the allowlist, and emails it nothing", async () => {
+  it("refuses an address that isn't on the allowlist, and sends no email at all", async () => {
     const device = await newDevice();
+    const sentBefore = server.sentEmails().length;
     const refused = device.requestSignInCode("stranger@example.com");
     await expect(refused).rejects.toMatchObject({ reason: "not-allowed" });
-    expect([emailsSentTo(server, "stranger@example.com"), device.syncStatus()]).toEqual([
-      [],
+    expect([server.sentEmails().length - sentBefore, device.syncStatus()]).toEqual([
+      0,
       { signedIn: false },
     ]);
   });
@@ -79,10 +80,29 @@ describe("signing in with an email code", () => {
     const wrong = code === "000000" ? "111111" : "000000";
     for (let i = 0; i < 3; i++) await device.signIn(owner, wrong).catch(() => {});
     const again = device.signIn(owner, code);
-    await expect(again).rejects.toMatchObject({ reason: "rate-limited" });
+    await expect(again).rejects.toMatchObject({ reason: "used-up-code" });
     const elsewhere = await newDevice();
-    const fromElsewhere = elsewhere.signIn(owner, code);
-    await expect(fromElsewhere).rejects.toMatchObject({ reason: "used-up-code" });
+    await expect(elsewhere.signIn(owner, code)).rejects.toThrow();
+    expect([device.syncStatus(), elsewhere.syncStatus()]).toEqual([
+      { signedIn: false },
+      { signedIn: false },
+    ]);
+  });
+
+  it("asks a device that keeps trying codes to wait, but not other devices", async () => {
+    const device = await newDevice();
+    await device.requestSignInCode(partner);
+    const tries = [];
+    for (let i = 0; i < 11; i++) {
+      tries.push(await device.signIn(partner, "000000").catch((error) => error.reason));
+    }
+    const elsewhere = await newDevice();
+    await elsewhere.requestSignInCode(partner);
+    await elsewhere.signIn(partner, codeSentTo(server, partner));
+    expect([tries.at(-1), elsewhere.syncStatus()]).toEqual([
+      "rate-limited",
+      { signedIn: true, email: partner },
+    ]);
   });
 
   it("asks a device that requests codes too often to wait, but not other devices", async () => {
@@ -165,7 +185,7 @@ describe("a signed-in device", () => {
 });
 
 describe("the signed-out note", () => {
-  it("shows on a new device", async () => {
+  it("isn't dismissed on a new device", async () => {
     const device = await newDevice();
     expect(device.settings().signedOutNoteDismissed).toBe(false);
   });

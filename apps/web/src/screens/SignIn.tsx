@@ -4,13 +4,15 @@ import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { Field } from "@streakky/ui/components/field";
 import { Input } from "@streakky/ui/components/input";
-import { SignInError, type SignInFailure } from "../store/habit-store.ts";
+import { SIGN_IN_CODE, SignInError, type SignInFailure } from "../store/habit-store.ts";
 import { useHabitStore } from "../store/react.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 
-const CODE_LENGTH = 6;
+const { length: CODE_LENGTH, minutes: CODE_MINUTES } = SIGN_IN_CODE;
 /** "6-digit", kept on one line. */
 const sixDigit = <span className="whitespace-nowrap">{CODE_LENGTH}-digit</span>;
+/** The code step's quieter actions: full 2.75rem tap targets. */
+const quietButton = "h-11 px-4 text-[0.9375rem]";
 
 /** What went wrong, in words, under the field it concerns. */
 const MESSAGES: Record<SignInFailure, string> = {
@@ -35,13 +37,13 @@ export function SignIn() {
   const { pop } = useNav();
   const [email, setEmail] = useState<string | null>(null);
   // a sign-in that finishes after the person went back must not take them back a second time
-  const open = useRef(false);
+  const mounted = useRef(false);
   useEffect(() => {
-    open.current = true;
-    return () => void (open.current = false);
+    mounted.current = true;
+    return () => void (mounted.current = false);
   }, []);
   const signedIn = () => {
-    if (open.current) pop();
+    if (mounted.current) pop();
   };
   return (
     <>
@@ -164,8 +166,8 @@ function CodeStep({
       intro={
         <>
           We emailed a {sixDigit} code to{" "}
-          <span className="font-medium break-words text-foreground">{email}</span>. It works for 5
-          minutes.
+          <span className="font-medium break-words text-foreground">{email}</span>. It works for{" "}
+          {CODE_MINUTES} minutes.
         </>
       }
     >
@@ -206,18 +208,13 @@ function CodeStep({
       <div className="mt-3 flex flex-wrap justify-center gap-x-2">
         <Button
           variant="ghost"
-          className="h-11 px-4 text-[0.9375rem]"
+          className={quietButton}
           disabled={busy}
           onClick={() => void sendAgain()}
         >
           Send a new code
         </Button>
-        <Button
-          variant="ghost"
-          className="h-11 px-4 text-[0.9375rem]"
-          disabled={busy}
-          onClick={onChangeEmail}
-        >
+        <Button variant="ghost" className={quietButton} disabled={busy} onClick={onChangeEmail}>
           Use another email
         </Button>
       </div>

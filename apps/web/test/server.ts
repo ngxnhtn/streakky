@@ -1,5 +1,7 @@
-import { startWorker, type RunningWorker, type SentEmail } from "../../api/test/worker.ts";
+import { startWorker, type RunningWorker } from "../../api/test/worker.ts";
 import type { Connection, DeviceStorage } from "./devices.ts";
+
+export { codeSentTo, emailsSentTo } from "../../api/test/worker.ts";
 
 /** The real API Worker in the Workers runtime, for simulated devices to reach. */
 export type Server = RunningWorker;
@@ -7,19 +9,6 @@ export type Server = RunningWorker;
 /** Starts the API Worker with a fresh database, letting `allowlist` sign in. */
 export const startServer = ({ allowlist }: { allowlist: string[] }): Promise<Server> =>
   startWorker({ "index.html": "<!doctype html><title>Streakky</title>" }, { allowlist });
-
-/** Every email the server has sent to `email`, oldest first. */
-export const emailsSentTo = (server: Server, email: string): SentEmail[] =>
-  server.sentEmails().filter((sent) => sent.to.includes(email));
-
-/** The code in the latest sign-in email the server sent to `email`. */
-export function codeSentTo(server: Server, email: string): string {
-  const code = emailsSentTo(server, email)
-    .at(-1)
-    ?.text.match(/\b\d{6}\b/)?.[0];
-  if (!code) throw new Error(`No sign-in code has been emailed to ${email}.`);
-  return code;
-}
 
 let lastAddress = 0;
 const addresses = new WeakMap<DeviceStorage, string>();

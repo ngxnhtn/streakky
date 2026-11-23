@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
-import { startWorker, type RunningWorker } from "./worker.ts";
+import { codeSentTo, startWorker, type RunningWorker } from "./worker.ts";
 
 const owner = "owner@example.com";
 
@@ -25,11 +25,8 @@ const getSession = (token: string | null) =>
 describe("signing in without cookies, as the Android app will", () => {
   it("returns a session token that signs later requests in", async () => {
     await post("/api/auth/email-otp/send-verification-otp", { email: owner, type: "sign-in" });
-    const code = worker
-      .sentEmails()
-      .at(-1)
-      ?.text.match(/\b\d{6}\b/)?.[0];
-    const signIn = await post("/api/auth/sign-in/email-otp", { email: owner, otp: code });
+    const otp = codeSentTo(worker, owner);
+    const signIn = await post("/api/auth/sign-in/email-otp", { email: owner, otp });
     const session = await getSession(signIn.headers.get("set-auth-token"));
     expect(await session.json()).toMatchObject({ user: { email: owner } });
   });

@@ -83,6 +83,19 @@ export async function startWorker(
   };
 }
 
+/** Every email `worker` has sent to `address`, oldest first. */
+export const emailsSentTo = (worker: RunningWorker, address: string): SentEmail[] =>
+  worker.sentEmails().filter((sent) => sent.to.includes(address));
+
+/** The code in the latest sign-in email `worker` sent to `address`. */
+export function codeSentTo(worker: RunningWorker, address: string): string {
+  const code = emailsSentTo(worker, address)
+    .at(-1)
+    ?.text.match(/\b\d{6}\b/)?.[0];
+  if (!code) throw new Error(`No sign-in code has been emailed to ${address}.`);
+  return code;
+}
+
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
 
 /** Each running Worker's Resend API key, and where its emails go. */

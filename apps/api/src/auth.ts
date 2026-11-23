@@ -103,6 +103,10 @@ export function authOptions(config: AuthConfig) {
       customRules: {
         // read-only and asked on every app start: not worth a D1 write each time
         "/get-session": false,
+        // more than the plugin's 3 a minute, so a fourth try at a code used up by three wrong
+        // ones hears that, not "wait a minute"; guessing stays capped by 3 tries a code and
+        // 3 codes a minute
+        "/sign-in/email-otp": { window: 60, max: 10 },
       },
     },
     advanced: {
