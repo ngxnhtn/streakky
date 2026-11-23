@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@streakky/ui/components/dialog";
 import { useHabitStore } from "../store/react.tsx";
-import { useInFront } from "./stack.tsx";
+import { useInFront, useBackCloses } from "./stack.tsx";
 
 /**
  * Today's slip on a quit habit: removing it takes one tap, but logging one asks first, since it
@@ -56,6 +56,7 @@ function LogSlipDialog({
   onClose: () => void;
 }) {
   const days = habit ? currentStreakDays(habit) : 0;
+  useBackCloses(open && habit !== null, onClose);
   // with no DialogTrigger, Radix would drop focus on the page; return it to the slip button
   const opener = useRef<HTMLElement | null>(null);
   const keepCounting = useRef<HTMLButtonElement>(null);

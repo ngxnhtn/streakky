@@ -7,6 +7,7 @@ import { HabitColorPicker } from "@streakky/ui/components/habit/color-picker";
 import { Input } from "@streakky/ui/components/input";
 import { Segmented } from "@streakky/ui/components/segmented";
 import { useHabitStore, useHabits } from "../store/react.tsx";
+import { useBackCloses } from "./stack.tsx";
 
 const HINT: Record<Kind, string> = {
   build: "Check in each day you do it. A missed day ends the streak.",
@@ -14,6 +15,7 @@ const HINT: Record<Kind, string> = {
 };
 
 export function NewHabitDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  useBackCloses(open, onClose);
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent shape="sheet">

@@ -66,6 +66,9 @@ export function useInFront(): boolean {
 /** The screens as the person sees them: all but the one sliding out. */
 const shownOf = ({ entries, leaving }: Stack) => entries.filter((e) => e.key !== leaving);
 
+/** How long after a screen goes a new one can't open: the second tap of a quick double tap. */
+const DOUBLE_TAP_MS = 400;
+
 /** Settings sits behind the menu on the left, so it slides in from the left. */
 const fromLeft = (route: Route) => route.name === "settings";
 
@@ -87,6 +90,10 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
   const nextKey = useRef(entries.length);
   // between the in-app back asking history to go back and the popstate that answers
   const goingBack = useRef(false);
+  // what had focus when each screen over Home opened, to give it back when the screen goes
+  const openers = useRef<(Element | null)[]>([]);
+  // when a screen last went away: a double tap's second tap mustn't open what lies beneath
+  const leftAt = useRef(0);
 
   /**
    * Shows Home with `screens` over it: screens no longer wanted go, new ones slide in.
@@ -133,9 +140,25 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
 
   const shown = shownOf(stack);
   const screensNow = shown.slice(1).map((e) => e.route);
+
+  // when screens go, focus goes back to what opened the one now in front, such as a habit's card
+  const screenCount = useRef(screensNow.length);
+  useEffect(() => {
+    const count = screensNow.length;
+    if (count < screenCount.current) {
+      leftAt.current = performance.now();
+      const opener = openers.current[count];
+      openers.current.length = count;
+      if (opener instanceof HTMLElement && opener.isConnected)
+        opener.focus({ preventScroll: true });
+    }
+    screenCount.current = count;
+  });
   const nav: Nav = {
     push: (route) => {
       if (leaving !== null || goingBack.current) return;
+      if (performance.now() - leftAt.current < DOUBLE_TAP_MS) return;
+      openers.current[screensNow.length] = document.activeElement;
       const screens = [...screensNow, route];
       history.pushState({ screens } satisfies HistoryState, "");
       show(screens, !prefersReducedMotion());
@@ -215,4 +238,32 @@ export function ScreenScroll({ children }: { children: ReactNode }) {
       {children}
     </main>
   );
+}
+
+/**
+ * While `open`, a dialog has its own browser history entry, so the browser's back button and the
+ * phone's back gesture close the dialog before they leave the screen. Closing it in the app
+ * (a button, Escape, the scrim) takes the entry away again, so history doesn't fill up.
+ */
+export function useBackCloses(open: boolean, close: () => void) {
+  const closeRef = useRef(close);
+  closeRef.current = close;
+  useEffect(() => {
+    if (!open) return;
+    const id = crypto.randomUUID();
+    const dialogOf = (state: unknown) => (state as { dialog?: string } | null)?.dialog;
+    // the same screens as now, so the screen stack sees no change on either side of it
+    history.pushState({ ...(history.state as object | null), dialog: id }, "");
+    let popped = false;
+    const onPopState = (event: PopStateEvent) => {
+      if (dialogOf(event.state) === id) return;
+      popped = true;
+      closeRef.current();
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      if (!popped && dialogOf(history.state) === id) history.back();
+    };
+  }, [open]);
 }
