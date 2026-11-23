@@ -1,0 +1,19 @@
+{
+  // the tests and the task config run in Node (the tests reach the Worker over HTTP), so they get
+  // Node's types, not the Worker's
+  "include": ["./**/*.ts", "../vite.config.ts"],
+  "compilerOptions": {
+    "target": "ES2024",
+    "module": "ESNext",
+    "lib": ["ES2024", "DOM"],
+    "types": ["node"],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}

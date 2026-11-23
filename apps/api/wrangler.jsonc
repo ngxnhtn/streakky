@@ -1,0 +1,27 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "streakky",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-19",
+  // only the custom domain: with routes set, Wrangler leaves the workers.dev URL off, so the app
+  // and its sign-in cookies have one origin
+  "routes": [{ "pattern": "hb.nhutien.com", "custom_domain": true }],
+  "assets": {
+    // the web app's production build, written by `vp run web#build`
+    "directory": "../web/dist",
+    // a path with no file gets the app's index.html, so the app can route it
+    "not_found_handling": "single-page-application",
+    // only /api reaches the Worker, browser navigations included; the assets layer serves the rest
+    "run_worker_first": ["/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "streakky",
+      // placeholder until the first deploy: replace it with the id that `wrangler d1 create
+      // streakky` prints (local dev and tests run on a local D1 and work with the placeholder)
+      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "migrations_dir": "migrations",
+    },
+  ],
+}
