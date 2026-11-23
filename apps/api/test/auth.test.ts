@@ -81,3 +81,13 @@ describe("guessing a sign-in code from many addresses", () => {
     expect(res.status).toBe(429);
   });
 });
+
+describe("ways to test a code without signing in", () => {
+  it.each(["/api/auth/email-otp/check-verification-otp", "/api/auth/email-otp/verify-email"])(
+    "are switched off, so guessing has only sign-in's capped route (%s)",
+    async (path) => {
+      const res = await post(path, { email: owner, otp: "000000", type: "sign-in" }, anotherIp());
+      expect(res.status).toBe(404);
+    },
+  );
+});

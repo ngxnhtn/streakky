@@ -81,8 +81,12 @@ export function authOptions(config: AuthConfig) {
       }),
       bearer(),
     ],
-    // the email-code plugin's password and email-change flows: Streakky has neither
+    // the email-code plugin's password and email-change flows: Streakky has neither. Nor does it
+    // check a code or verify an email apart from signing in, and those routes would let a code be
+    // guessed outside DAILY_LIMITS
     disabledPaths: [
+      "/email-otp/check-verification-otp",
+      "/email-otp/verify-email",
       "/email-otp/request-password-reset",
       "/email-otp/reset-password",
       "/forget-password/email-otp",
