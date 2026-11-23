@@ -31,7 +31,7 @@ import { useStore } from "../store.tsx";
 type Page = { name: "all" } | { name: "habit"; id: string } | { name: "settings" };
 
 const sideItem =
-  "flex min-h-11 w-full items-center gap-2.5 rounded-[0.875rem] px-3 py-2 text-left text-sm font-medium outline-hidden transition-colors duration-120 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring hover-fine:not-aria-[current=page]:bg-accent active:bg-press aria-[current=page]:bg-muted";
+  "flex min-h-11 w-full items-center gap-2.5 rounded-[0.875rem] px-3 py-2 text-left text-sm font-medium transition-colors duration-120 focus-ring-flush hover-fine:not-aria-[current=page]:bg-accent active:bg-press aria-[current=page]:bg-muted";
 
 /** The desktop web app: habits down the side, the chosen page in the main column. */
 export function WebApp() {
@@ -151,8 +151,7 @@ function Logo() {
   return (
     <svg
       viewBox="0 0 24 24"
-      width="20"
-      height="20"
+      className="size-5"
       aria-hidden="true"
       fill="none"
       stroke="currentColor"

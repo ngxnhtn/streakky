@@ -3,13 +3,12 @@ import { Menu, Plus } from "lucide-react";
 import {
   canToggle,
   counterLabel,
-  currentStreak,
   currentStreakDays,
-  fmtDayMonth,
   fmtLong,
   fromISO,
   loggedToday,
   sinceLabel,
+  statusLabel,
   type Habit,
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
@@ -148,7 +147,7 @@ function HabitList({
             name={habit.name}
             days={days}
             label={counterLabel(habit, days)}
-            status={statusOf(habit)}
+            status={statusLabel(habit)}
             kind={habit.kind}
             color={habit.color}
             checkedIn={loggedToday(habit)}
@@ -162,17 +161,6 @@ function HabitList({
       <NewHabitTile layout="list" onClick={onAdd} />
     </HabitCollection>
   );
-}
-
-/** The line under a name in the list: what today needs, or how long the streak has run. */
-function statusOf(habit: Habit): string {
-  const streak = currentStreak(habit);
-  if (habit.kind === "quit") {
-    if (loggedToday(habit)) return "Slip logged today";
-    return streak.days === 0 ? "Started today" : `Since ${fmtDayMonth(streak.start)}`;
-  }
-  if (loggedToday(habit)) return "Checked in today";
-  return streak.days === 0 ? "Check in today to start" : "Not checked in today";
 }
 
 function EmptyHabits({ onAdd }: { onAdd: () => void }) {

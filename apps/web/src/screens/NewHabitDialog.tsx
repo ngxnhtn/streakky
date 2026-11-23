@@ -35,13 +35,13 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
   // the raw input value: "" while a date is half typed or cleared
   const [quitDay, setQuitDay] = useState(today);
   const [color, setColor] = useState<ColorId>((unused ?? HABIT_COLORS[0]).id);
-  const [error, setError] = useState("");
+  const [nameError, setNameError] = useState("");
   const [quitDayError, setQuitDayError] = useState("");
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     const trimmed = name.trim();
-    if (!trimmed) return setError("Give the habit a name.");
+    if (!trimmed) return setNameError("Give the habit a name.");
     if (kind === "build") {
       await store.createHabit({ kind, name: trimmed, color });
     } else {
@@ -66,7 +66,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
         />
         <p className="text-[0.8125rem] text-muted-foreground">{HINT[kind]}</p>
       </div>
-      <Field label="Name" error={error}>
+      <Field label="Name" error={nameError}>
         {({ id, describedBy, invalid }) => (
           <Input
             id={id}
@@ -77,7 +77,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
             aria-describedby={describedBy}
             onChange={(e) => {
               setName(e.target.value);
-              if (error) setError("");
+              if (nameError) setNameError("");
             }}
           />
         )}

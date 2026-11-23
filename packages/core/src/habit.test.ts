@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
+  loggedDays,
+  loggedToday,
+  statusLabel,
   canBeQuitDay,
   canToggle,
   counterLabel,
@@ -9,7 +12,7 @@ import {
   historyStart,
   longestStreakDays,
   sinceLabel,
-  streakDays,
+  daysByStreak,
   streaksOf,
   toISO,
   type Habit,
@@ -171,7 +174,7 @@ describe("quit day", () => {
 describe("calendar highlighting", () => {
   it("highlights a build habit's check-ins by whether they belong to the current streak", () => {
     const habit = build(["2026-11-20", "2026-11-21", "2026-11-23", "2026-11-24"]);
-    expect(Object.fromEntries(streakDays(habit))).toEqual({
+    expect(Object.fromEntries(daysByStreak(habit))).toEqual({
       "2026-11-20": "past",
       "2026-11-21": "past",
       "2026-11-23": "current",
@@ -181,7 +184,7 @@ describe("calendar highlighting", () => {
 
   it("highlights a quit habit's clean days, leaving the quit day and slips out", () => {
     const habit = quit("2026-11-18", ["2026-11-21"]);
-    expect(Object.fromEntries(streakDays(habit))).toEqual({
+    expect(Object.fromEntries(daysByStreak(habit))).toEqual({
       "2026-11-19": "past",
       "2026-11-20": "past",
       "2026-11-22": "current",
@@ -267,5 +270,38 @@ describe("days after today", () => {
 describe("build habit labels", () => {
   it("say to check in today while there is no current streak", () => {
     expect(sinceLabel(build(["2026-11-20"]))).toBe("check in today to start");
+  });
+});
+
+describe("logged days that count", () => {
+  it("leave out a quit habit's slips on or before the quit day and after today", () => {
+    const habit = quit("2026-11-14", ["2026-11-10", "2026-11-14", "2026-11-20", "2026-11-25"]);
+    expect(loggedDays(habit)).toEqual(["2026-11-20"]);
+  });
+
+  it("leave out a build habit's check-ins after today", () => {
+    expect(loggedDays(build(["2026-11-23", "2026-11-25"]))).toEqual(["2026-11-23"]);
+  });
+
+  it("don't count a slip on today's quit day as logged today", () => {
+    expect(loggedToday(quit("2026-11-24", ["2026-11-24"]))).toBe(false);
+  });
+});
+
+describe("status line", () => {
+  it("says what a build habit needs today", () => {
+    expect([
+      statusLabel(build(["2026-11-23", "2026-11-24"])),
+      statusLabel(build(["2026-11-23"])),
+      statusLabel(build([])),
+    ]).toEqual(["Checked in today", "Not checked in today", "Check in today to start"]);
+  });
+
+  it("says how a quit habit's current streak stands", () => {
+    expect([
+      statusLabel(quit("2026-11-14", ["2026-11-24"])),
+      statusLabel(quit("2026-11-24")),
+      statusLabel(quit("2026-11-14")),
+    ]).toEqual(["Slip logged today", "Started today", "Since 14 Nov"]);
   });
 });

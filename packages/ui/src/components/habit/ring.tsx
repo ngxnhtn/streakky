@@ -17,7 +17,7 @@ export function StreakRing({
   className,
 }: {
   days: number;
-  /** the habit's goal; with none, the arc fills toward the next milestone */
+  /** the habit's goal; with none, the arc fills toward the next of the goal presets */
   goal: number | null;
   /** under the number: "day streak", "days free" */
   label: string;

@@ -6,10 +6,13 @@ import {
   fmtShort,
   fromISO,
   historyStart,
-  streakDays,
+  daysByStreak,
+  loggedDays,
+  loggedToday,
   today,
   toISO,
   type Habit,
+  type WeekStart,
 } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { Segmented } from "@streakky/ui/components/segmented";
@@ -22,9 +25,10 @@ const monthShort = new Intl.DateTimeFormat("en-GB", { month: "short" });
 const LETTERS = ["S", "M", "T", "W", "T", "F", "S"];
 const NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const rotate = <T,>(list: T[], weekStart: 0 | 1) =>
+const rotate = <T,>(list: T[], weekStart: WeekStart) =>
   weekStart === 1 ? [...list.slice(1), list[0]] : list;
-const startOfWeek = (d: Date, weekStart: 0 | 1) => addDays(d, -((d.getDay() - weekStart + 7) % 7));
+const startOfWeek = (d: Date, weekStart: WeekStart) =>
+  addDays(d, -((d.getDay() - weekStart + 7) % 7));
 
 type DayInfo = {
   date: Date;
@@ -36,7 +40,7 @@ type DayInfo = {
 };
 
 /**
- * A habit's days. Every done or clean day takes the habit colour in full; a slip is an
+ * A habit's days. Every check-in or clean day takes the habit colour in full; a slip is an
  * unfilled day with a dot; today, not checked in yet, is a ring. Weeks: columns are weeks, newest
  * on the right, opening on today. Month: a classic grid with streaks drawn as bands.
  * "Edit days" turns days into buttons that call onToggleDay.
@@ -51,7 +55,7 @@ export function HabitCalendar({
   className,
 }: {
   habit: Habit;
-  weekStart: 0 | 1;
+  weekStart: WeekStart;
   view: CalendarView;
   onViewChange: (view: CalendarView) => void;
   onToggleDay: (iso: string) => void;
@@ -60,11 +64,12 @@ export function HabitCalendar({
   className?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const streakDayMap = useMemo(() => streakDays(habit), [habit]);
+  const streakDayMap = useMemo(() => daysByStreak(habit), [habit]);
   const t = today();
   const todayISO = toISO(t);
-  const slips = new Set(habit.kind === "quit" ? habit.slips : []);
-  const pending = habit.kind === "build" && !habit.checkIns.includes(todayISO);
+  // only the logged days that count: a slip on or before the quit day draws no dot
+  const slips = new Set(habit.kind === "quit" ? loggedDays(habit) : []);
+  const pending = habit.kind === "build" && !loggedToday(habit);
   const firstDay = fromISO(historyStart(habit));
 
   const info = (date: Date): DayInfo => {
@@ -151,7 +156,7 @@ type CellCtx = {
   onToggleDay: (iso: string) => void;
 };
 
-/** A day: a plain mark at rest, a button while editing. */
+/** A day: plain at rest, a button while editing. */
 function Day({
   d,
   ctx,
@@ -174,17 +179,15 @@ function Day({
     );
   }
   const on = ctx.kind === "build" ? d.inStreak : d.slip;
-  const state = ctx.kind === "build" ? (on ? "done" : "not done") : on ? "slip" : "clean";
+  const state =
+    ctx.kind === "build" ? (on ? "checked in" : "not checked in") : on ? "slip" : "clean";
   return (
     <button
       type="button"
       aria-pressed={on}
       aria-label={`${fmtShort(d.date)}: ${state}`}
       onClick={() => ctx.onToggleDay(toISO(d.date))}
-      className={cn(
-        className,
-        "cursor-pointer outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
-      )}
+      className={cn(className, "cursor-pointer focus-ring-flush")}
     >
       {children}
     </button>
@@ -202,7 +205,7 @@ function WeeksGrid({
   cell,
 }: {
   firstDay: Date;
-  weekStart: 0 | 1;
+  weekStart: WeekStart;
   minWeeks: number;
   info: (d: Date) => DayInfo;
   cell: CellCtx;
@@ -301,7 +304,7 @@ function MonthGrid({
   cell,
 }: {
   firstDay: Date;
-  weekStart: 0 | 1;
+  weekStart: WeekStart;
   info: (d: Date) => DayInfo;
   cell: CellCtx;
 }) {

@@ -14,7 +14,7 @@ This is the riskiest ticket, because TanStack DB is still a release candidate an
 
 - [x] The web app is a plain Vite single-page app with no server rendering. It opens straight into Home, and its dev script runs it.
 - [x] A New habit flow creates a build habit from a name and a colour. New habits appear on Home after the existing ones.
-- [x] The today button checks in and undoes. The current streak and its "day streak" label update immediately, and a habit with no current streak says "log today to start".
+- [x] The today button checks in and undoes. The current streak and its "day streak" label update immediately, and a habit with no current streak says "log today to start" (now "check in today to start", by the owner's copy decision of 2026-11-24).
 - [x] Habits and check-ins survive a reload, and the app keeps working with the network turned off once it's loaded. Opening it offline comes in 11.
 - [x] Habits and day records follow the spec's synced data shape:
   - [x] ids generated on the device;

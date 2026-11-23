@@ -49,7 +49,7 @@ export function StreaksChart({
             onPointerEnter={() => setPointed(i)}
             onFocus={() => setPointed(i)}
             onClick={() => setPointed(i)}
-            className="relative flex max-w-16 flex-1 items-end justify-center outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring"
+            className="relative flex max-w-16 flex-1 items-end justify-center focus-ring-flush"
           >
             <span
               style={{ height: `${Math.max(2, (streak.days / max) * 100)}%` }}

@@ -110,9 +110,9 @@ export function SettingsBody({ className }: { className?: string }) {
             />
           </ListItem>
           <ListItem>
-            <ListLabel>Milestone alerts</ListLabel>
+            <ListLabel>Goal celebrations</ListLabel>
             <Switch
-              aria-label="Milestone alerts"
+              aria-label="Goal celebrations"
               checked={settings.celebrate}
               onCheckedChange={(celebrate) => set({ celebrate })}
             />

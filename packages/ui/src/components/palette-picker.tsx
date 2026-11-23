@@ -28,7 +28,7 @@ export function PalettePicker({
         <ToggleGroupItem
           key={p.id}
           value={p.id}
-          className="group/pal grid w-[3.75rem] justify-items-center gap-1.5 rounded-[0.875rem] py-1 text-xs text-muted-foreground outline-hidden transition-transform duration-120 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring active:scale-94 data-[state=on]:font-medium data-[state=on]:text-foreground hover-fine:text-foreground"
+          className="group/pal grid w-[3.75rem] justify-items-center gap-1.5 rounded-[0.875rem] py-1 text-xs text-muted-foreground transition-transform duration-120 focus-ring-flush active:scale-94 data-[state=on]:font-medium data-[state=on]:text-foreground hover-fine:text-foreground"
         >
           {/* the ring sits outside the swatch so it takes the app's colours, not the swatch's */}
           <span

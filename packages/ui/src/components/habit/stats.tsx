@@ -1,6 +1,7 @@
 import {
   daysBetween,
   historyStart,
+  loggedDays,
   longestStreakDays,
   streaksOf,
   today,
@@ -28,18 +29,16 @@ export function HabitStats({
   const unit = (n: number) => (n === 1 ? "day" : "days");
   const t = today();
   const tracked = Math.min(30, daysBetween(historyStart(habit), t) + 1);
+  // check-ins or slips: only the ones that count (none after today, no slip before the quit day)
+  const logged = loggedDays(habit);
   const tiles =
     habit.kind === "build"
       ? [
           { value: days, unit: unit(days), label: "This streak" },
           { value: longest, unit: unit(longest), label: "Longest streak" },
+          { value: logged.length, unit: unit(logged.length), label: "Check-ins" },
           {
-            value: habit.checkIns.length,
-            unit: unit(habit.checkIns.length),
-            label: "Check-ins",
-          },
-          {
-            value: habit.checkIns.filter((d) => daysBetween(d, t) < 30).length,
+            value: logged.filter((d) => daysBetween(d, t) < 30).length,
             unit: `of ${tracked}`,
             label: "Last 30 days",
           },
@@ -48,11 +47,7 @@ export function HabitStats({
           { value: days, unit: unit(days), label: "This streak" },
           { value: longest, unit: unit(longest), label: "Longest streak" },
           { value: average, unit: unit(average), label: "Average streak" },
-          {
-            value: habit.slips.length,
-            unit: "",
-            label: habit.slips.length === 1 ? "Slip" : "Slips",
-          },
+          { value: logged.length, unit: "", label: logged.length === 1 ? "Slip" : "Slips" },
         ];
   return (
     <div data-slot="habit-stats" className={className}>

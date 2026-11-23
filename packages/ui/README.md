@@ -55,9 +55,11 @@ Tokens follow shadcn's names (`bg-background`, `text-foreground`, `bg-muted`,
 - `bg-primary-hover`, `bg-press`, `bg-scrim`
 - `font-display`, `font-mono`; eases `ease-ui`, `ease-enter`
 - `hover-fine:`: hover on a fine pointer only (no sticky hover on touch)
-- focus rings: `outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring`.
-  `outline-hidden` (like `outline-none`) sets the outline style to none, so a focus ring must set
-  `outline-solid` itself or it never shows
+- `focus-ring` / `focus-ring-flush`: the keyboard focus ring (2px in `--ring`, offset or flush),
+  shown on `:focus-visible` only. Use these, not `outline-none`/`outline-hidden` plus
+  `focus-visible:outline-*`, which draw nothing in Tailwind v4 unless the style is set too
+- `tap-target`: grows a compact control's hit area to 2.75rem each way without changing its look
+  (small buttons, segmented options and switches carry it)
 - animations: `animate-push-in(-left)`, `animate-push-out(-left)`, `animate-sheet-in/out`,
   `animate-dialog-in/out`, `animate-fade-in/out`, `animate-rise`, `animate-tick-pop`
 
@@ -69,7 +71,9 @@ ground, in both modes; every habit colour holds 4.6:1 or more on every ground.
 Everything is sized in rem (Tailwind's scale, or arbitrary values such as `text-[0.8125rem]`), so the
 whole interface grows with the reader's browser text size. Only hairlines of 2px or less (borders,
 outlines, inset ring strokes, the 1px hover and press steps) stay in px. Tap targets are at least
-2.75rem (`size-11`), which is 44px at the default size.
+2.75rem (`size-11`, or `tap-target` around a smaller control), which is 44px at the default size.
+The one exception is a dense grid of days (the calendar while editing), whose cells stay at
+1.75rem, above WCAG 2.2's 1.5rem minimum.
 
 ## Components
 

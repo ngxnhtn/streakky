@@ -1,4 +1,4 @@
-import { counterLabel, currentStreak, fmtDayMonth, loggedToday, type Habit } from "@streakky/core";
+import { counterLabel, currentStreak, loggedToday, statusLabel } from "@streakky/core";
 import { Segmented } from "@streakky/ui/components/segmented";
 import {
   NewHabitTile,
@@ -8,17 +8,6 @@ import {
 } from "@streakky/ui/components/habit/habit-card";
 import { LayoutGrid, Rows2 } from "lucide-react";
 import { useStore } from "../store.tsx";
-
-/** The line under a name in the list: what today needs, or how long it has run. */
-export function statusOf(s: Habit): string {
-  const streak = currentStreak(s);
-  if (s.kind === "quit") {
-    if (loggedToday(s)) return "Slip logged today";
-    return streak.days === 0 ? "Started today" : `Since ${fmtDayMonth(streak.start)}`;
-  }
-  if (loggedToday(s)) return "Checked in today";
-  return streak.days === 0 ? "Check in today to start" : "Not checked in today";
-}
 
 export function LayoutSwitch() {
   const { settings, dispatch } = useStore();
@@ -65,7 +54,7 @@ export function HabitFaces({
         return layout === "grid" ? (
           <HabitCard key={s.id} {...face} />
         ) : (
-          <HabitRow key={s.id} {...face} status={statusOf(s)} />
+          <HabitRow key={s.id} {...face} status={statusLabel(s)} />
         );
       })}
       <NewHabitTile layout={layout} onClick={onAdd} />

@@ -78,8 +78,7 @@ export function Board() {
         <p className="flex items-center gap-2 text-lg font-semibold tracking-[-0.025em]">
           <svg
             viewBox="0 0 24 24"
-            width="20"
-            height="20"
+            className="size-5"
             aria-hidden="true"
             fill="none"
             stroke="currentColor"

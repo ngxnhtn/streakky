@@ -218,7 +218,7 @@
   --font-mono: "DM Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
 
   /* Tailwind's radius scale stays as it is (lg 0.5rem, 2xl 1rem, 3xl 1.5rem); components set their
-     own radii: pills rounded-full, tiles 1.25rem, cards 24-1.75rem, sheets 2rem */
+     own radii: pills rounded-full, tiles 1.25rem, cards 1.5-1.75rem, sheets 2rem */
 
   /* motion: one ease for UI steps, one for entrances */
   --ease-ui: cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -307,6 +307,49 @@
 }
 
 /* pointer-only hover: hover styles never stick on touch */
+/*
+ * Keyboard focus: a 2px ring in --ring, shown on :focus-visible only. Use one of these instead of
+ * outline-none or outline-hidden plus focus-visible:outline-*, which draw nothing in Tailwind v4
+ * unless the style is set too. In forced-colours mode the system colours the ring.
+ */
+@utility focus-ring {
+  outline-style: none;
+  @media (forced-colors: active) {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+}
+/* The same ring drawn flush with the edge, for controls inside a tight frame. */
+@utility focus-ring-flush {
+  outline-style: none;
+  @media (forced-colors: active) {
+    outline: 2px solid transparent;
+  }
+  &:focus-visible {
+    outline: 2px solid var(--color-ring);
+  }
+}
+
+/*
+ * Grows a compact control's hit area to at least 2.75rem each way, centred, without changing how
+ * it looks. The control must be positioned (relative) and leave its ::after free.
+ */
+@utility tap-target {
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 2.75rem);
+    height: max(100%, 2.75rem);
+    translate: -50% -50%;
+  }
+}
+
 @custom-variant hover-fine {
   @media (hover: hover) and (pointer: fine) {
     &:hover {

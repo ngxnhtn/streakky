@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Check, Plus, RotateCcw } from "lucide-react";
-import type { ColorId, Kind } from "@streakky/core";
+import type { ColorId, Kind, Layout } from "@streakky/core";
 import { cn } from "@streakky/ui/lib/utils";
 
 /** Today's state on a build habit: an empty ring, filled with a tick once checked in. */
@@ -43,10 +43,10 @@ export function CheckInButton({
       aria-pressed={checkedIn}
       onClick={onToggle}
       className={cn(
-        "grid size-11 place-items-center rounded-full outline-hidden",
+        "grid size-11 place-items-center rounded-full",
         "transition-[background-color,transform,scale] duration-120 ease-ui",
         "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
-        "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+        "focus-ring-flush",
         className,
       )}
     >
@@ -103,10 +103,10 @@ export function SlipButton({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        "grid size-11 place-items-center rounded-full outline-hidden",
+        "grid size-11 place-items-center rounded-full",
         "transition-[background-color,transform,scale,opacity] duration-120 ease-ui",
         "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
-        "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+        "focus-ring-flush",
         "disabled:pointer-events-none disabled:opacity-40",
         className,
       )}
@@ -117,15 +117,13 @@ export function SlipButton({
 }
 
 const tileGround = [
-  "w-full border border-transparent text-left outline-hidden",
+  "w-full border border-transparent text-left",
   "bg-habit/9 dark:bg-habit/16",
   "transition-[transform,border-color,box-shadow,background-color,translate,scale] duration-120 ease-ui",
 ].join(" ");
 const tileLift =
   "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_0.75rem_1.5rem_-0.875rem_rgb(0_0_0/0.28)] hover-fine:duration-180";
-const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring";
-const tile = [tileGround, tileLift, focusRing, "active:scale-[0.98] active:duration-90"].join(" ");
+const tile = [tileGround, tileLift, "focus-ring active:scale-[0.98] active:duration-90"].join(" ");
 
 type HabitFace = {
   name: string;
@@ -226,7 +224,7 @@ export function HabitCard({
           data-slot="habit-open"
           onClick={onClick}
           aria-label={summary}
-          className={cn("absolute inset-0 rounded-[inherit]", focusRing)}
+          className="focus-ring absolute inset-0 rounded-[inherit]"
         />
       )}
       <span
@@ -359,7 +357,7 @@ export function HabitRow({
           data-slot="habit-open"
           onClick={onClick}
           aria-label={summaryOf(face)}
-          className={cn("absolute inset-0 rounded-[inherit]", focusRing)}
+          className="focus-ring absolute inset-0 rounded-[inherit]"
         />
       )}
       <span className="pointer-events-none relative flex min-w-0 flex-1 items-center justify-between gap-4">
@@ -375,7 +373,7 @@ export function NewHabitTile({
   onClick,
   className,
 }: {
-  layout: "grid" | "list";
+  layout: Layout;
   onClick: () => void;
   className?: string;
 }) {
@@ -385,8 +383,8 @@ export function NewHabitTile({
       data-slot="new-habit"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-center gap-2 border-[1.5px] border-dashed border-input text-sm font-medium text-muted-foreground outline-hidden",
-        "transition-[border-color,color,transform,translate,scale] duration-120 ease-ui focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+        "flex w-full items-center justify-center gap-2 border-[1.5px] border-dashed border-input text-sm font-medium text-muted-foreground",
+        "transition-[border-color,color,transform,translate,scale] duration-120 ease-ui focus-ring-flush",
         "hover-fine:border-foreground hover-fine:text-foreground active:scale-[0.98]",
         layout === "grid"
           ? "h-[10.5rem] flex-col rounded-3xl"
@@ -407,7 +405,7 @@ export function HabitCollection({
   className,
   children,
 }: {
-  layout: "grid" | "list";
+  layout: Layout;
   className?: string;
   children: React.ReactNode;
 }) {

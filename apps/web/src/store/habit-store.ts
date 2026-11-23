@@ -8,6 +8,7 @@ import {
   canBeQuitDay,
   canToggle,
   defaultSettings,
+  PALETTES,
   todayISO,
   type ColorId,
   type Habit,
@@ -88,14 +89,30 @@ export type HabitStoreOptions = {
 
 const SETTINGS_KEY = "streakky.settings";
 
+/** What each setting may hold; anything else in storage is ignored. */
+const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
+  theme: (v) => v === "system" || v === "light" || v === "dark",
+  palette: (v) => PALETTES.some((p) => p.id === v),
+  layout: (v) => v === "grid" || v === "list",
+  weekStart: (v) => v === 0 || v === 1,
+  reminder: (v) => typeof v === "boolean",
+  reminderTime: (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
+  celebrate: (v) => typeof v === "boolean",
+};
+
 /**
- * The stored settings over the defaults, so settings added later start at their default.
- * Unreadable or blocked storage gives `fallback` rather than failing.
+ * The stored settings this version recognises, over `fallback` (the defaults when opening), so
+ * settings added later start at their default and damaged values are dropped. Unreadable or
+ * blocked storage gives `fallback` rather than failing.
  */
-function readSettings(storage: KeyValueStorage, fallback = defaultSettings): Settings {
+export function readSettings(storage: KeyValueStorage, fallback = defaultSettings): Settings {
   try {
     const stored: unknown = JSON.parse(storage.getItem(SETTINGS_KEY) ?? "{}");
-    return typeof stored === "object" ? { ...defaultSettings, ...stored } : fallback;
+    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return fallback;
+    const valid = Object.entries(stored).filter(
+      ([key, value]) => key in SETTING_VALUES && SETTING_VALUES[key as keyof Settings](value),
+    );
+    return { ...fallback, ...Object.fromEntries(valid) };
   } catch {
     return fallback;
   }
@@ -109,8 +126,12 @@ function writeSettings(storage: KeyValueStorage, settings: Settings) {
   }
 }
 
+/**
+ * The person's order. Two devices adding a habit after the same one offline give both the same
+ * position, so ties fall back to the id, the same on every device.
+ */
 const byOrder = (a: HabitRecord, b: HabitRecord) =>
-  a.order < b.order ? -1 : a.order > b.order ? 1 : 0;
+  a.order < b.order ? -1 : a.order > b.order ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
 export async function openHabitStore({
   persistence,
@@ -151,12 +172,12 @@ export async function openHabitStore({
     for (const d of dayRecords.toArray) {
       if (d.logged) logged.set(d.habitId, [...(logged.get(d.habitId) ?? []), d.day]);
     }
-    return records.map((h) => {
+    return records.flatMap((h): Habit[] => {
       const days = (logged.get(h.id) ?? []).sort();
       const base = { id: h.id, name: h.name, color: h.color, goal: h.goal };
-      return h.kind === "build"
-        ? { ...base, kind: "build", checkIns: days }
-        : { ...base, kind: "quit", quitDay: h.quitDay ?? "", slips: days };
+      if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
+      // a quit habit can't be counted without its quit day; the store never writes one without
+      return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
     });
   };
 

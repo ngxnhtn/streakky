@@ -133,7 +133,7 @@ function StatusBar() {
       className="flex h-[3.375rem] flex-none items-center justify-between pt-3.5 pr-[2.125rem] pl-[2.875rem] text-base font-semibold tracking-[-0.01em]"
     >
       <span>9:41</span>
-      <svg width="68" height="12" viewBox="0 0 68 12" fill="currentColor">
+      <svg viewBox="0 0 68 12" fill="currentColor" className="h-3 w-[4.25rem]">
         <rect x="0" y="8" width="3" height="4" rx="1" />
         <rect x="5" y="5.5" width="3" height="6.5" rx="1" />
         <rect x="10" y="3" width="3" height="9" rx="1" />

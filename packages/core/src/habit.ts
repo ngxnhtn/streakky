@@ -1,3 +1,14 @@
+import {
+  addDays,
+  daysBetween,
+  fmtDayMonth,
+  fmtShort,
+  fromISO,
+  today,
+  todayISO,
+  toISO,
+} from "./dates.ts";
+
 /**
  * Two kinds of habit:
  * - build: something to do every day. Each day it's done is a check-in; a missed day ends the streak.
@@ -37,31 +48,6 @@ export type Habit = BuildHabit | QuitHabit;
  */
 export type Streak = { start: string; end: string; days: number; current: boolean };
 
-export type Theme = "system" | "light" | "dark";
-
-export type Layout = "grid" | "list";
-
-export type PaletteId = "teal" | "cobalt" | "olive" | "oxblood" | "graphite";
-
-/** App colour themes. Their colours live in @streakky/ui (globals.css, `data-palette`). */
-export const PALETTES: { id: PaletteId; name: string }[] = [
-  { id: "teal", name: "Teal" },
-  { id: "cobalt", name: "Cobalt" },
-  { id: "olive", name: "Olive" },
-  { id: "oxblood", name: "Oxblood" },
-  { id: "graphite", name: "Graphite" },
-];
-
-export type Settings = {
-  theme: Theme;
-  palette: PaletteId;
-  layout: Layout;
-  weekStart: 0 | 1;
-  reminder: boolean;
-  reminderTime: string;
-  celebrate: boolean;
-};
-
 export const GOALS = [7, 14, 21, 30, 60, 90, 180, 365];
 
 /**
@@ -77,51 +63,25 @@ export const HABIT_COLORS: { id: ColorId; name: string }[] = [
   { id: "green", name: "Green" },
 ];
 
-const DAY = 86_400_000;
-
-export function today(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-
-export function toISO(d: Date): string {
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${m}-${day}`;
-}
-
-export function fromISO(s: string): Date {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-export function addDays(d: Date | string, n: number): Date {
-  const out = typeof d === "string" ? fromISO(d) : new Date(d);
-  out.setDate(out.getDate() + n);
-  return out;
-}
-
-export function daysBetween(a: Date | string, b: Date | string): number {
-  const x = typeof a === "string" ? fromISO(a) : a;
-  const y = typeof b === "string" ? fromISO(b) : b;
-  return Math.round((y.getTime() - x.getTime()) / DAY);
-}
-
-export const todayISO = () => toISO(today());
-
-/** The days a habit has logged: check-ins for a build habit, slips for a quit habit. */
-export const loggedDays = (h: Habit): string[] => (h.kind === "build" ? h.checkIns : h.slips);
-
 /**
- * Every streak, oldest first; the last one is the current streak, possibly 0 days.
- * Days after today (logged before flying west, say) are ignored until they come.
+ * A habit's logged days that count, oldest first: check-ins up to today for a build habit; slips
+ * after the quit day and up to today for a quit habit. Days after today (logged before flying
+ * west, say) wait until they come, and a quit day after today counts as today.
  */
+export function loggedDays(h: Habit): string[] {
+  const t = todayISO();
+  if (h.kind === "build") return h.checkIns.filter((day) => day <= t);
+  const quitDay = effectiveQuitDay(h);
+  return h.slips.filter((slip) => slip > quitDay && slip <= t);
+}
+
+const effectiveQuitDay = (h: QuitHabit) => (h.quitDay < todayISO() ? h.quitDay : todayISO());
+
+/** Every streak, oldest first, from the logged days that count; the last one is the current streak, possibly 0 days. */
 export function streaksOf(h: Habit): Streak[] {
   const t = todayISO();
   if (h.kind === "quit") {
-    const quitDay = h.quitDay < t ? h.quitDay : t;
-    const bounds = [quitDay, ...h.slips.filter((slip) => slip > quitDay && slip <= t)];
+    const bounds = [effectiveQuitDay(h), ...loggedDays(h)];
     // a finished streak holds the clean days between two slips; the slip days themselves are not clean
     const streaks: Streak[] = bounds.slice(0, -1).map((b, i) => ({
       start: b,
@@ -134,8 +94,7 @@ export function streaksOf(h: Habit): Streak[] {
     return streaks;
   }
   const streaks: Streak[] = [];
-  for (const day of h.checkIns) {
-    if (day > t) break;
+  for (const day of loggedDays(h)) {
     const prev = streaks[streaks.length - 1];
     if (prev && daysBetween(prev.end, day) === 1) {
       prev.end = day;
@@ -182,7 +141,7 @@ export function canToggle(h: Habit, day: string): boolean {
  * build: the check-in days. quit: the clean days after the quit day or each slip, up to the
  * next slip (or today); slip days stay unfilled. Each streak's coloured days equal its count.
  */
-export function streakDays(h: Habit): Map<string, "current" | "past"> {
+export function daysByStreak(h: Habit): Map<string, "current" | "past"> {
   const days = new Map<string, "current" | "past">();
   for (const s of streaksOf(h)) {
     if (s.days === 0) continue;
@@ -206,6 +165,17 @@ export function sinceLabel(h: Habit): string {
   return loggedToday(h) ? "slip logged today" : "started today";
 }
 
+/** The line under a habit's name in a list: what today needs, or how the current streak stands. */
+export function statusLabel(h: Habit): string {
+  const streak = currentStreak(h);
+  if (h.kind === "quit") {
+    if (loggedToday(h)) return "Slip logged today";
+    return streak.days === 0 ? "Started today" : `Since ${fmtDayMonth(streak.start)}`;
+  }
+  if (loggedToday(h)) return "Checked in today";
+  return streak.days === 0 ? "Check in today to start" : "Not checked in today";
+}
+
 /** The day the goal is (or was) reached on the current streak. */
 export function goalDate(h: Habit): Date | null {
   if (h.goal === null) return null;
@@ -216,31 +186,11 @@ export function goalDate(h: Habit): Date | null {
   return addDays(today(), loggedToday(h) ? left : left - 1);
 }
 
-const shortDate = new Intl.DateTimeFormat("en-GB", {
-  weekday: "short",
-  day: "numeric",
-  month: "short",
-});
-const longDate = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-});
-const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
-
-export const fmtShort = (d: Date | string) =>
-  shortDate.format(typeof d === "string" ? fromISO(d) : d).replace(",", "");
-export const fmtLong = (d: Date) => longDate.format(d).replace(",", "");
-export const fmtDayMonth = (d: Date | string) =>
-  dayMonth.format(typeof d === "string" ? fromISO(d) : d);
-
 /** The words under a count: a build habit counts a streak, a quit habit counts free days. */
 export function counterLabel(h: Habit, days: number): string {
   if (h.kind === "quit") return days === 1 ? "day free" : "days free";
   return "day streak";
 }
-
-export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
 /** Sample data, placed relative to today so the counts always read the same. */
 export function sampleHabits(): Habit[] {
@@ -285,13 +235,3 @@ export function sampleHabits(): Habit[] {
     },
   ];
 }
-
-export const defaultSettings: Settings = {
-  theme: "system",
-  palette: "teal",
-  layout: "grid",
-  weekStart: 1,
-  reminder: true,
-  reminderTime: "21:00",
-  celebrate: true,
-};

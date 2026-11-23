@@ -4,8 +4,8 @@ import { cn } from "@streakky/ui/lib/utils";
 
 const base = [
   "inline-flex h-[3.25rem] min-w-[13.75rem] items-center justify-center gap-2.5 rounded-full text-base font-medium",
-  "transition-[background-color,color,transform,box-shadow,translate,scale] duration-200 ease-ui outline-hidden",
-  "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring",
+  "transition-[background-color,color,transform,box-shadow,translate,scale] duration-200 ease-ui",
+  "focus-ring",
   "active:translate-y-px active:scale-[0.985] active:duration-90 hover-fine:not-active:-translate-y-px",
   "disabled:pointer-events-none disabled:opacity-40",
 ].join(" ");

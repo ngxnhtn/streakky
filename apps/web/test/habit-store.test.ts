@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { currentStreakDays } from "@streakky/core";
+import { defaultSettings, currentStreakDays } from "@streakky/core";
 import { createStorage, openDevice } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
@@ -55,6 +55,29 @@ describe("a device on its own", () => {
 });
 
 describe("device settings", () => {
+  it("keep only the stored settings it recognises", async () => {
+    const storage = createStorage();
+    // as an older or damaged version of the app might have left them
+    storage.keyValues.setItem(
+      "streakky.settings",
+      JSON.stringify({ theme: "dark", palette: "violet", layout: 5, weekStart: 0 }),
+    );
+    const device = await openDevice(storage);
+    expect(device.settings()).toMatchObject({
+      theme: "dark",
+      palette: "teal",
+      layout: "grid",
+      weekStart: 0,
+    });
+  });
+
+  it("ignore stored settings that aren't an object", async () => {
+    const storage = createStorage();
+    storage.keyValues.setItem("streakky.settings", JSON.stringify(["dark"]));
+    const device = await openDevice(storage);
+    expect(device.settings()).toEqual(defaultSettings);
+  });
+
   it("start with the system theme, teal palette, grid layout and Monday weeks", async () => {
     const device = await openDevice(createStorage());
     expect(device.settings()).toMatchObject({

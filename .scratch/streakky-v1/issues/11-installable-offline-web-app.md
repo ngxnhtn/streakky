@@ -10,7 +10,7 @@
 
 - [x] The web app has a manifest and icons, and Chrome offers to install it.
 - [x] After one online visit, the app opens and works with the network off, served from the app shell cached by its service worker.
-- [x] After a new build is deployed, the app runs the new version within one reopen.
+- [x] After a new build is deployed, the app offers it on the next open with an "update ready" prompt, and switches when the person accepts (changed by the owner on 2026-11-24; it no longer reloads by itself).
 - [x] On load the app requests persistent storage, and it works normally if the browser declines.
 - [x] `vp check` and `vp test` pass, and the production build includes the service worker.
 
@@ -48,4 +48,4 @@
   - Both buttons are 44 px tall, and Reload showed a 2 px focus outline from the keyboard. The notice is one row, 62 px tall at 390 px wide and 64 px at 320; with its 8 px offset it stays within the 72 px Home leaves at the bottom. Light and dark, and 1024 px wide, looked right.
   - Fonts: no request went to Google. After one online visit, with the HTTP cache cleared and the server stopped, a new tab opened the app and loaded Instrument Sans and DM Mono 400 and 500 from the worker, DM Mono for the first time. Text widths changed with `font-weight` and `font-stretch`, so both axes work.
   - With `window.Capacitor.isNativePlatform()` stubbed to return true, no worker registered; returning false, it did. In dev the fonts load and no worker registers. No console errors or warnings in any run.
-- **Focus rings:** Button's own ring draws nothing at the moment: its `outline-none` sets Tailwind's `--tw-outline-style` to `none`, which `focus-visible:outline-2` reads. The prompt adds `focus-visible:outline-solid` to its buttons until Button is fixed.
+- **Focus rings:** Button's own ring draws nothing at the moment: its `outline-none` sets Tailwind's `--tw-outline-style` to `none`, which `focus-visible:outline-2` reads. The prompt adds `focus-visible:outline-solid` to its buttons until Button is fixed. _Resolved 2026-11-24: the design system's `focus-ring` utility fixed every control, and the workaround is gone._

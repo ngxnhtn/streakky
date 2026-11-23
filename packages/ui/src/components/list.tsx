@@ -71,8 +71,8 @@ export function ListButton({
         data-slot="list-button"
         className={cn(
           row,
-          "text-[0.9375rem] font-medium transition-colors duration-120 ease-ui outline-hidden",
-          "focus-visible:-outline-offset-2 focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+          "text-[0.9375rem] font-medium transition-colors duration-120 ease-ui",
+          "focus-visible:-outline-offset-2 focus-ring-flush",
           "hover-fine:bg-accent hover-fine:duration-150 active:bg-press active:duration-90 disabled:opacity-40",
           "[&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg]:text-muted-foreground",
           tone === "destructive" && "text-destructive [&_svg]:text-destructive",
