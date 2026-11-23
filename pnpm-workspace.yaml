@@ -29,6 +29,8 @@ catalog:
 overrides:
   vite@*: "catalog:"
 allowBuilds:
+  # its postinstall downloads a PowerSync binary; TanStack DB ships its own wa-sqlite wasm
+  "@journeyapps/wa-sqlite": false
   better-sqlite3: true
   esbuild: true
   lightningcss: true
