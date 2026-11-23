@@ -113,11 +113,15 @@ export const todayISO = () => toISO(today());
 /** The days a habit has logged: check-ins for a build habit, slips for a quit habit. */
 export const loggedDays = (h: Habit): string[] => (h.kind === "build" ? h.checkIns : h.slips);
 
-/** Every streak, oldest first; the last one is the current streak, possibly 0 days. */
+/**
+ * Every streak, oldest first; the last one is the current streak, possibly 0 days.
+ * Days after today (logged before flying west, say) are ignored until they come.
+ */
 export function streaksOf(h: Habit): Streak[] {
   const t = todayISO();
   if (h.kind === "quit") {
-    const bounds = [h.quitDay, ...h.slips.filter((slip) => slip > h.quitDay)];
+    const quitDay = h.quitDay < t ? h.quitDay : t;
+    const bounds = [quitDay, ...h.slips.filter((slip) => slip > quitDay && slip <= t)];
     // a finished streak holds the clean days between two slips; the slip days themselves are not clean
     const streaks: Streak[] = bounds.slice(0, -1).map((b, i) => ({
       start: b,
@@ -131,6 +135,7 @@ export function streaksOf(h: Habit): Streak[] {
   }
   const streaks: Streak[] = [];
   for (const day of h.checkIns) {
+    if (day > t) break;
     const prev = streaks[streaks.length - 1];
     if (prev && daysBetween(prev.end, day) === 1) {
       prev.end = day;
@@ -155,9 +160,12 @@ export const currentStreakDays = (h: Habit) => currentStreak(h).days;
 
 export const longestStreakDays = (h: Habit) => Math.max(...streaksOf(h).map((s) => s.days));
 
-/** Where a habit's history begins: its quit day, or a build habit's first check-in (today if none). */
-export const historyStart = (h: Habit): string =>
-  h.kind === "quit" ? h.quitDay : (h.checkIns[0] ?? todayISO());
+/** Where a habit's history begins: its quit day, or a build habit's first check-in (today if none); never after today. */
+export function historyStart(h: Habit): string {
+  const t = todayISO();
+  const first = h.kind === "quit" ? h.quitDay : (h.checkIns[0] ?? t);
+  return first < t ? first : t;
+}
 
 /** A quit habit's quit day: a real YYYY-MM-DD day (it survives the round trip), today or earlier. */
 export const canBeQuitDay = (day: string): boolean =>

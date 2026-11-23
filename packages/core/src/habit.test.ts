@@ -244,3 +244,22 @@ describe("at midnight", () => {
     expect([before, currentStreakDays(habit)]).toEqual([2, 0]);
   });
 });
+
+// A day can fall after today on this device after flying west: logged as "today" in Tokyo,
+// it is tomorrow in Hanoi. Such days are ignored until they come.
+describe("days after today", () => {
+  it("ignore a slip dated after today", () => {
+    expect(currentStreakDays(quit("2026-11-14", ["2026-11-25"]))).toBe(10);
+  });
+
+  it("ignore a check-in dated after today", () => {
+    expect(currentStreakDays(build(["2026-11-22", "2026-11-23", "2026-11-24", "2026-11-25"]))).toBe(
+      3,
+    );
+  });
+
+  it("treat a quit day after today as today", () => {
+    const habit = quit("2026-11-25");
+    expect([historyStart(habit), currentStreakDays(habit)]).toEqual(["2026-11-24", 0]);
+  });
+});
