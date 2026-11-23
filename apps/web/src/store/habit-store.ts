@@ -15,6 +15,7 @@ import {
   type Kind,
   type Settings,
 } from "@streakky/core";
+import { toExportFile, type ExportFile } from "./export.ts";
 
 /** The habit fields a device can change; each keeps the device time of its last change, for sync. */
 export const EDITABLE_FIELDS = ["name", "color", "goal", "quitDay", "archived", "order"] as const;
@@ -71,6 +72,8 @@ export type HabitStore = {
   changeSettings(change: Partial<Settings>): void;
   /** This device's settings: never synced, kept on sign-out. The same object until one changes. */
   settings: () => Settings;
+  /** Every habit, archived ones included and deleted ones left out, as one file to keep. */
+  exportHabits(): ExportFile;
   subscribe: (listener: () => void) => () => void;
   /** Stops the store; its data stays on the device for the next open. */
   close(): Promise<void>;
@@ -231,6 +234,11 @@ export async function openHabitStore({
     },
     habits,
     settings: () => settings,
+    exportHabits() {
+      const records = habitRecords.toArray.filter((h) => !h.deleted).toSorted(byOrder);
+      const archived = new Set(records.filter((h) => h.archived).map((h) => h.id));
+      return toExportFile(toHabits(records).map((h) => ({ ...h, archived: archived.has(h.id) })));
+    },
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

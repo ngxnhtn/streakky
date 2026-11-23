@@ -212,3 +212,106 @@ describe("a quit habit on a device", () => {
     ]);
   });
 });
+
+describe("an export from a device", () => {
+  it("holds every habit with its fields and its check-ins or slips by day", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const [run, smoking] = device.habits();
+    for (const day of ["2026-11-21", "2026-11-23", "2026-11-24"])
+      await device.toggleDay(run.id, day);
+    // a check-in added and removed again isn't one
+    await device.toggleDay(run.id, "2026-11-22");
+    await device.toggleDay(run.id, "2026-11-22");
+    await device.toggleDay(smoking.id, "2026-11-20");
+
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect(habits).toEqual([
+      {
+        id: run.id,
+        kind: "build",
+        name: "Morning run",
+        color: "green",
+        goal: null,
+        archived: false,
+        checkIns: ["2026-11-21", "2026-11-23", "2026-11-24"],
+      },
+      {
+        id: smoking.id,
+        kind: "quit",
+        name: "No smoking",
+        color: "red",
+        goal: null,
+        quitDay: "2026-11-14",
+        archived: false,
+        slips: ["2026-11-20"],
+      },
+    ]);
+  });
+
+  it("matches the habits the device shows, in their order", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    await device.createHabit(build("Stretch"));
+    await device.toggleDay(device.habits()[0].id);
+    await device.toggleDay(device.habits()[1].id, "2026-11-18");
+
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect(habits).toEqual(device.habits().map((habit) => ({ ...habit, archived: false })));
+  });
+
+  it("is a JSON file named with today's date, saying its format and version", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    const file = device.exportHabits();
+    expect([file.name, file.type, JSON.parse(file.text)]).toMatchObject([
+      "streakky-2026-11-24.json",
+      "application/json",
+      { format: "streakky-export", version: 1 },
+    ]);
+  });
+
+  it.each([
+    ["Asia/Kathmandu", "2026-11-24T09:00:00+05:45"],
+    ["America/St_Johns", "2026-11-24T09:00:00-03:30"],
+  ])("gives the time it was made in the device's time zone (%s)", async (zone, exportedAt) => {
+    const deviceZone = process.env.TZ;
+    process.env.TZ = zone;
+    try {
+      vi.setSystemTime(new Date(2026, 10, 24, 9));
+      const device = await openDevice(createStorage());
+      const content = JSON.parse(device.exportHabits().text);
+      expect([content.exportedAt, Date.parse(content.exportedAt)]).toEqual([
+        exportedAt,
+        new Date(2026, 10, 24, 9).getTime(),
+      ]);
+    } finally {
+      if (deviceZone === undefined) delete process.env.TZ;
+      else process.env.TZ = deviceZone;
+    }
+  });
+
+  it("keeps a check-in on a day that hasn't come yet, as after flying west", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.toggleDay(device.habits()[0].id);
+    // the clock goes back past midnight: the check-in doesn't count until its day comes, but it stays
+    vi.setSystemTime(new Date(2026, 10, 23, 22));
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect([currentStreakDays(device.habits()[0]), habits[0].checkIns]).toEqual([
+      0,
+      ["2026-11-24"],
+    ]);
+  });
+
+  it("is empty on a device with no habits", async () => {
+    const device = await openDevice(createStorage());
+    expect(JSON.parse(device.exportHabits().text)).toMatchObject({ habits: [] });
+  });
+
+  // the store can't archive or delete a habit until ticket 07 adds those commands
+  it.todo("includes archived habits, marked archived, in their place in the order");
+  it.todo("leaves out deleted habits and their days");
+});
