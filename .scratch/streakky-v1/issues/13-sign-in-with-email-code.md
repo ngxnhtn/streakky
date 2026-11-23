@@ -28,4 +28,5 @@ While I'm signed out on the web, one small note I can dismiss says my habits liv
   - [ ] an allowlisted sign-in using the captured code;
   - [ ] a non-allowlisted address being refused with nothing captured;
   - [ ] a wrong code being rejected.
+- [ ] The Worker answers a missing file under `/assets/` with 404 instead of the app's page, so an old script file asked for after an update fails cleanly (owner decision 2026-11-24). App routes still fall back to the app.
 - [ ] `vp check` and `vp test` pass.

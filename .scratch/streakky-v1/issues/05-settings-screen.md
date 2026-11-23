@@ -49,3 +49,5 @@ Settings belong to this device. They're stored separately from habit data, survi
   - Layout lives only in Settings, as this ticket asks. The playground also has a grid/list switch in Home's header, but that control is only 36px high and misses the 44px tap-target rule, so I left it out.
   - `KeyValueStorage` is synchronous, which fits `localStorage`, including inside Capacitor's WebView. If 16 moves settings to an async native store such as Capacitor Preferences (ADR-0001), settings are read once when the store opens, so that read can wait. Writes would have to become fire-and-forget.
   - Settings use the default 44px `Segmented`, where the playground uses `sm`.
+
+- **Owner decision (2026-11-24):** a second open tab picking up a settings change only on its next change or a reload is accepted for now.

@@ -49,3 +49,5 @@
   - Fonts: no request went to Google. After one online visit, with the HTTP cache cleared and the server stopped, a new tab opened the app and loaded Instrument Sans and DM Mono 400 and 500 from the worker, DM Mono for the first time. Text widths changed with `font-weight` and `font-stretch`, so both axes work.
   - With `window.Capacitor.isNativePlatform()` stubbed to return true, no worker registered; returning false, it did. In dev the fonts load and no worker registers. No console errors or warnings in any run.
 - **Focus rings:** Button's own ring draws nothing at the moment: its `outline-none` sets Tailwind's `--tw-outline-style` to `none`, which `focus-visible:outline-2` reads. The prompt adds `focus-visible:outline-solid` to its buttons until Button is fixed. _Resolved 2026-11-24: the design system's `focus-ring` utility fixed every control, and the workaround is gone._
+
+- **Owner decision (2026-11-24):** after "Not now", bringing the app back from the background offers a waiting update again.

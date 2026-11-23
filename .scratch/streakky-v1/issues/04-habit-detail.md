@@ -25,4 +25,5 @@ On the calendar I can fix my history. For a build habit I can add or remove a ch
   - [ ] removing a past check-in, which splits a streak;
   - [ ] a past slip splitting a quit streak;
   - [ ] a toggle on a future day being refused.
+- [ ] Screens are tied to browser history: the browser's back button and the phone's back gesture go back from Habit detail and from Settings, as the in-app back arrow does (owner decision 2026-11-24).
 - [ ] `vp check` and `vp test` pass.
