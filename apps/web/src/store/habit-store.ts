@@ -15,6 +15,9 @@ import {
   type Kind,
   type Settings,
 } from "@streakky/core";
+import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
+
+export { SignInError, type ApiFetch, type SignInFailure, type SyncStatus } from "./account.ts";
 
 /** The habit fields a device can change; each keeps the device time of its last change, for sync. */
 export const EDITABLE_FIELDS = ["name", "color", "goal", "quitDay", "archived", "order"] as const;
@@ -71,6 +74,16 @@ export type HabitStore = {
   changeSettings(change: Partial<Settings>): void;
   /** This device's settings: never synced, kept on sign-out. The same object until one changes. */
   settings: () => Settings;
+  /** Emails a sign-in code to `email`; a `SignInError` says why not. */
+  requestSignInCode(email: string): Promise<void>;
+  /** Signs in with the code emailed to `email`; a `SignInError` says why not. */
+  signIn(email: string, code: string): Promise<void>;
+  /** Ends this device's session at once, offline too; its habits stay. */
+  signOut(): Promise<void>;
+  /** Asks the server whether this device is still signed in. The store does this when it opens. */
+  checkSession(): Promise<void>;
+  /** Whether this device is signed in. The same object until it changes. */
+  syncStatus: () => SyncStatus;
   subscribe: (listener: () => void) => () => void;
   /** Stops the store; its data stays on the device for the next open. */
   close(): Promise<void>;
@@ -85,6 +98,8 @@ export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
 export type HabitStoreOptions = {
   persistence: PersistedCollectionPersistence;
   keyValueStorage: KeyValueStorage;
+  /** How the store reaches the API Worker, for signing in. */
+  api: ApiFetch;
 };
 
 const SETTINGS_KEY = "streakky.settings";
@@ -98,6 +113,7 @@ const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
   reminder: (v) => typeof v === "boolean",
   reminderTime: (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
   celebrate: (v) => typeof v === "boolean",
+  signedOutNoteDismissed: (v) => typeof v === "boolean",
 };
 
 /**
@@ -136,6 +152,7 @@ const byOrder = (a: HabitRecord, b: HabitRecord) =>
 export async function openHabitStore({
   persistence,
   keyValueStorage,
+  api,
 }: HabitStoreOptions): Promise<HabitStore> {
   const habitRecords = createCollection(
     persistedCollectionOptions<HabitRecord, string>({
@@ -166,6 +183,14 @@ export async function openHabitStore({
     habitRecords.subscribeChanges(changed),
     dayRecords.subscribeChanges(changed),
   ];
+  const account = openAccount({
+    api,
+    storage: keyValueStorage,
+    changed: () => {
+      for (const listener of listeners) listener();
+    },
+  });
+  void account.checkSession();
 
   const toHabits = (records: HabitRecord[]): Habit[] => {
     const logged = new Map<string, string[]>();
@@ -231,6 +256,11 @@ export async function openHabitStore({
     },
     habits,
     settings: () => settings,
+    requestSignInCode: (email) => account.requestCode(email),
+    signIn: (email, code) => account.signIn(email, code),
+    signOut: () => account.signOut(),
+    checkSession: () => account.checkSession(),
+    syncStatus: () => account.status(),
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);

@@ -1,3 +1,5 @@
+import { insideNativeApp } from "./platform.ts";
+
 /**
  * Registers the service worker that vite-plugin-pwa builds (see pwa.config.ts). It caches the app
  * shell and its fonts, so the app opens with no network after one visit. Dev has no service
@@ -73,12 +75,3 @@ export function subscribeToUpdates(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-
-/**
- * Inside the Android app (ticket 16), Capacitor's bridge defines `window.Capacitor` before the
- * app's scripts run. A plain browser has no such global, so the web app always registers.
- */
-const insideNativeApp = () =>
-  (
-    globalThis as typeof globalThis & { Capacitor?: { isNativePlatform?: () => boolean } }
-  ).Capacitor?.isNativePlatform?.() === true;

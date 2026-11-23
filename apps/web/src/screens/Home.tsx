@@ -22,6 +22,7 @@ import {
 import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { LogSlipDialog } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
+import { SignedOutNote } from "./SignedOutNote.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
@@ -68,6 +69,7 @@ export function Home() {
             Habits
           </h1>
         </header>
+        <SignedOutNote />
         <div className="px-5 pb-5">
           {habits.length === 0 ? (
             <EmptyHabits onAdd={() => setAdding(true)} />

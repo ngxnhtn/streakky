@@ -1,6 +1,6 @@
 import { createContext, useContext, useSyncExternalStore, type ReactNode } from "react";
 import type { Habit, Settings } from "@streakky/core";
-import type { HabitStore } from "./habit-store.ts";
+import type { HabitStore, SyncStatus } from "./habit-store.ts";
 
 const StoreContext = createContext<HabitStore | null>(null);
 
@@ -31,4 +31,10 @@ export function useHabits(): Habit[] {
 export function useSettings(): Settings {
   const store = useHabitStore();
   return useSyncExternalStore(store.subscribe, store.settings);
+}
+
+/** Whether this device is signed in, and as whom; the screen re-renders when that changes. */
+export function useSyncStatus(): SyncStatus {
+  const store = useHabitStore();
+  return useSyncExternalStore(store.subscribe, store.syncStatus);
 }

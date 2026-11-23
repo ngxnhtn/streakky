@@ -16,6 +16,8 @@ export async function openBrowserHabitStore(): Promise<HabitStore> {
   return openHabitStore({
     persistence: createBrowserWASQLitePersistence({ database, coordinator }),
     keyValueStorage: window.localStorage,
+    // the API is on the app's own origin, so the browser keeps the session cookie first-party
+    api: (path, init) => fetch(path, init),
   });
 }
 

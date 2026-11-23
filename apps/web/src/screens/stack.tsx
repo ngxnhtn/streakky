@@ -2,7 +2,7 @@ import { createContext, useContext, useRef, useState, type ReactNode } from "rea
 import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
 import { cn } from "@streakky/ui/lib/utils";
 
-export type Route = { name: "home" } | { name: "settings" };
+export type Route = { name: "home" } | { name: "settings" } | { name: "sign-in" };
 type Entry = { key: number; route: Route; animate: boolean };
 
 type Nav = { push: (route: Route) => void; pop: () => void };
