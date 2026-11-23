@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, Plus } from "lucide-react";
+import { Check, Plus, RotateCcw } from "lucide-react";
 import type { ColorId, Kind } from "@streakky/core";
 import { cn } from "@streakky/ui/lib/utils";
 
@@ -52,6 +52,66 @@ export function CheckInButton({
   );
 }
 
+/** Today's state on a quit habit: a ring around a turn-back arrow, filled once a slip is logged. */
+export function SlipIcon({ slipped, className }: { slipped: boolean; className?: string }) {
+  return (
+    <span
+      data-slot="slip-icon"
+      className={cn(
+        "grid size-[22px] flex-none place-items-center rounded-full",
+        "transition-[background-color,box-shadow,color] duration-200 ease-ui",
+        slipped
+          ? "bg-habit text-habit-foreground"
+          : "text-habit shadow-[inset_0_0_0_1.5px_var(--habit)]",
+        className,
+      )}
+    >
+      <RotateCcw strokeWidth={2.5} className="size-[55%]" />
+    </span>
+  );
+}
+
+/**
+ * The slip icon as a toggle: logs today's slip on a quit habit, or removes it. A 44px target
+ * around it. A slip ends the current streak, so ask before calling `onToggle` to log one.
+ * `disabled` on the quit day itself, which can't have a slip.
+ */
+export function SlipButton({
+  name,
+  slipped,
+  disabled,
+  onToggle,
+  className,
+}: {
+  name: string;
+  slipped: boolean;
+  disabled?: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      data-slot="slip-button"
+      aria-label={`Log a slip for ${name} today`}
+      aria-pressed={slipped}
+      disabled={disabled}
+      onClick={onToggle}
+      className={cn(
+        "grid size-11 place-items-center rounded-full outline-none",
+        "transition-[background-color,transform,scale,opacity] duration-120 ease-ui",
+        "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
+        // outline-none also sets the ring's style to none, so the focus ring restores it
+        "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
+        "disabled:pointer-events-none disabled:opacity-40",
+        className,
+      )}
+    >
+      <SlipIcon slipped={slipped} />
+    </button>
+  );
+}
+
 const tileGround = [
   "w-full border border-transparent text-left outline-none",
   "bg-habit/9 dark:bg-habit/16",
@@ -87,16 +147,29 @@ const summaryOf = ({
 
 /**
  * Grid face: the name on top, the big count in the habit's colour at the bottom.
- * With `onCheckIn`, a build habit's tick becomes its own button; `onClick` then opens the habit
- * from anywhere else on the card, and without it the card is not a button at all.
+ * With `onCheckIn`, a build habit's tick becomes its own button; with `onSlip`, a quit habit gets
+ * a slip button in the same place. `onClick` then opens the habit from anywhere else on the card,
+ * and without it the card is not a button at all.
  */
 export function HabitCard({
   onCheckIn,
+  slipped = false,
+  slipLocked = false,
+  onSlip,
   ...face
-}: Omit<HabitFace, "onClick"> & { onClick?: () => void; onCheckIn?: () => void }) {
+}: Omit<HabitFace, "onClick"> & {
+  onClick?: () => void;
+  onCheckIn?: () => void;
+  /** quit habits: a slip logged today */
+  slipped?: boolean;
+  /** quit habits: today is the quit day, so no slip can be logged yet */
+  slipLocked?: boolean;
+  onSlip?: () => void;
+}) {
   const { name, days, label, kind, color, checkedIn, onClick, className } = face;
   const summary = summaryOf(face);
   const tickIsButton = kind === "build" && onCheckIn !== undefined;
+  const slipIsButton = kind === "quit" && onSlip !== undefined;
   const body = (
     <>
       <span className="flex items-start justify-between gap-2">
@@ -107,6 +180,7 @@ export function HabitCard({
           ) : (
             <CheckInTick checkedIn={checkedIn} className="-mt-px -mr-0.5" />
           ))}
+        {slipIsButton && <span className="size-[22px] flex-none" />}
       </span>
       <span className="mt-auto font-display text-[52px] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
         {days}
@@ -116,7 +190,7 @@ export function HabitCard({
   );
   const shape = "flex h-[168px] flex-col rounded-3xl p-4";
 
-  if (!tickIsButton && onClick) {
+  if (!tickIsButton && !slipIsButton && onClick) {
     return (
       <button
         type="button"
@@ -162,6 +236,15 @@ export function HabitCard({
           name={name}
           checkedIn={checkedIn}
           onToggle={onCheckIn}
+          className="absolute top-1 right-[3px]"
+        />
+      )}
+      {slipIsButton && (
+        <SlipButton
+          name={name}
+          slipped={slipped}
+          disabled={slipLocked}
+          onToggle={onSlip}
           className="absolute top-1 right-[3px]"
         />
       )}

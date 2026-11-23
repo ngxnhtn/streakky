@@ -86,7 +86,7 @@ ground, in both modes; every habit colour holds 4.6:1 or more on every ground.
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                               |
 | `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                                                                                 |
-| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `CheckInButton` (the tick as its own 44px toggle), `NewHabitTile`, `HabitCollection` |
+| `habit-card`    | `HabitCard` (grid), `HabitRow`, `CheckInTick`, `CheckInButton`, `SlipIcon`, `SlipButton` (44px toggles), `NewHabitTile`, `HabitCollection` |
 | `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                          |
 | `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                   |
 | `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                             |

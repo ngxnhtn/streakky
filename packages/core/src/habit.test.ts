@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
+  canBeQuitDay,
   canToggle,
+  counterLabel,
   currentStreak,
   currentStreakDays,
   goalDate,
   historyStart,
   longestStreakDays,
+  sinceLabel,
   streakDays,
   streaksOf,
   toISO,
@@ -147,6 +150,24 @@ describe("editable days", () => {
   });
 });
 
+describe("quit day", () => {
+  it("can be today or a past day, never a future one", () => {
+    expect([
+      canBeQuitDay("2026-11-24"),
+      canBeQuitDay("2025-01-31"),
+      canBeQuitDay("2026-11-25"),
+    ]).toEqual([true, true, false]);
+  });
+
+  it("must be a real day", () => {
+    expect([canBeQuitDay(""), canBeQuitDay("2026-02-30"), canBeQuitDay("0050-01-01")]).toEqual([
+      false,
+      false,
+      false,
+    ]);
+  });
+});
+
 describe("calendar highlighting", () => {
   it("highlights a build habit's check-ins by whether they belong to the current streak", () => {
     const habit = build(["2026-11-20", "2026-11-21", "2026-11-23", "2026-11-24"]);
@@ -181,6 +202,25 @@ describe("history start", () => {
 
   it("is today for a build habit with no check-ins yet", () => {
     expect(historyStart(build([]))).toBe("2026-11-24");
+  });
+});
+
+describe("quit habit labels", () => {
+  it("count clean days, one day in the singular", () => {
+    const habit = quit("2026-11-14");
+    expect([counterLabel(habit, 1), counterLabel(habit, 10)]).toEqual(["day free", "days free"]);
+  });
+
+  it("say when the current streak began", () => {
+    expect(sinceLabel(quit("2026-11-14", ["2026-11-20"]))).toBe("since Fri 20 Nov");
+  });
+
+  it("say a slip was logged today", () => {
+    expect(sinceLabel(quit("2026-11-14", ["2026-11-24"]))).toBe("slip logged today");
+  });
+
+  it("say the habit started today on its quit day", () => {
+    expect(sinceLabel(quit("2026-11-24"))).toBe("started today");
   });
 });
 
