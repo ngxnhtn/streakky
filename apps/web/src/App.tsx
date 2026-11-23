@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { applyAppearance } from "./appearance.ts";
+import { HabitDetail } from "./screens/HabitDetail.tsx";
 import { Home } from "./screens/Home.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { ScreenStack, type Route } from "./screens/stack.tsx";
@@ -25,6 +26,8 @@ function screenOf(route: Route): ReactNode {
   switch (route.name) {
     case "home":
       return <Home />;
+    case "detail":
+      return <HabitDetail id={route.id} />;
     case "settings":
       return <Settings />;
   }

@@ -19,7 +19,7 @@ Settings belong to this device. They're stored separately from habit data, survi
 - [x] Theme (light, dark or system) applies immediately, and "system" follows the operating system's appearance.
 - [x] Choosing one of the five palettes recolours the app immediately.
 - [x] The layout setting switches Home between grid and list. List rows keep the one-tap check-in that grid cards got in 02 (the tick is its own 44px button).
-- [ ] Week start (Monday or Sunday) is used by every calendar. There are no calendars yet. The setting is stored and offered in Settings, and 04 passes it to `HabitCalendar`.
+- [x] Week start (Monday or Sunday) is used by every calendar. There are no calendars yet. The setting is stored and offered in Settings, and 04 passes it to `HabitCalendar`.
 - [x] Settings live in device-local storage outside the habit store's synced data, and survive a reload.
 - [x] `vp check` and `vp test` pass.
 
@@ -51,3 +51,7 @@ Settings belong to this device. They're stored separately from habit data, survi
   - Settings use the default 44px `Segmented`, where the playground uses `sm`.
 
 - **Owner decision (2026-11-24):** a second open tab picking up a settings change only on its next change or a reload is accepted for now.
+
+- **Closed by 04 (2026-11-24):**
+  - **Week start:** Habit detail passes `weekStart` to `HabitCalendar`. Checked in headless Chrome: Monday by default; with Sunday, the Weeks view lists Sun first and the Month view reads S M T W T F S, with the 1st under its weekday.
+  - **History:** the note above that browser back doesn't pop the stack is out of date. Settings and Habit detail now push history entries, and the browser's back returns from both (see 04).

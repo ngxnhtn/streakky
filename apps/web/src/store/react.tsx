@@ -27,6 +27,11 @@ export function useHabits(): Habit[] {
   return useSyncExternalStore(store.subscribe, store.habits);
 }
 
+/** One active habit, or undefined if there's none with that id; re-renders as `useHabits` does. */
+export function useHabit(id: string): Habit | undefined {
+  return useHabits().find((h) => h.id === id);
+}
+
 /** This device's settings; the screen re-renders whenever one changes. */
 export function useSettings(): Settings {
   const store = useHabitStore();
