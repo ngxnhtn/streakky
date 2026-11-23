@@ -116,3 +116,76 @@ describe("a device after a restart", () => {
     });
   });
 });
+
+const quit = (name: string, quitDay: string) => ({
+  kind: "quit" as const,
+  name,
+  color: "red" as const,
+  quitDay,
+});
+
+describe("a quit habit on a device", () => {
+  it("counts its clean days since a past quit day", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    expect(currentStreakDays(device.habits()[0])).toBe(10);
+  });
+
+  it("resets the current streak with a slip today", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    await device.toggleDay(device.habits()[0].id);
+    expect(currentStreakDays(device.habits()[0])).toBe(0);
+  });
+
+  it("restores the current streak when today's slip is removed", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const { id } = device.habits()[0];
+    await device.toggleDay(id);
+    await device.toggleDay(id);
+    expect(currentStreakDays(device.habits()[0])).toBe(10);
+  });
+
+  it("adds a clean day as each day passes", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const before = currentStreakDays(device.habits()[0]);
+    vi.setSystemTime(new Date(2026, 10, 25, 9));
+    expect([before, currentStreakDays(device.habits()[0])]).toEqual([10, 11]);
+  });
+
+  it("can't be created with a quit day in the future", async () => {
+    const device = await openDevice(createStorage());
+    await expect(device.createHabit(quit("No smoking", "2026-11-25"))).rejects.toThrow();
+    expect(device.habits()).toEqual([]);
+  });
+
+  it("can't be created without a quit day", async () => {
+    const device = await openDevice(createStorage());
+    await expect(device.createHabit(quit("No smoking", ""))).rejects.toThrow();
+    expect(device.habits()).toEqual([]);
+  });
+
+  it("refuses slips on or before its quit day", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-24"));
+    const { id } = device.habits()[0];
+    await device.toggleDay(id);
+    await device.toggleDay(id, "2026-11-20");
+    expect(device.habits()[0]).toMatchObject({ slips: [] });
+  });
+
+  it("keeps its quit day and slips after a restart", async () => {
+    const storage = createStorage();
+    const before = await openDevice(storage);
+    await before.createHabit(quit("No smoking", "2026-11-14"));
+    await before.toggleDay(before.habits()[0].id, "2026-11-20");
+    await before.close();
+
+    const after = await openDevice(storage);
+    expect(after.habits()).toMatchObject([
+      { kind: "quit", name: "No smoking", quitDay: "2026-11-14", slips: ["2026-11-20"] },
+    ]);
+  });
+});

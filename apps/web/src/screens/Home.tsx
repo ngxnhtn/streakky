@@ -1,14 +1,15 @@
 import { useState } from "react";
 import { Menu, Plus } from "lucide-react";
 import {
+  canToggle,
   counterLabel,
   currentStreak,
   currentStreakDays,
   fmtDayMonth,
   fmtLong,
+  fromISO,
   loggedToday,
   sinceLabel,
-  today,
   type Habit,
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
@@ -20,15 +21,28 @@ import {
   NewHabitTile,
 } from "@streakky/ui/components/habit/habit-card";
 import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
+import { LogSlipDialog } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
+import { useToday } from "./use-today.ts";
 
 export function Home() {
   const store = useHabitStore();
   const habits = useHabits();
+  const day = useToday();
   const [adding, setAdding] = useState(false);
   const { push } = useNav();
   const { layout } = useSettings();
+  // the quit habit whose slip we're asking about, kept while the sheet leaves
+  const [slipping, setSlipping] = useState<{ habit: Habit; open: boolean } | null>(null);
+  /** Today's slip is removed at once, but logging one asks first: it ends the current streak. */
+  const toggleSlip = (habit: Habit) =>
+    loggedToday(habit) ? void store.toggleDay(habit.id) : setSlipping({ habit, open: true });
+  /** Logs today's slip unless it already is, say from another tab while the sheet was open. */
+  const logSlip = (asked: Habit) => {
+    const habit = habits.find((h) => h.id === asked.id);
+    if (habit && !loggedToday(habit)) void store.toggleDay(habit.id);
+  };
   return (
     <>
       <AppBar
@@ -50,7 +64,7 @@ export function Home() {
       />
       <ScreenScroll>
         <header className="px-5 pt-1 pb-5">
-          <p className="text-sm text-muted-foreground">{fmtLong(today())}</p>
+          <p className="text-sm text-muted-foreground">{fmtLong(fromISO(day))}</p>
           <h1 className="mt-0.5 font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] [font-stretch:96%]">
             Habits
           </h1>
@@ -59,7 +73,12 @@ export function Home() {
           {habits.length === 0 ? (
             <EmptyHabits onAdd={() => setAdding(true)} />
           ) : layout === "list" ? (
-            <HabitList habits={habits} onAdd={() => setAdding(true)} />
+            <HabitList
+              habits={habits}
+              day={day}
+              onSlip={toggleSlip}
+              onAdd={() => setAdding(true)}
+            />
           ) : (
             <HabitCollection layout="grid">
               {habits.map((habit) => {
@@ -74,6 +93,9 @@ export function Home() {
                     color={habit.color}
                     checkedIn={loggedToday(habit)}
                     onCheckIn={() => void store.toggleDay(habit.id)}
+                    slipped={loggedToday(habit)}
+                    slipLocked={!canToggle(habit, day)}
+                    onSlip={() => toggleSlip(habit)}
                   />
                 );
               })}
@@ -83,16 +105,38 @@ export function Home() {
         </div>
       </ScreenScroll>
       <NewHabitDialog open={adding} onClose={() => setAdding(false)} />
+      <LogSlipDialog
+        habit={slipping?.habit ?? null}
+        open={slipping?.open ?? false}
+        onLog={logSlip}
+        onClose={() => setSlipping((s) => s && { ...s, open: false })}
+      />
     </>
   );
 }
 
-/** Under the count: what it counts, or what today needs while a build habit has no streak. */
+/**
+ * Under the count: what it counts, or, with no streak yet, why: "log today to start" (build),
+ * "started today" or "slip logged today" (quit).
+ */
 const labelOf = (habit: Habit, days: number) =>
-  habit.kind === "build" && days === 0 ? sinceLabel(habit) : counterLabel(habit, days);
+  days === 0 ? sinceLabel(habit) : counterLabel(habit, days);
 
-/** The list layout: a row per habit, whose tick checks a build habit in today with one tap. */
-function HabitList({ habits, onAdd }: { habits: Habit[]; onAdd: () => void }) {
+/**
+ * The list layout: a row per habit, whose tick checks a build habit in today with one tap and
+ * whose slip button asks before logging a quit habit's slip.
+ */
+function HabitList({
+  habits,
+  day,
+  onSlip,
+  onAdd,
+}: {
+  habits: Habit[];
+  day: string;
+  onSlip: (habit: Habit) => void;
+  onAdd: () => void;
+}) {
   const store = useHabitStore();
   return (
     <HabitCollection layout="list">
@@ -109,6 +153,9 @@ function HabitList({ habits, onAdd }: { habits: Habit[]; onAdd: () => void }) {
             color={habit.color}
             checkedIn={loggedToday(habit)}
             onCheckIn={() => void store.toggleDay(habit.id)}
+            slipped={loggedToday(habit)}
+            slipLocked={!canToggle(habit, day)}
+            onSlip={() => onSlip(habit)}
           />
         );
       })}
@@ -133,7 +180,7 @@ function EmptyHabits({ onAdd }: { onAdd: () => void }) {
     <div className="max-w-[480px] rounded-3xl bg-muted px-6 pt-7 pb-6">
       <p className="text-xl font-medium tracking-[-0.015em]">Nothing counted yet</p>
       <p className="mt-1.5 mb-5 text-muted-foreground">
-        Add a habit you want to do every day, like a morning run.
+        Add a habit to build, like a morning run, or one to quit, like smoking.
       </p>
       <Button className="w-full" onClick={onAdd}>
         Add a habit

@@ -5,6 +5,7 @@ import {
 } from "@tanstack/db-sqlite-persistence-core";
 import { generateKeyBetween } from "fractional-indexing";
 import {
+  canBeQuitDay,
   canToggle,
   defaultSettings,
   todayISO,
@@ -54,10 +55,13 @@ export type DayRecord = {
 const dayKey = (habitId: string, day: string) => `${habitId}/${day}`;
 
 export type NewBuildHabit = { kind: "build"; name: string; color: ColorId };
+/** `quitDay` is today or a past day (YYYY-MM-DD); the first clean day is the day after. */
+export type NewQuitHabit = { kind: "quit"; name: string; color: ColorId; quitDay: string };
+export type NewHabit = NewBuildHabit | NewQuitHabit;
 
 /** What the screens use: commands that change habits, and the habits as the core model sees them. */
 export type HabitStore = {
-  createHabit(input: NewBuildHabit): Promise<void>;
+  createHabit(input: NewHabit): Promise<void>;
   /** Adds or removes a check-in (build) or a slip (quit); today when `day` is left out. */
   toggleDay(habitId: string, day?: string): Promise<void>;
   /** Active habits in the person's order. The same array until something changes. */
@@ -162,7 +166,11 @@ export async function openHabitStore({
     ));
 
   return {
-    async createHabit({ kind, name, color }) {
+    async createHabit(input) {
+      const { kind, name, color } = input;
+      if (input.kind === "quit" && !canBeQuitDay(input.quitDay)) {
+        throw new Error(`A quit day must be today or a past day, not "${input.quitDay}".`);
+      }
       const editedAt = Date.now();
       // after every habit, archived and deleted ones too, so no two habits share a position
       const last = habitRecords.toArray.toSorted(byOrder).at(-1);
@@ -172,7 +180,7 @@ export async function openHabitStore({
         name,
         color,
         goal: null,
-        quitDay: null,
+        quitDay: input.kind === "quit" ? input.quitDay : null,
         archived: false,
         order: generateKeyBetween(last?.order ?? null, null),
         deleted: false,

@@ -159,6 +159,10 @@ export const longestStreakDays = (h: Habit) => Math.max(...streaksOf(h).map((s) 
 export const historyStart = (h: Habit): string =>
   h.kind === "quit" ? h.quitDay : (h.checkIns[0] ?? todayISO());
 
+/** A quit habit's quit day: a real YYYY-MM-DD day (it survives the round trip), today or earlier. */
+export const canBeQuitDay = (day: string): boolean =>
+  toISO(fromISO(day)) === day && day <= todayISO();
+
 /** Days that can be edited: none in the future; for quit, none on or before the quit day. */
 export function canToggle(h: Habit, day: string): boolean {
   if (day > todayISO()) return false;
