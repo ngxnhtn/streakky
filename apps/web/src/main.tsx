@@ -4,6 +4,7 @@ import { App } from "./App.tsx";
 import { registerServiceWorker } from "./service-worker.ts";
 import { openBrowserHabitStore } from "./store/browser.ts";
 import { HabitStoreProvider } from "./store/react.tsx";
+import "./fonts.css";
 import "./styles.css";
 
 registerServiceWorker();

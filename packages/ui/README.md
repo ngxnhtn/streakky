@@ -16,7 +16,7 @@ restyled) and Streakky's own components. Tailwind CSS v4. The habit model it dra
 @import "@streakky/ui/globals.css";
 ```
 
-Load the two faces in the app's HTML head:
+Load the two faces in the app's HTML head, as `apps/demo` does:
 
 ```html
 <link
@@ -24,6 +24,9 @@ Load the two faces in the app's HTML head:
   href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wdth,wght@75..100,400..700&family=DM+Mono:wght@400;500&display=swap"
 />
 ```
+
+Or bundle them so they work offline, as `apps/web` does in `src/fonts.css` (Fontsource packages,
+the faces declared under the family names above).
 
 The app needs Tailwind's Vite plugin (`@tailwindcss/vite`). The design system's own source is
 scanned from `globals.css`, so its classes are always built.

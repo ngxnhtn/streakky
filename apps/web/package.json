@@ -9,6 +9,8 @@
     "test": "vp test"
   },
   "dependencies": {
+    "@fontsource-variable/instrument-sans": "catalog:",
+    "@fontsource/dm-mono": "catalog:",
     "@journeyapps/wa-sqlite": "catalog:",
     "@streakky/core": "workspace:*",
     "@streakky/ui": "workspace:*",

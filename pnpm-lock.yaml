@@ -183,6 +183,12 @@ settings:
 
 catalogs:
   default:
+    '@fontsource-variable/instrument-sans':
+      specifier: ^5.3.0
+      version: 5.3.0
+    '@fontsource/dm-mono':
+      specifier: ^5.3.0
+      version: 5.3.0
     '@journeyapps/wa-sqlite':
       specifier: ^1.7.2
       version: 1.7.2
@@ -318,6 +324,12 @@ importers:
 
   apps/web:
     dependencies:
+      '@fontsource-variable/instrument-sans':
+        specifier: 'catalog:'
+        version: 5.3.0
+      '@fontsource/dm-mono':
+        specifier: 'catalog:'
+        version: 5.3.0
       '@journeyapps/wa-sqlite':
         specifier: 'catalog:'
         version: 1.7.2
@@ -1212,6 +1224,12 @@ packages:
 
   '@floating-ui/utils@0.2.12':
     resolution: {integrity: sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww==}
+
+  '@fontsource-variable/instrument-sans@5.3.0':
+    resolution: {integrity: sha512-u4gKbDBTNFGkg997tfQn3eHOhHuquWUFTRT/rwzuKtrxX5P2ekfs2x+LgBPP4P32+cC+vUwF1Cr+IdRoPQbrGw==}
+
+  '@fontsource/dm-mono@5.3.0':
+    resolution: {integrity: sha512-OINjI8C1S/wpchhQxl7njZdMn4+hnDCpQ4YtvvOpKNARo+0J8O1x1IcrChxNjHOhfVv1by8C/FQoy3hXK+C1Ug==}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}
@@ -6178,6 +6196,10 @@ snapshots:
       react-dom: 19.3.1(react@19.3.1)
 
   '@floating-ui/utils@0.2.12': {}
+
+  '@fontsource-variable/instrument-sans@5.3.0': {}
+
+  '@fontsource/dm-mono@5.3.0': {}
 
   '@img/colour@1.1.0': {}
 

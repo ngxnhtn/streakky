@@ -1,0 +1,58 @@
+import { useId, useState, useSyncExternalStore } from "react";
+import { Button } from "@streakky/ui/components/button";
+import { cn } from "@streakky/ui/lib/utils";
+import { readyUpdate, subscribeToUpdates, type Update } from "./service-worker.ts";
+
+// 44px targets. Button's own focus ring draws nothing for now (its outline-none also sets
+// Tailwind's --tw-outline-style to none, which focus-visible:outline-2 reads), so the style is set
+// here; drop it once Button's ring is fixed.
+const actionClasses = "h-11 focus-visible:outline-solid";
+
+/**
+ * A one-line notice along the bottom of the window once a new version is ready: Reload switches
+ * to it, Not now leaves it for a later open. It never takes focus, and it sits under the scrim of
+ * an open dialog, so whatever is being typed there stays put until the person chooses.
+ */
+export function UpdatePrompt() {
+  const update = useSyncExternalStore(subscribeToUpdates, readyUpdate);
+  // the update the person said "Not now" to; a newer one shows the notice again
+  const [dismissed, setDismissed] = useState<Update | null>(null);
+  const messageId = useId();
+  const shown = update !== null && update !== dismissed;
+  return (
+    // always in the page, so screen readers announce what appears in it; the explicit aria-live
+    // also keeps a modal dialog from hiding it while one is open
+    <div
+      role="status"
+      aria-live="polite"
+      className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 flex justify-center"
+    >
+      {shown && (
+        <div className="pointer-events-auto flex w-full max-w-[26rem] animate-rise flex-wrap items-center gap-x-2 rounded-[1.75rem] border border-border bg-popover p-2 pl-5 text-popover-foreground shadow-[0_0.5rem_2rem_rgb(0_0_0/0.14)]">
+          <p id={messageId} className="min-w-[6rem] flex-1 py-1 leading-tight font-medium">
+            A new version is ready.
+          </p>
+          <div className="ml-auto flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              className={cn(actionClasses, "px-3")}
+              // a function given to a state setter is called as an updater, so wrap the update
+              onClick={() => setDismissed(() => update)}
+            >
+              Not now
+            </Button>
+            <Button
+              size="sm"
+              className={cn(actionClasses, "px-4")}
+              aria-describedby={messageId}
+              onClick={() => update()}
+            >
+              Reload
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

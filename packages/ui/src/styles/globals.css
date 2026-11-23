@@ -2,7 +2,7 @@
   Streakky design system: tokens.
 
   Import once per app:   @import "@streakky/ui/globals.css";
-  Load the fonts in the app's HTML: Instrument Sans (wdth 75..100, wght 400..700) and DM Mono (400, 500).
+  Load the fonts in the app, linked or bundled (see README): Instrument Sans (wdth 75..100, wght 400..700) and DM Mono (400, 500).
 
   Three switches, each an attribute or class on any element (they cascade to its subtree):
     data-palette="teal|cobalt|olive|oxblood|graphite"   the app colour theme (default teal)

@@ -3,6 +3,7 @@ import { Home } from "./screens/Home.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { ScreenStack, type Route } from "./screens/stack.tsx";
 import { useSettings } from "./store/react.tsx";
+import { UpdatePrompt } from "./UpdatePrompt.tsx";
 
 /** The phone layout: a stack of screens filling the window, in this device's theme and palette. */
 export function App() {
@@ -22,6 +23,7 @@ export function App() {
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[15px] leading-[1.4] text-foreground transition-colors duration-300">
       <ScreenStack screen={screenOf} />
+      <UpdatePrompt />
     </div>
   );
 }
