@@ -17,4 +17,8 @@ export default defineConfig({
   run: {
     cache: true,
   },
+  test: {
+    // agent worktrees under .claude/worktrees hold whole copies of the repo
+    exclude: ["**/node_modules/**", "**/dist/**", ".agents/**", ".claude/**"],
+  },
 });
