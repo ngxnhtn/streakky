@@ -15,4 +15,5 @@
 - [ ] Export opens the Android share sheet with the JSON file.
 - [ ] The Android back button goes back within the app and exits from Home.
 - [ ] The status bar and safe areas look right in light and dark themes.
+- [ ] The app registers no service worker, since the APK already holds the app. The web build skips registering it when `window.Capacitor.isNativePlatform()` is true (`apps/web/src/service-worker.ts`); confirm on the phone that no worker is registered.
 - [ ] `vp check` and `vp test` pass.

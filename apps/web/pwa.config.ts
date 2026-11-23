@@ -6,7 +6,7 @@ const ground = "#f7f9f8";
 /** The web app manifest, and in production builds a service worker that caches the app shell. */
 export const pwa = () =>
   VitePWA({
-    // src/service-worker.ts registers the worker, and reloads pages a new deploy's worker takes over
+    // src/service-worker.ts registers the worker, and offers to reload once a new deploy's is waiting
     injectRegister: false,
     includeAssets: ["favicon.svg", "apple-touch-icon.png"],
     manifest: {
@@ -24,33 +24,15 @@ export const pwa = () =>
       ],
     },
     workbox: {
-      // the app shell, including the SQLite worker and its wasm
-      globPatterns: ["**/*.{html,js,css,wasm}"],
-      // a new deploy's worker takes over open pages at once, without waiting for them to close
-      skipWaiting: true,
+      // the app shell, including the SQLite worker and its wasm, and the fonts (src/fonts.css);
+      // DM Mono's woff fallbacks stay out, since every browser that runs the app reads woff2
+      globPatterns: ["**/*.{html,js,css,wasm,woff2}"],
+      // a new deploy's worker waits until the person accepts the reload the app offers, which
+      // posts it { type: "SKIP_WAITING" }, so nothing typed into an open dialog is lost
+      skipWaiting: false,
+      // the first visit's worker takes over that page, so it works offline at once
       clientsClaim: true,
       // the API Worker's routes are never the app
       navigateFallbackDenylist: [/^\/api\//],
-      // the fonts come from Google: the worker keeps the ones it has seen, so they outlive the
-      // browser's own cache when opening offline
-      runtimeCaching: [
-        {
-          urlPattern: /^https:\/\/fonts\.googleapis\.com\//,
-          handler: "StaleWhileRevalidate",
-          options: {
-            cacheName: "google-fonts-stylesheets",
-            cacheableResponse: { statuses: [0, 200] },
-          },
-        },
-        {
-          urlPattern: /^https:\/\/fonts\.gstatic\.com\//,
-          handler: "CacheFirst",
-          options: {
-            cacheName: "google-fonts",
-            cacheableResponse: { statuses: [0, 200] },
-            expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 },
-          },
-        },
-      ],
     },
   });
