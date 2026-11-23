@@ -14,7 +14,7 @@ export type AppBuild = Record<string, string>;
 export type SentEmail = { from: string; to: string[]; subject: string; text: string };
 
 export type WorkerOptions = {
-  /** The addresses that may sign in (the SIGN_IN_ALLOWLIST var). */
+  /** The addresses that may sign in (the SIGN_IN_ALLOWLIST secret). */
   allowlist?: string[];
 };
 

@@ -228,7 +228,7 @@ type DayRecord = {
 - better-auth runs in the Worker on the D1 binding directly, with no adapter.
 - It uses two plugins: **email OTP** (6-digit codes, with better-auth's defaults for expiry and attempts) and **bearer**.
 - **Allowlist:**
-  - It's a Worker config variable listing allowed emails, starting with the owner's.
+  - It's a Worker secret listing allowed emails, starting with the owner's, so the repository never shows them.
   - Requests for other addresses are refused before any email is sent, and the app shows that the address can't sign in.
   - New accounts are only ever created for allowlisted addresses.
 - **Email:** codes are sent through Resend, from an address on `hb.nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.

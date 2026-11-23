@@ -38,9 +38,9 @@ While I'm signed out on the web, one small note I can dismiss says my habits liv
 **Worker.**
 
 - `src/auth.ts` holds better-auth's options (better-auth 1.7.27, checked against its source and docs on 2026-11-24): the D1 binding passed straight in as `database` (native since 1.5, no adapter), the email-code plugin with its defaults (6 digits, 5 minutes, 3 tries per code) and codes stored hashed, and the bearer plugin. `src/index.ts` sends `/api/auth/*` to it, keeping one instance per isolate.
-- **Allowlist:** `SIGN_IN_ALLOWLIST` in `wrangler.jsonc`, addresses separated by commas, compared without regard to capitals. A `before` hook refuses any request whose body names another address with 403 `EMAIL_NOT_ALLOWED`, before a code is made, so nothing is sent or stored. A user-create database hook refuses the same addresses as a second guard. Only `sign-in` codes are sent, and the plugin's password-reset and email-change endpoints are off (404).
+- **Allowlist:** the `SIGN_IN_ALLOWLIST` secret (owner decision 2026-11-24: a secret, so the repository never shows the addresses), addresses separated by commas, compared without regard to capitals. A `before` hook refuses any request whose body names another address with 403 `EMAIL_NOT_ALLOWED`, before a code is made, so nothing is sent or stored. A user-create database hook refuses the same addresses as a second guard. Only `sign-in` codes are sent, and the plugin's password-reset and email-change endpoints are off (404).
 - **Email:** `src/email.ts` posts to Resend's API with `RESEND_API_KEY`, from `SIGN_IN_EMAIL_FROM` (`Streakky <sign-in@hb.nhutien.com>`). The subject starts with the code, so it shows in a notification. `EMAIL_DELIVERY` is `resend` in `wrangler.jsonc`; the dev task passes `log`, which writes `Sign-in code for <address>: <code>` to the Worker's terminal instead.
-- **Secrets:** `BETTER_AUTH_SECRET` and `RESEND_API_KEY` are listed under `secrets.required`, so `wrangler types` types them and Wrangler refuses to deploy while either is unset. The dev task passes stand-ins through the environment. An `apps/api/.dev.vars` file (git ignores it) overrides vars such as `SIGN_IN_ALLOWLIST` for local development, but once it exists Wrangler stops reading secrets from the environment, so it must hold `BETTER_AUTH_SECRET` and `RESEND_API_KEY` too (any values; codes are only logged).
+- **Secrets:** `BETTER_AUTH_SECRET`, `RESEND_API_KEY` and `SIGN_IN_ALLOWLIST` are listed under `secrets.required`, so `wrangler types` types them and Wrangler refuses to deploy while either is unset. The dev task passes stand-ins through the environment. An `apps/api/.dev.vars` file (git ignores it) overrides vars such as `SIGN_IN_ALLOWLIST` for local development, but once it exists Wrangler stops reading secrets from the environment, so it must hold `BETTER_AUTH_SECRET` and `RESEND_API_KEY` too (any values; codes are only logged).
 - **Base URL:** better-auth takes the origin the request arrived on, which once deployed is only ever `https://hb.nhutien.com`. `wrangler dev` rewrites request URLs to the route's host, so the dev task passes `--local-upstream localhost:3000`: the Worker then sees the web dev server's origin, where the browser is. Sign-in in development therefore works through `vp run web#dev` (http://localhost:3000), not on the Worker's own :8787.
 - **Rate limits:** better-auth's limiter, switched on everywhere (it defaults to production builds only), stored in D1 so it holds across isolates, keyed on `cf-connecting-ip`, per path: 3 code requests a minute (the plugin's default) and 10 sign-in tries a minute. The plugin's default of 3 tries would answer the fourth try at a code that three wrong ones used up with "wait a minute" instead of "send a new code"; guessing is capped either way, by 3 tries a code and 3 codes a minute. `/get-session` isn't limited, to spare a D1 write on every app start.
 - **Session:** a year, renewed once a day while the app is used, so a device stays signed in until signing out (story 56). better-auth's default is 7 days.
@@ -83,7 +83,7 @@ Left as they are:
 - The API's paths and error codes are written out on both sides of HTTP, in `apps/api/src/auth.ts` and `apps/web/src/store/account.ts`.
 - The Sign-in title repeats Home's heading classes, so Home isn't touched while 04 changes it.
 - The web tests import `apps/api/test/worker.ts` by relative path, which Seam 2 needs.
-- `SIGN_IN_ALLOWLIST` is empty until the owner sets it.
+- `SIGN_IN_ALLOWLIST` is a required secret: a deploy fails until the owner sets it. Local development uses `dev@example.com` unless `SIGN_IN_ALLOWLIST` is set in the shell.
 
 **Owner: before real codes can be sent.** Do these after steps 1–5 of ticket 12's first deploy (Wrangler login, the D1 database, the account id, the DNS check) and before its deploy step, which now refuses to run without the two secrets.
 
@@ -96,10 +96,11 @@ Left as they are:
    These sit on `send.hb.nhutien.com` and `resend._domainkey.hb.nhutien.com`, not on `hb.nhutien.com` itself, so they don't get in the way of the Worker's custom domain. Resend also suggests a DMARC record (`_dmarc`) once the domain is verified. Wait until Resend shows the domain as verified: until then it won't send from `sign-in@hb.nhutien.com`.
 
 3. **API key:** in Resend, create an API key with sending access, limited to `hb.nhutien.com`.
-4. **Allowlist:** put your address in `apps/api/wrangler.jsonc` as `"SIGN_IN_ALLOWLIST": "you@example.com"` (more addresses: separated by commas), then commit it. If the repository is public and you'd rather not publish the address, delete the var from `wrangler.jsonc` and set it as a secret instead (`… wrangler secret put SIGN_IN_ALLOWLIST`); the Worker reads it the same way. Local development uses the same list.
+4. **Allowlist:** it's a secret, set in step 5 (addresses separated by commas).
 5. **Secrets,** from the repo root:
    - `openssl rand -base64 32`, then `vp -C apps/api exec wrangler secret put BETTER_AUTH_SECRET` and paste it;
-   - `vp -C apps/api exec wrangler secret put RESEND_API_KEY` and paste the key from step 3.
+   - `vp -C apps/api exec wrangler secret put RESEND_API_KEY` and paste the key from step 3;
+   - `vp -C apps/api exec wrangler secret put SIGN_IN_ALLOWLIST` and type your address.
 
    Before the first deploy there is no Worker yet: Wrangler asks whether to create one to hold the secrets; say yes. Keep `BETTER_AUTH_SECRET` the same from then on: changing it signs every device out.
 
@@ -113,3 +114,5 @@ Steps 1–7 are unverified: they need your accounts. Nothing here has contacted 
 - Sessions last a year from the last day the app was used (better-auth's default is 7 days), so story 56 holds. Say if you'd rather have a shorter limit.
 - Removing an address from the allowlist stops new sign-ins for it, but a device already signed in stays signed in until it signs out or its session lapses.
 - The signed-out note also shows on an empty Home, before any habit exists, as the criterion reads. It could wait for the first habit instead.
+
+- **Owner decisions (2026-11-24):** sessions last a year from last use (kept); the allowlist is a Worker secret; the signed-out note appears only once there's a habit.

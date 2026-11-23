@@ -1,20 +1,21 @@
 import { X } from "lucide-react";
 import { Button } from "@streakky/ui/components/button";
 import { insideNativeApp } from "../platform.ts";
-import { useHabitStore, useSettings, useSyncStatus } from "../store/react.tsx";
+import { useHabitStore, useHabits, useSettings, useSyncStatus } from "../store/react.tsx";
 import { useNav } from "./stack.tsx";
 
 /**
- * On the web, while signed out: one small note that the habits live only in this browser, which
- * opens sign-in. Once dismissed it stays dismissed on this device. The Android app keeps its data
- * in its own storage, so it never shows the note.
+ * On the web, while signed out and once there is a habit to lose: one small note that the habits
+ * live only in this browser, which opens sign-in. Once dismissed it stays dismissed on this
+ * device. The Android app keeps its data in its own storage, so it never shows the note.
  */
 export function SignedOutNote() {
   const store = useHabitStore();
   const { signedIn } = useSyncStatus();
   const { signedOutNoteDismissed } = useSettings();
   const { push } = useNav();
-  if (signedIn || signedOutNoteDismissed || insideNativeApp()) return null;
+  const hasHabits = useHabits().length > 0;
+  if (signedIn || signedOutNoteDismissed || !hasHabits || insideNativeApp()) return null;
   return (
     <div data-slot="signed-out-note" className="px-5 pb-5">
       <div className="flex items-center gap-1 rounded-2xl bg-muted py-1 pr-1 text-[0.875rem] leading-snug">

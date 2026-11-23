@@ -7,10 +7,11 @@ export default defineConfig({
       // build, and the web dev server (`vp run web#dev`) proxies /api here for live app development.
       // It takes the dev server's origin, http://localhost:3000, as its own, so sign-in cookies
       // work there. Sign-in codes go to this terminal instead of Resend, and the secrets are
-      // stand-ins that only work locally (an apps/api/.dev.vars file replaces them).
+      // stand-ins that only work locally (an apps/api/.dev.vars file replaces them). The allowlist is
+      // dev@example.com unless SIGN_IN_ALLOWLIST is set in the shell.
       dev: {
         command:
-          "wrangler d1 migrations apply streakky --local && BETTER_AUTH_SECRET=local-development-only-not-secret RESEND_API_KEY=unused-in-development wrangler dev --local-upstream localhost:3000 --var EMAIL_DELIVERY:log",
+          "wrangler d1 migrations apply streakky --local && BETTER_AUTH_SECRET=local-development-only-not-secret RESEND_API_KEY=unused-in-development SIGN_IN_ALLOWLIST=${SIGN_IN_ALLOWLIST:-dev@example.com} wrangler dev --local-upstream localhost:3000 --var EMAIL_DELIVERY:log",
         dependsOn: ["web#build"],
         cache: false,
       },

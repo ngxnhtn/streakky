@@ -17,7 +17,7 @@ export type AuthConfig = {
   /** The app's origin, such as https://hb.nhutien.com. */
   baseURL?: string;
   secret?: string;
-  /** The addresses that may sign in, separated by commas or spaces (the SIGN_IN_ALLOWLIST var). */
+  /** The addresses that may sign in, separated by commas or spaces (the SIGN_IN_ALLOWLIST secret). */
   allowlist: string;
   sendCode: (code: SignInCode) => Promise<void>;
   /**

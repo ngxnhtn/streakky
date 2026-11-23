@@ -19,17 +19,16 @@
     "run_worker_first": ["/api/*"],
   },
   "vars": {
-    // the addresses that may sign in, separated by commas: the owner's first (empty until the owner
-    // sets it, so nobody can sign in yet)
-    "SIGN_IN_ALLOWLIST": "",
     // the sender of sign-in codes; Resend must have hb.nhutien.com verified
     "SIGN_IN_EMAIL_FROM": "Streakky <sign-in@hb.nhutien.com>",
     // "resend" sends codes through Resend; local development passes "log" (see vite.config.ts),
     // which writes them to the Worker's log instead
     "EMAIL_DELIVERY": "resend",
   },
-  // set with `wrangler secret put <NAME>`; a deploy fails while either is missing
-  "secrets": { "required": ["BETTER_AUTH_SECRET", "RESEND_API_KEY"] },
+  // set with `wrangler secret put <NAME>`; a deploy fails while any is missing. SIGN_IN_ALLOWLIST
+  // holds the addresses that may sign in, separated by commas; a secret, so the repository never
+  // shows them
+  "secrets": { "required": ["BETTER_AUTH_SECRET", "RESEND_API_KEY", "SIGN_IN_ALLOWLIST"] },
   "d1_databases": [
     {
       "binding": "DB",
