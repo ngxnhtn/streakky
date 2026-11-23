@@ -72,7 +72,9 @@ export function ListButton({
         className={cn(
           row,
           "text-[0.9375rem] font-medium transition-colors duration-120 ease-ui",
+          // the ring sits inside the row; at the list's ends it follows the list's rounded corners
           "focus-visible:-outline-offset-2 focus-ring-flush",
+          "in-[li:first-child]:rounded-t-[1.25rem] in-[li:last-child]:rounded-b-[1.25rem]",
           "hover-fine:bg-accent hover-fine:duration-150 active:bg-press active:duration-90 disabled:opacity-40",
           "[&_svg]:size-5 [&_svg]:shrink-0 [&_svg]:stroke-[1.75] [&_svg]:text-muted-foreground",
           tone === "destructive" && "text-destructive [&_svg]:text-destructive",
