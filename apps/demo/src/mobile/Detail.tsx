@@ -2,21 +2,21 @@ import { useState } from "react";
 import {
   canToggle,
   counterLabel,
-  currentDays,
-  markedToday,
+  currentStreakDays,
+  loggedToday,
   sinceLabel,
   todayISO,
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
-import { StreakCalendar, type CalendarView } from "@streakky/ui/components/streak/calendar";
-import { StreakGoal } from "@streakky/ui/components/streak/goal";
-import { StreakRing } from "@streakky/ui/components/streak/ring";
-import { StreakStats } from "@streakky/ui/components/streak/stats";
-import { TodayButton } from "@streakky/ui/components/streak/today-button";
+import { HabitCalendar, type CalendarView } from "@streakky/ui/components/habit/calendar";
+import { HabitGoal } from "@streakky/ui/components/habit/goal";
+import { StreakRing } from "@streakky/ui/components/habit/ring";
+import { HabitStats } from "@streakky/ui/components/habit/stats";
+import { TodayButton } from "@streakky/ui/components/habit/today-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@streakky/ui/components/tabs";
 import { ChevronLeft, Menu } from "lucide-react";
-import { StreakDialogs, type StreakDialog } from "../parts/streak-dialogs.tsx";
+import { HabitDialogs, type HabitDialog } from "../parts/habit-dialogs.tsx";
 import { useStore } from "../store.tsx";
 import { ScreenScroll, useNav } from "./App.tsx";
 
@@ -25,37 +25,37 @@ type Tab = (typeof TABS)[number];
 const TAB_LABEL: Record<Tab, string> = { calendar: "Calendar", stats: "Stats", goal: "Goal" };
 
 export function Detail({ id }: { id: string }) {
-  const { streaks, settings, dispatch } = useStore();
+  const { habits, settings, dispatch } = useStore();
   const { pop } = useNav();
   const [tab, setTab] = useState<Tab>("calendar");
   const [view, setView] = useState<CalendarView>("weeks");
-  const [dialog, setDialog] = useState<StreakDialog>(null);
-  const streak = streaks.find((s) => s.id === id);
+  const [dialog, setDialog] = useState<HabitDialog>(null);
+  const habit = habits.find((s) => s.id === id);
   const back = (
-    <Button variant="ghost" size="icon" aria-label="Back to streaks" onClick={pop}>
+    <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
       <ChevronLeft strokeWidth={1.75} />
     </Button>
   );
-  if (!streak) {
+  if (!habit) {
     return (
       <>
         <AppBar left={back} />
-        <p className="px-5 py-6 text-muted-foreground">This streak was deleted.</p>
+        <p className="px-5 py-6 text-muted-foreground">This habit was deleted.</p>
       </>
     );
   }
-  const days = currentDays(streak);
+  const days = currentStreakDays(habit);
 
   return (
-    <div data-streak-color={streak.color} className="contents">
+    <div data-habit-color={habit.color} className="contents">
       <AppBar
         left={back}
-        title={streak.name}
+        title={habit.name}
         right={
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Streak options"
+            aria-label="Habit options"
             onClick={() => setDialog("options")}
           >
             <Menu strokeWidth={1.75} />
@@ -65,22 +65,22 @@ export function Detail({ id }: { id: string }) {
       <ScreenScroll>
         <StreakRing
           days={days}
-          goal={streak.goal}
-          label={counterLabel(streak, days)}
-          since={sinceLabel(streak)}
+          goal={habit.goal}
+          label={counterLabel(habit, days)}
+          since={sinceLabel(habit)}
         />
         <div className="flex justify-center px-5 pt-1 pb-5">
           <TodayButton
-            mode={streak.mode}
-            marked={markedToday(streak)}
-            disabled={!canToggle(streak, todayISO())}
+            kind={habit.kind}
+            loggedToday={loggedToday(habit)}
+            disabled={!canToggle(habit, todayISO())}
             onToggle={() => dispatch({ type: "toggle-day", id })}
             onSlip={() => setDialog("slip")}
           />
         </div>
         <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
           <div className="px-5 pt-2">
-            <TabsList index={TABS.indexOf(tab)} count={TABS.length} aria-label="Streak details">
+            <TabsList index={TABS.indexOf(tab)} count={TABS.length} aria-label="Habit details">
               {TABS.map((t) => (
                 <TabsTrigger key={t} value={t}>
                   {TAB_LABEL[t]}
@@ -89,8 +89,8 @@ export function Detail({ id }: { id: string }) {
             </TabsList>
           </div>
           <TabsContent value="calendar" className="min-h-[380px] px-5 pt-6">
-            <StreakCalendar
-              streak={streak}
+            <HabitCalendar
+              habit={habit}
               weekStart={settings.weekStart}
               view={view}
               onViewChange={setView}
@@ -98,18 +98,18 @@ export function Detail({ id }: { id: string }) {
             />
           </TabsContent>
           <TabsContent value="stats" className="min-h-[380px] px-5 pt-6">
-            <StreakStats streak={streak} />
+            <HabitStats habit={habit} />
           </TabsContent>
           <TabsContent value="goal" className="min-h-[380px] px-5 pt-6">
-            <StreakGoal
-              streak={streak}
+            <HabitGoal
+              habit={habit}
               onGoalChange={(goal) => dispatch({ type: "goal", id, goal })}
             />
           </TabsContent>
         </Tabs>
       </ScreenScroll>
-      <StreakDialogs
-        streak={streak}
+      <HabitDialogs
+        habit={habit}
         dialog={dialog}
         setDialog={setDialog}
         onDelete={() => {

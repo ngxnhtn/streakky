@@ -30,7 +30,7 @@ function ToggleGroup<T extends string>({
   );
 }
 
-/** A pill chip: outlined, filled with the streak colour when chosen. */
+/** A pill chip: outlined, filled with the habit colour when chosen. */
 function ToggleChip({
   className,
   ...props
@@ -43,7 +43,7 @@ function ToggleChip({
         "transition-[background-color,border-color,color,transform,translate,scale] duration-120 ease-ui outline-none",
         "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
         "active:scale-96 active:duration-90 hover-fine:border-foreground",
-        "data-[state=on]:border-streak data-[state=on]:bg-streak data-[state=on]:text-streak-foreground",
+        "data-[state=on]:border-habit data-[state=on]:bg-habit data-[state=on]:text-habit-foreground",
         "[&_svg]:size-3.5 [&_svg]:stroke-[2.25]",
         className,
       )}

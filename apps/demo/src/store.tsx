@@ -10,20 +10,21 @@ import {
 import {
   canToggle,
   defaultSettings,
-  sampleStreaks,
+  sampleHabits,
   todayISO,
   type ColorId,
-  type Mode,
+  type Kind,
   type Settings,
-  type Streak,
+  type Habit,
 } from "@streakky/core";
 
-type State = { streaks: Streak[]; settings: Settings };
+type State = { habits: Habit[]; settings: Settings };
 
 type Action =
-  | { type: "add"; name: string; mode: Mode; color: ColorId; start: string; goal: number | null }
+  /** `quitDay` is only read for quit habits */
+  | { type: "add"; name: string; kind: Kind; color: ColorId; quitDay: string; goal: number | null }
   | { type: "edit"; id: string; name: string; color: ColorId }
-  /** build: mark a day done or not. quit: add or remove a slip. Today when `day` is left out. */
+  /** build: add or remove a check-in. quit: add or remove a slip. Today when `day` is left out. */
   | { type: "toggle-day"; id: string; day?: string }
   | { type: "delete"; id: string }
   | { type: "goal"; id: string; goal: number | null }
@@ -38,27 +39,19 @@ const newId = () =>
     : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 
 function reducer(state: State, a: Action): State {
-  const map = (id: string, fn: (s: Streak) => Streak) => ({
+  const map = (id: string, fn: (s: Habit) => Habit) => ({
     ...state,
-    streaks: state.streaks.map((s) => (s.id === id ? fn(s) : s)),
+    habits: state.habits.map((s) => (s.id === id ? fn(s) : s)),
   });
   switch (a.type) {
-    case "add":
-      return {
-        ...state,
-        streaks: [
-          ...state.streaks,
-          {
-            id: newId(),
-            name: a.name,
-            mode: a.mode,
-            color: a.color,
-            goal: a.goal,
-            start: a.start,
-            marks: [],
-          },
-        ],
-      };
+    case "add": {
+      const base = { id: newId(), name: a.name, color: a.color, goal: a.goal };
+      const habit: Habit =
+        a.kind === "quit"
+          ? { ...base, kind: "quit", quitDay: a.quitDay, slips: [] }
+          : { ...base, kind: "build", checkIns: [] };
+      return { ...state, habits: [...state.habits, habit] };
+    }
     case "edit":
       return map(a.id, (s) => ({ ...s, name: a.name, color: a.color }));
     case "goal":
@@ -67,19 +60,19 @@ function reducer(state: State, a: Action): State {
       const day = a.day ?? todayISO();
       return map(a.id, (s) => {
         if (!canToggle(s, day)) return s;
-        const marks = s.marks.includes(day)
-          ? s.marks.filter((m) => m !== day)
-          : [...s.marks, day].sort();
-        // a build habit logged before its start date moves the start back
-        return { ...s, marks, start: s.mode === "build" && day < s.start ? day : s.start };
+        const toggle = (days: string[]) =>
+          days.includes(day) ? days.filter((d) => d !== day) : [...days, day].sort();
+        return s.kind === "build"
+          ? { ...s, checkIns: toggle(s.checkIns) }
+          : { ...s, slips: toggle(s.slips) };
       });
     }
     case "delete":
-      return { ...state, streaks: state.streaks.filter((s) => s.id !== a.id) };
+      return { ...state, habits: state.habits.filter((s) => s.id !== a.id) };
     case "erase":
-      return { ...state, streaks: [] };
+      return { ...state, habits: [] };
     case "sample":
-      return { ...state, streaks: sampleStreaks() };
+      return { ...state, habits: sampleHabits() };
     case "settings":
       return { ...state, settings: { ...state.settings, ...a.patch } };
   }
@@ -91,7 +84,7 @@ const Ctx = createContext<Store | null>(null);
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, null, () => ({
-    streaks: sampleStreaks(),
+    habits: sampleHabits(),
     settings: defaultSettings,
   }));
   const systemDark = useMedia("(prefers-color-scheme: dark)");

@@ -7,11 +7,11 @@
   Three switches, each an attribute or class on any element (they cascade to its subtree):
     data-palette="teal|cobalt|olive|oxblood|graphite"   the app colour theme (default teal)
     class="dark"                                        dark mode (the palette's ink becomes the ground)
-    data-streak-color="teal|red|blue|ochre|rose|green"  one streak's colour, read as bg-streak, text-streak …
+    data-habit-color="teal|red|blue|ochre|rose|green"  one habit's colour, read as bg-habit, text-habit …
 
   The palettes are two-tone sets from the design library (one ink on one paper), each with a
   dark set. Every pair holds 4.5:1 or more for muted text on surfaces, 8:1 or more for ink on
-  the ground. Streak colours hold 4.6:1 or more on every ground.
+  the ground. Habit colours hold 4.6:1 or more on every ground.
 */
 
 @import "tailwindcss";
@@ -104,9 +104,9 @@
   --input: color-mix(in oklab, var(--p-ink) 26%, transparent);
   --ring: var(--p-ink);
   --scrim: color-mix(in oklab, var(--p-ink) 34%, transparent);
-  /* a streak's own colour; data-streak-color sets it, the primary ink otherwise */
-  --streak: var(--p-ink);
-  --streak-foreground: #ffffff;
+  /* a habit's own colour; data-habit-color sets it, the primary ink otherwise */
+  --habit: var(--p-ink);
+  --habit-foreground: #ffffff;
   --radius: 1.25rem;
   color-scheme: light;
 }
@@ -135,54 +135,54 @@
   --input: color-mix(in oklab, var(--p-inv-ink) 26%, transparent);
   --ring: var(--p-inv-ink);
   --scrim: rgb(0 0 0 / 0.45);
-  --streak: var(--p-inv-ink);
-  --streak-foreground: var(--p-inv-bg);
+  --habit: var(--p-inv-ink);
+  --habit-foreground: var(--p-inv-bg);
   color-scheme: dark;
 }
 
-/* ───────────── Streak colours (light, then dark) ───────────── */
+/* ───────────── Habit colours (light, then dark) ───────────── */
 
-[data-streak-color="teal"] {
-  --streak: #06525c;
+[data-habit-color="teal"] {
+  --habit: #06525c;
 }
-[data-streak-color="red"] {
-  --streak: #b3372b;
+[data-habit-color="red"] {
+  --habit: #b3372b;
 }
-[data-streak-color="blue"] {
-  --streak: #2453a0;
+[data-habit-color="blue"] {
+  --habit: #2453a0;
 }
-[data-streak-color="ochre"] {
-  --streak: #7a5900;
+[data-habit-color="ochre"] {
+  --habit: #7a5900;
 }
-[data-streak-color="rose"] {
-  --streak: #a12e72;
+[data-habit-color="rose"] {
+  --habit: #a12e72;
 }
-[data-streak-color="green"] {
-  --streak: #2f6b2a;
+[data-habit-color="green"] {
+  --habit: #2f6b2a;
 }
-:where(.dark) [data-streak-color="teal"],
-[data-streak-color="teal"]:where(.dark) {
-  --streak: #f7f9f8;
+:where(.dark) [data-habit-color="teal"],
+[data-habit-color="teal"]:where(.dark) {
+  --habit: #f7f9f8;
 }
-:where(.dark) [data-streak-color="red"],
-[data-streak-color="red"]:where(.dark) {
-  --streak: #ffa597;
+:where(.dark) [data-habit-color="red"],
+[data-habit-color="red"]:where(.dark) {
+  --habit: #ffa597;
 }
-:where(.dark) [data-streak-color="blue"],
-[data-streak-color="blue"]:where(.dark) {
-  --streak: #a9c8f5;
+:where(.dark) [data-habit-color="blue"],
+[data-habit-color="blue"]:where(.dark) {
+  --habit: #a9c8f5;
 }
-:where(.dark) [data-streak-color="ochre"],
-[data-streak-color="ochre"]:where(.dark) {
-  --streak: #efd27a;
+:where(.dark) [data-habit-color="ochre"],
+[data-habit-color="ochre"]:where(.dark) {
+  --habit: #efd27a;
 }
-:where(.dark) [data-streak-color="rose"],
-[data-streak-color="rose"]:where(.dark) {
-  --streak: #f6b0dc;
+:where(.dark) [data-habit-color="rose"],
+[data-habit-color="rose"]:where(.dark) {
+  --habit: #f6b0dc;
 }
-:where(.dark) [data-streak-color="green"],
-[data-streak-color="green"]:where(.dark) {
-  --streak: #b4dea0;
+:where(.dark) [data-habit-color="green"],
+[data-habit-color="green"]:where(.dark) {
+  --habit: #b4dea0;
 }
 
 /* ───────────── Tailwind theme ───────────── */
@@ -210,8 +210,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-scrim: var(--scrim);
-  --color-streak: var(--streak);
-  --color-streak-foreground: var(--streak-foreground);
+  --color-habit: var(--habit);
+  --color-habit-foreground: var(--habit-foreground);
 
   --font-sans: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Instrument Sans", ui-sans-serif, system-ui, sans-serif;

@@ -3,14 +3,14 @@ import { fmtLong, today } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { Menu, Plus } from "lucide-react";
-import { EmptyStreaks } from "../parts/empty.tsx";
-import { NewStreakDialog } from "../parts/new-streak-dialog.tsx";
-import { LayoutSwitch, StreakFaces } from "../parts/streak-faces.tsx";
+import { EmptyHabits } from "../parts/empty.tsx";
+import { NewHabitDialog } from "../parts/new-habit-dialog.tsx";
+import { LayoutSwitch, HabitFaces } from "../parts/habit-faces.tsx";
 import { useStore } from "../store.tsx";
 import { ScreenScroll, useNav } from "./App.tsx";
 
 export function Home() {
-  const { streaks } = useStore();
+  const { habits } = useStore();
   const { push } = useNav();
   const [adding, setAdding] = useState(false);
   return (
@@ -27,12 +27,7 @@ export function Home() {
           </Button>
         }
         right={
-          <Button
-            variant="ring"
-            size="icon"
-            aria-label="New streak"
-            onClick={() => setAdding(true)}
-          >
+          <Button variant="ring" size="icon" aria-label="New habit" onClick={() => setAdding(true)}>
             <Plus strokeWidth={1.75} />
           </Button>
         }
@@ -42,23 +37,23 @@ export function Home() {
           <div>
             <p className="text-sm text-muted-foreground">{fmtLong(today())}</p>
             <h1 className="mt-0.5 font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] [font-stretch:96%]">
-              Streaks
+              Habits
             </h1>
           </div>
-          {streaks.length > 0 && <LayoutSwitch />}
+          {habits.length > 0 && <LayoutSwitch />}
         </header>
         <div className="px-5 pb-5">
-          {streaks.length === 0 ? (
-            <EmptyStreaks onAdd={() => setAdding(true)} />
+          {habits.length === 0 ? (
+            <EmptyHabits onAdd={() => setAdding(true)} />
           ) : (
-            <StreakFaces
+            <HabitFaces
               onOpen={(id) => push({ name: "detail", id })}
               onAdd={() => setAdding(true)}
             />
           )}
         </div>
       </ScreenScroll>
-      <NewStreakDialog open={adding} onClose={() => setAdding(false)} />
+      <NewHabitDialog open={adding} onClose={() => setAdding(false)} />
     </>
   );
 }

@@ -7,7 +7,7 @@ const ARC = "M52.32 227.68A124 124 0 1 1 227.68 227.68";
 
 /**
  * The big counter. The arc and the number ease up together; the small line in the gap says
- * since when. Colour: the nearest data-streak-color.
+ * since when. Colour: the nearest data-habit-color.
  */
 export function StreakRing({
   days,
@@ -17,7 +17,7 @@ export function StreakRing({
   className,
 }: {
   days: number;
-  /** the streak's goal; with none, the arc fills toward the next milestone */
+  /** the habit's goal; with none, the arc fills toward the next milestone */
   goal: number | null;
   /** under the number: "day streak", "days free" */
   label: string;
@@ -36,14 +36,14 @@ export function StreakRing({
         <path
           d={ARC}
           pathLength={100}
-          className="fill-none stroke-streak/16 [stroke-linecap:round] [stroke-width:10]"
+          className="fill-none stroke-habit/16 [stroke-linecap:round] [stroke-width:10]"
         />
         <path
           d={ARC}
           pathLength={100}
           strokeDasharray={`${p} 100`}
           style={{ opacity: p > 0.2 ? 1 : 0 }}
-          className="fill-none stroke-streak transition-[stroke] duration-300 [stroke-linecap:round] [stroke-width:10]"
+          className="fill-none stroke-habit transition-[stroke] duration-300 [stroke-linecap:round] [stroke-width:10]"
         />
       </svg>
       <div

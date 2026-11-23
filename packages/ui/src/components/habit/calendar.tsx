@@ -3,12 +3,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
   canToggle,
-  dayKinds,
   fmtShort,
   fromISO,
+  historyStart,
+  streakDays,
   today,
   toISO,
-  type Streak,
+  type Habit,
 } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { Segmented } from "@streakky/ui/components/segmented";
@@ -27,7 +28,7 @@ const startOfWeek = (d: Date, weekStart: 0 | 1) => addDays(d, -((d.getDay() - we
 
 type DayInfo = {
   date: Date;
-  run: boolean;
+  inStreak: boolean;
   slip: boolean;
   isToday: boolean;
   pending: boolean;
@@ -35,13 +36,13 @@ type DayInfo = {
 };
 
 /**
- * A streak's days. Every done or clean day takes the streak colour in full; a slip is an
+ * A habit's days. Every done or clean day takes the habit colour in full; a slip is an
  * unfilled day with a dot; today, not logged yet, is a ring. Weeks: columns are weeks, newest
- * on the right, opening on today. Month: a classic grid with runs drawn as bands.
+ * on the right, opening on today. Month: a classic grid with streaks drawn as bands.
  * "Edit days" turns days into buttons that call onToggleDay.
  */
-export function StreakCalendar({
-  streak,
+export function HabitCalendar({
+  habit,
   weekStart,
   view,
   onViewChange,
@@ -49,40 +50,38 @@ export function StreakCalendar({
   minWeeks = 16,
   className,
 }: {
-  streak: Streak;
+  habit: Habit;
   weekStart: 0 | 1;
   view: CalendarView;
   onViewChange: (view: CalendarView) => void;
   onToggleDay: (iso: string) => void;
-  /** weeks the Weeks view shows at least, before the streak began if need be */
+  /** weeks the Weeks view shows at least, before its history began if need be */
   minWeeks?: number;
   className?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const kinds = useMemo(() => dayKinds(streak), [streak]);
+  const streakDayMap = useMemo(() => streakDays(habit), [habit]);
   const t = today();
   const todayISO = toISO(t);
-  const slips = streak.mode === "quit" ? new Set(streak.marks) : new Set<string>();
-  const pending = streak.mode === "build" && !streak.marks.includes(todayISO);
-  const firstDay = fromISO(
-    streak.marks[0] && streak.marks[0] < streak.start ? streak.marks[0] : streak.start,
-  );
+  const slips = new Set(habit.kind === "quit" ? habit.slips : []);
+  const pending = habit.kind === "build" && !habit.checkIns.includes(todayISO);
+  const firstDay = fromISO(historyStart(habit));
 
   const info = (date: Date): DayInfo => {
     const iso = toISO(date);
     return {
       date,
-      run: kinds.has(iso),
+      inStreak: streakDayMap.has(iso),
       slip: slips.has(iso),
       isToday: iso === todayISO,
       pending,
-      editable: canToggle(streak, iso),
+      editable: canToggle(habit, iso),
     };
   };
-  const cell = { editing, mode: streak.mode, onToggleDay };
+  const cell = { editing, kind: habit.kind, onToggleDay };
 
   return (
-    <div data-slot="streak-calendar" className={className}>
+    <div data-slot="habit-calendar" className={className}>
       <div className="mb-[18px] flex items-center justify-between gap-3">
         <Segmented
           size="xs"
@@ -97,7 +96,7 @@ export function StreakCalendar({
         />
         <Button
           size="sm"
-          variant={editing ? "streak" : "outline"}
+          variant={editing ? "habit" : "outline"}
           aria-pressed={editing}
           onClick={() => setEditing(!editing)}
           className="hover-fine:not-active:translate-y-0"
@@ -107,7 +106,7 @@ export function StreakCalendar({
       </div>
       {editing && (
         <p className="-mt-1.5 mb-4 text-[13px] text-muted-foreground">
-          {streak.mode === "build"
+          {habit.kind === "build"
             ? "Tap a day to mark it done, or tap again to clear it."
             : "Tap a day to log a slip on it, or tap again to remove it."}
         </p>
@@ -127,17 +126,17 @@ export function StreakCalendar({
 
       <ul className="mt-[18px] flex flex-wrap gap-x-[18px] gap-y-2 text-[13px] text-muted-foreground">
         <li className="flex items-center gap-2">
-          <i className="h-2.5 w-4 rounded-full bg-streak" />
-          {streak.mode === "quit" ? "Clean day" : "Done"}
+          <i className="h-2.5 w-4 rounded-full bg-habit" />
+          {habit.kind === "quit" ? "Clean day" : "Done"}
         </li>
-        {streak.mode === "quit" ? (
+        {habit.kind === "quit" ? (
           <li className="flex items-center gap-2">
-            <i className="mx-1.5 size-[5px] rounded-full bg-streak" />
+            <i className="mx-1.5 size-[5px] rounded-full bg-habit" />
             Slip
           </li>
         ) : (
           <li className="flex items-center gap-2">
-            <i className="mx-0.5 size-3 rounded-full shadow-[inset_0_0_0_1.5px_var(--streak)]" />
+            <i className="mx-0.5 size-3 rounded-full shadow-[inset_0_0_0_1.5px_var(--habit)]" />
             Not logged yet
           </li>
         )}
@@ -148,7 +147,7 @@ export function StreakCalendar({
 
 type CellCtx = {
   editing: boolean;
-  mode: Streak["mode"];
+  kind: Habit["kind"];
   onToggleDay: (iso: string) => void;
 };
 
@@ -174,8 +173,8 @@ function Day({
       </span>
     );
   }
-  const on = ctx.mode === "build" ? d.run : d.slip;
-  const state = ctx.mode === "build" ? (on ? "done" : "not done") : on ? "slip" : "clean";
+  const on = ctx.kind === "build" ? d.inStreak : d.slip;
+  const state = ctx.kind === "build" ? (on ? "done" : "not done") : on ? "slip" : "clean";
   return (
     <button
       type="button"
@@ -193,7 +192,7 @@ function Day({
 }
 
 const slipDot =
-  "after:absolute after:left-1/2 after:size-[5px] after:-translate-x-1/2 after:rounded-full after:bg-streak";
+  "after:absolute after:left-1/2 after:size-[5px] after:-translate-x-1/2 after:rounded-full after:bg-habit";
 
 function WeeksGrid({
   firstDay,
@@ -259,11 +258,13 @@ function WeeksGrid({
                     ctx={cell}
                     className={cn(
                       "relative grid size-7 place-items-center rounded-lg text-[11px] tabular-nums transition-[background-color,box-shadow,transform,translate,scale] duration-120",
-                      d.run ? "bg-streak text-streak-foreground" : "bg-muted text-muted-foreground",
-                      d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--streak)]",
+                      d.inStreak
+                        ? "bg-habit text-habit-foreground"
+                        : "bg-muted text-muted-foreground",
+                      d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
                       d.isToday &&
-                        d.run &&
-                        "shadow-[inset_0_0_0_2px_var(--streak),inset_0_0_0_3.5px_var(--streak-foreground)]",
+                        d.inStreak &&
+                        "shadow-[inset_0_0_0_2px_var(--habit),inset_0_0_0_3.5px_var(--habit-foreground)]",
                       d.slip && cn(slipDot, "after:bottom-0.5"),
                       cell.editing &&
                         d.editable &&
@@ -359,8 +360,8 @@ function MonthGrid({
           }
           const d = info(date);
           const col = i % 7;
-          const prev = col > 0 && date.getDate() > 1 && info(addDays(date, -1)).run;
-          const next = col < 6 && date.getDate() < count && info(addDays(date, 1)).run;
+          const prev = col > 0 && date.getDate() > 1 && info(addDays(date, -1)).inStreak;
+          const next = col < 6 && date.getDate() < count && info(addDays(date, 1)).inStreak;
           return (
             <Day
               key={toISO(date)}
@@ -371,18 +372,18 @@ function MonthGrid({
                 cell.editing &&
                   d.editable &&
                   "active:[&>span]:scale-90 hover-fine:[&>span]:shadow-[inset_0_0_0_1.5px_var(--foreground)]",
-                d.run &&
-                  "text-streak-foreground before:absolute before:inset-x-0 before:inset-y-1 before:bg-streak",
-                d.run && !prev && "before:left-1 before:rounded-l-full",
-                d.run && !next && "before:right-1 before:rounded-r-full",
+                d.inStreak &&
+                  "text-habit-foreground before:absolute before:inset-x-0 before:inset-y-1 before:bg-habit",
+                d.inStreak && !prev && "before:left-1 before:rounded-l-full",
+                d.inStreak && !next && "before:right-1 before:rounded-r-full",
                 d.slip && cn(slipDot, "after:bottom-0"),
               )}
             >
               <span
                 className={cn(
                   "relative z-10 grid size-[34px] place-items-center rounded-full transition-[box-shadow,transform,translate,scale] duration-120",
-                  d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--streak)]",
-                  d.isToday && d.run && "bg-streak-foreground text-streak shadow-none",
+                  d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
+                  d.isToday && d.inStreak && "bg-habit-foreground text-habit shadow-none",
                 )}
               >
                 {date.getDate()}

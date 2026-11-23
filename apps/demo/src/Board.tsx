@@ -8,8 +8,8 @@ const PHONE_H = 864;
 const GAP = 56;
 
 const SCREENS: { label: string; initial: Route[] }[] = [
-  { label: "Streaks", initial: [{ name: "home" }] },
-  { label: "Streak", initial: [{ name: "home" }, { name: "detail", id: "run" }] },
+  { label: "Habits", initial: [{ name: "home" }] },
+  { label: "Habit", initial: [{ name: "home" }, { name: "detail", id: "run" }] },
   { label: "Settings", initial: [{ name: "home" }, { name: "settings" }] },
 ];
 
@@ -92,7 +92,7 @@ export function Board() {
           </a>
         </nav>
         <p className="justify-self-end font-mono text-xs text-muted-foreground max-[900px]:hidden">
-          UI demo · three screens, one shared set of streaks
+          UI demo · three screens, one shared set of habits
         </p>
       </header>
       <main

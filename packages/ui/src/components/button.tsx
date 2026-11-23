@@ -31,8 +31,8 @@ const buttonVariants = cva(
           "bg-destructive text-destructive-foreground hover-fine:bg-[color-mix(in_oklab,var(--destructive)_86%,var(--foreground))]",
         "outline-destructive":
           "bg-transparent text-destructive shadow-[inset_0_0_0_1px_var(--input)] hover-fine:bg-muted",
-        streak:
-          "bg-streak text-streak-foreground hover-fine:bg-[color-mix(in_oklab,var(--streak)_86%,var(--foreground))]",
+        habit:
+          "bg-habit text-habit-foreground hover-fine:bg-[color-mix(in_oklab,var(--habit)_86%,var(--foreground))]",
         link: "text-foreground underline decoration-input underline-offset-4 hover-fine:decoration-current hover-fine:not-active:translate-y-0",
       },
       size: {

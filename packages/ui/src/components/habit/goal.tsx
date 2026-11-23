@@ -1,21 +1,21 @@
 import { Check } from "lucide-react";
-import { GOALS, currentDays, fmtShort, goalDate, plural, type Streak } from "@streakky/core";
+import { GOALS, currentStreakDays, fmtShort, goalDate, plural, type Habit } from "@streakky/core";
 import { ToggleChip, ToggleGroup } from "@streakky/ui/components/toggle-group";
 
 /** How far to the goal, a progress bar, and the goal chips (reached ones carry a tick). */
-export function StreakGoal({
-  streak,
+export function HabitGoal({
+  habit,
   onGoalChange,
   className,
 }: {
-  streak: Streak;
+  habit: Habit;
   onGoalChange: (goal: number | null) => void;
   className?: string;
 }) {
-  const days = currentDays(streak);
-  const goal = streak.goal;
-  const on = goalDate(streak);
-  const unit = streak.mode === "build" ? "day" : "clean day";
+  const days = currentStreakDays(habit);
+  const goal = habit.goal;
+  const on = goalDate(habit);
+  const unit = habit.kind === "build" ? "day" : "clean day";
   const [big, sub] =
     goal === null || !on
       ? ["No goal yet", "Pick a number of days below to aim for."]
@@ -23,7 +23,7 @@ export function StreakGoal({
         ? ["Goal reached", `${goal} days on ${fmtShort(on)}. Set the next one below.`]
         : [`${plural(goal - days, unit)} to go`, `${goal}-day goal on ${fmtShort(on)}`];
   return (
-    <div data-slot="streak-goal" className={className}>
+    <div data-slot="habit-goal" className={className}>
       <p className="font-display text-[26px] leading-[1.15] font-medium tracking-[-0.025em]">
         {big}
       </p>
@@ -32,7 +32,7 @@ export function StreakGoal({
         <div className="mt-5">
           <div className="h-1.5 overflow-hidden rounded-full bg-muted">
             <span
-              className="block h-full rounded-full bg-streak transition-[width] duration-600 ease-enter"
+              className="block h-full rounded-full bg-habit transition-[width] duration-600 ease-enter"
               style={{ width: `${Math.min(100, (days / goal) * 100)}%` }}
             />
           </div>

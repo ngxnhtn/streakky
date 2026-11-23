@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { currentDays, runsOf, type Theme } from "@streakky/core";
+import { currentStreakDays, historyStart, longestStreakDays, type Theme } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import {
   Dialog,
@@ -20,7 +20,7 @@ import { useDialogShape } from "./shape.tsx";
 
 /** The settings groups and the erase dialog; phones and the web show the same body. */
 export function SettingsBody({ className }: { className?: string }) {
-  const { settings, streaks, dispatch } = useStore();
+  const { settings, habits, dispatch } = useStore();
   const { shape, className: dialogClass } = useDialogShape();
   const [erasing, setErasing] = useState(false);
   const timeId = useId();
@@ -28,14 +28,14 @@ export function SettingsBody({ className }: { className?: string }) {
 
   const exportCsv = () => {
     const rows = [
-      ["name", "started", "days", "goal", "mode", "longest_run"],
-      ...streaks.map((s) => [
+      ["name", "started", "days", "goal", "kind", "longest_streak"],
+      ...habits.map((s) => [
         s.name,
-        s.start,
-        String(currentDays(s)),
+        historyStart(s),
+        String(currentStreakDays(s)),
         s.goal === null ? "" : String(s.goal),
-        s.mode,
-        String(Math.max(...runsOf(s).map((r) => r.days))),
+        s.kind,
+        String(longestStreakDays(s)),
       ]),
     ];
     const csv = rows.map((r) => r.map((c) => `"${c.replaceAll('"', '""')}"`).join(",")).join("\n");
@@ -122,20 +122,16 @@ export function SettingsBody({ className }: { className?: string }) {
 
       <ListGroup title="Data">
         <List>
-          <ListButton onClick={exportCsv} disabled={!streaks.length}>
+          <ListButton onClick={exportCsv} disabled={!habits.length}>
             Export as CSV
             <Download />
           </ListButton>
           <ListButton onClick={() => dispatch({ type: "sample" })}>
-            Load sample streaks
+            Load sample habits
             <RotateCcw />
           </ListButton>
-          <ListButton
-            tone="destructive"
-            onClick={() => setErasing(true)}
-            disabled={!streaks.length}
-          >
-            Erase all streaks
+          <ListButton tone="destructive" onClick={() => setErasing(true)} disabled={!habits.length}>
+            Erase all habits
             <Trash2 />
           </ListButton>
         </List>
@@ -143,11 +139,11 @@ export function SettingsBody({ className }: { className?: string }) {
 
       <Dialog open={erasing} onOpenChange={setErasing}>
         <DialogContent shape={shape} className={dialogClass}>
-          <DialogTitle>Erase all streaks?</DialogTitle>
+          <DialogTitle>Erase all habits?</DialogTitle>
           <DialogDescription>
-            {streaks.length === 1
-              ? "Your one streak and its history go for good."
-              : `All ${streaks.length} streaks and their history go for good.`}{" "}
+            {habits.length === 1
+              ? "Your one habit and its history go for good."
+              : `All ${habits.length} habits and their history go for good.`}{" "}
             Export a CSV first to keep a copy.
           </DialogDescription>
           <DialogActions>
@@ -158,7 +154,7 @@ export function SettingsBody({ className }: { className?: string }) {
                 setErasing(false);
               }}
             >
-              Erase all streaks
+              Erase all habits
             </Button>
             <DialogClose asChild>
               <Button variant="secondary">Cancel</Button>

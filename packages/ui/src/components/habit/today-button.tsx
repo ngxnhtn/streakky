@@ -1,5 +1,5 @@
 import { Check, RotateCcw } from "lucide-react";
-import type { Mode } from "@streakky/core";
+import type { Kind } from "@streakky/core";
 import { cn } from "@streakky/ui/lib/utils";
 
 const base = [
@@ -15,33 +15,33 @@ const base = [
  * Quit: "I slipped today" (ask before calling onSlip), then "Undo today's slip".
  */
 export function TodayButton({
-  mode,
-  marked,
+  kind,
+  loggedToday,
   disabled,
   onToggle,
   onSlip,
   className,
 }: {
-  mode: Mode;
-  /** build: logged today; quit: a slip logged today */
-  marked: boolean;
+  kind: Kind;
+  /** build: checked in today; quit: a slip logged today */
+  loggedToday: boolean;
   disabled?: boolean;
   onToggle: () => void;
   onSlip: () => void;
   className?: string;
 }) {
-  if (mode === "build") {
+  if (kind === "build") {
     return (
       <button
         type="button"
-        aria-pressed={marked}
+        aria-pressed={loggedToday}
         onClick={onToggle}
         className={cn(
           base,
           "pr-6 pl-4",
-          marked
-            ? "bg-streak/20 text-foreground hover-fine:bg-streak/28 dark:bg-muted dark:hover-fine:bg-accent"
-            : "bg-streak text-streak-foreground hover-fine:bg-[color-mix(in_oklab,var(--streak)_86%,var(--foreground))]",
+          loggedToday
+            ? "bg-habit/20 text-foreground hover-fine:bg-habit/28 dark:bg-muted dark:hover-fine:bg-accent"
+            : "bg-habit text-habit-foreground hover-fine:bg-[color-mix(in_oklab,var(--habit)_86%,var(--foreground))]",
           className,
         )}
       >
@@ -49,8 +49,8 @@ export function TodayButton({
           aria-hidden="true"
           className={cn(
             "grid size-[26px] place-items-center rounded-full",
-            marked
-              ? "animate-tick-pop bg-streak text-streak-foreground"
+            loggedToday
+              ? "animate-tick-pop bg-habit text-habit-foreground"
               : "shadow-[inset_0_0_0_1.75px_currentColor]",
           )}
         >
@@ -58,12 +58,14 @@ export function TodayButton({
             strokeWidth={2.25}
             className={cn(
               "size-[15px] transition-[opacity,transform,translate,scale] duration-300 ease-enter",
-              marked ? "scale-100 opacity-100" : "scale-40 opacity-0",
+              loggedToday ? "scale-100 opacity-100" : "scale-40 opacity-0",
             )}
           />
         </span>
-        {marked ? "Done today" : "Mark today done"}
-        {marked && <span className="ml-1 text-sm font-normal text-muted-foreground">Undo</span>}
+        {loggedToday ? "Done today" : "Mark today done"}
+        {loggedToday && (
+          <span className="ml-1 text-sm font-normal text-muted-foreground">Undo</span>
+        )}
       </button>
     );
   }
@@ -72,7 +74,7 @@ export function TodayButton({
     "px-6 text-foreground shadow-[inset_0_0_0_1px_var(--input)] hover-fine:bg-accent hover-fine:shadow-[inset_0_0_0_1px_var(--foreground)]",
     className,
   );
-  return marked ? (
+  return loggedToday ? (
     <button type="button" onClick={onToggle} className={quiet}>
       Undo today's slip
     </button>

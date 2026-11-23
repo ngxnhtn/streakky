@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { plural, runsOf, type ColorId, type Streak } from "@streakky/core";
+import { plural, streaksOf, type ColorId, type Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import {
   Dialog,
@@ -12,45 +12,45 @@ import {
 import { Field, FieldSet } from "@streakky/ui/components/field";
 import { Input } from "@streakky/ui/components/input";
 import { List, ListButton } from "@streakky/ui/components/list";
-import { StreakColorPicker } from "@streakky/ui/components/streak/color-picker";
+import { HabitColorPicker } from "@streakky/ui/components/habit/color-picker";
 import { Pencil, Trash2 } from "lucide-react";
 import { useStore } from "../store.tsx";
 import { useDialogShape } from "./shape.tsx";
 
-export type StreakDialog = "options" | "edit" | "slip" | "delete" | null;
+export type HabitDialog = "options" | "edit" | "slip" | "delete" | null;
 
 /** Options (phones), edit, log a slip and delete: the same dialogs on every platform. */
-export function StreakDialogs({
-  streak,
+export function HabitDialogs({
+  habit,
   dialog,
   setDialog,
   onDelete,
 }: {
-  streak: Streak;
-  dialog: StreakDialog;
-  setDialog: (d: StreakDialog) => void;
-  /** leave the streak's page, then remove it */
+  habit: Habit;
+  dialog: HabitDialog;
+  setDialog: (d: HabitDialog) => void;
+  /** leave the habit's page, then remove it */
   onDelete: () => void;
 }) {
   const { dispatch } = useStore();
   const { shape, className } = useDialogShape();
-  const id = streak.id;
-  const runs = runsOf(streak);
-  const days = runs[runs.length - 1].days;
-  const openChange = (d: StreakDialog) => (open: boolean) => setDialog(open ? d : null);
+  const id = habit.id;
+  const streaks = streaksOf(habit);
+  const days = streaks[streaks.length - 1].days;
+  const openChange = (d: HabitDialog) => (open: boolean) => setDialog(open ? d : null);
 
   return (
     <>
       <Dialog open={dialog === "options"} onOpenChange={openChange("options")}>
         <DialogContent shape={shape} className={className}>
-          <DialogTitle>{streak.name}</DialogTitle>
+          <DialogTitle>{habit.name}</DialogTitle>
           <List className="-mx-1">
             <ListButton onClick={() => setDialog("edit")}>
               Edit name and colour
               <Pencil />
             </ListButton>
             <ListButton tone="destructive" onClick={() => setDialog("delete")}>
-              Delete streak
+              Delete habit
               <Trash2 />
             </ListButton>
           </List>
@@ -59,10 +59,10 @@ export function StreakDialogs({
 
       <Dialog open={dialog === "edit"} onOpenChange={openChange("edit")}>
         <DialogContent shape={shape} className={className}>
-          <DialogTitle>Edit streak</DialogTitle>
+          <DialogTitle>Edit habit</DialogTitle>
           <EditForm
-            key={`${streak.name}-${streak.color}`}
-            streak={streak}
+            key={`${habit.name}-${habit.color}`}
+            habit={habit}
             onSave={(name, color) => {
               dispatch({ type: "edit", id, name, color });
               setDialog(null);
@@ -76,7 +76,7 @@ export function StreakDialogs({
           <DialogTitle>Log a slip?</DialogTitle>
           <DialogDescription>
             {days > 0
-              ? `Your ${days}-day run moves to Stats and the count starts again from today.`
+              ? `Your ${days}-day streak moves to Stats and the count starts again from today.`
               : "The count starts again from today."}
           </DialogDescription>
           <DialogActions>
@@ -97,9 +97,9 @@ export function StreakDialogs({
 
       <Dialog open={dialog === "delete"} onOpenChange={openChange("delete")}>
         <DialogContent shape={shape} className={className}>
-          <DialogTitle>Delete {streak.name}?</DialogTitle>
+          <DialogTitle>Delete {habit.name}?</DialogTitle>
           <DialogDescription>
-            The streak and all {plural(runs.length, "run")} go for good.
+            The habit and all {plural(streaks.length, "streak")} go for good.
           </DialogDescription>
           <DialogActions>
             <Button
@@ -109,7 +109,7 @@ export function StreakDialogs({
                 onDelete();
               }}
             >
-              Delete streak
+              Delete habit
             </Button>
             <DialogClose asChild>
               <Button variant="secondary">Cancel</Button>
@@ -122,14 +122,14 @@ export function StreakDialogs({
 }
 
 function EditForm({
-  streak,
+  habit,
   onSave,
 }: {
-  streak: Streak;
+  habit: Habit;
   onSave: (name: string, color: ColorId) => void;
 }) {
-  const [name, setName] = useState(streak.name);
-  const [color, setColor] = useState<ColorId>(streak.color);
+  const [name, setName] = useState(habit.name);
+  const [color, setColor] = useState<ColorId>(habit.color);
   const [error, setError] = useState("");
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -155,7 +155,7 @@ function EditForm({
         )}
       </Field>
       <FieldSet legend="Colour">
-        <StreakColorPicker value={color} onValueChange={setColor} />
+        <HabitColorPicker value={color} onValueChange={setColor} />
       </FieldSet>
       <Button type="submit" className="w-full">
         Save changes

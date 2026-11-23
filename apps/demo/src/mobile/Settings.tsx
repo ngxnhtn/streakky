@@ -10,7 +10,7 @@ export function Settings() {
     <>
       <AppBar
         left={
-          <Button variant="ghost" size="icon" aria-label="Back to streaks" onClick={pop}>
+          <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
             <ChevronLeft strokeWidth={1.75} />
           </Button>
         }
