@@ -1,10 +1,11 @@
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Download } from "lucide-react";
 import type { Layout, Theme } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
-import { List, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
+import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
+import { saveFile } from "../save-file.ts";
 import { useHabitStore, useSettings } from "../store/react.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 
@@ -73,6 +74,14 @@ export function Settings() {
                   ]}
                 />
               </ListItem>
+            </List>
+          </ListGroup>
+          <ListGroup title="Data">
+            <List>
+              <ListButton onClick={() => void saveFile(store.exportHabits())}>
+                Export as JSON
+                <Download />
+              </ListButton>
             </List>
           </ListGroup>
         </div>
