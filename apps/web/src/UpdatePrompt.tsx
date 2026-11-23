@@ -3,10 +3,8 @@ import { Button } from "@streakky/ui/components/button";
 import { cn } from "@streakky/ui/lib/utils";
 import { readyUpdate, subscribeToUpdates, type Update } from "./service-worker.ts";
 
-// 44px targets. Button's own focus ring draws nothing for now (its outline-none also sets
-// Tailwind's --tw-outline-style to none, which focus-visible:outline-2 reads), so the style is set
-// here; drop it once Button's ring is fixed.
-const actionClasses = "h-11 focus-visible:outline-solid";
+/** Small buttons, but full 2.75rem tap targets. */
+const actionClasses = "h-11";
 
 /**
  * A one-line notice along the bottom of the window once a new version is ready: Reload switches
