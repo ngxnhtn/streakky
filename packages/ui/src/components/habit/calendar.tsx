@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
@@ -64,7 +64,8 @@ export function HabitCalendar({
   className?: string;
 }) {
   const [editing, setEditing] = useState(false);
-  const streakDayMap = useMemo(() => daysByStreak(habit), [habit]);
+  // not memoised on the habit: a quit habit's clean days grow at midnight while the habit stays the same
+  const streakDayMap = daysByStreak(habit);
   const t = today();
   const todayISO = toISO(t);
   // only the logged days that count: a slip on or before the quit day draws no dot

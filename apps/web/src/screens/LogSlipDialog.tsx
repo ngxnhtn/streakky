@@ -1,5 +1,5 @@
-import { useRef } from "react";
-import { currentStreakDays, type Habit } from "@streakky/core";
+import { useRef, useState, type ReactNode } from "react";
+import { currentStreakDays, loggedToday, type Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import {
   Dialog,
@@ -9,12 +9,42 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@streakky/ui/components/dialog";
+import { useHabitStore } from "../store/react.tsx";
+import { useInFront } from "./stack.tsx";
+
+/**
+ * Today's slip on a quit habit: removing it takes one tap, but logging one asks first, since it
+ * ends the current streak. The screen renders `dialog` once; it closes when the screen is left.
+ */
+export function useTodaysSlip(): { toggleSlip: (habit: Habit) => void; dialog: ReactNode } {
+  const store = useHabitStore();
+  const inFront = useInFront();
+  // the quit habit whose slip we're asking about, as it was when asked, kept while the sheet leaves
+  const [slipping, setSlipping] = useState<{ habit: Habit; open: boolean } | null>(null);
+  if (!inFront && slipping?.open) setSlipping({ ...slipping, open: false });
+  return {
+    toggleSlip: (habit) =>
+      loggedToday(habit) ? void store.toggleDay(habit.id) : setSlipping({ habit, open: true }),
+    dialog: (
+      <LogSlipDialog
+        habit={slipping?.habit ?? null}
+        open={slipping?.open ?? false}
+        onLog={(asked) => {
+          // unless it already is, say from another tab while the sheet was open
+          const habit = store.habits().find((h) => h.id === asked.id);
+          if (habit && !loggedToday(habit)) void store.toggleDay(habit.id);
+        }}
+        onClose={() => setSlipping((s) => s && { ...s, open: false })}
+      />
+    ),
+  };
+}
 
 /**
  * Asks before logging today's slip on a quit habit, since a slip ends its current streak.
  * `habit` is the habit as it was when asked, so the words don't change while the sheet leaves.
  */
-export function LogSlipDialog({
+function LogSlipDialog({
   habit,
   open,
   onLog,
@@ -48,7 +78,7 @@ export function LogSlipDialog({
         <DialogTitle>Log a slip for {habit?.name}?</DialogTitle>
         <DialogDescription>
           {days > 0
-            ? `Your ${days}-day streak ends and the count starts again from today.`
+            ? `Your ${days}-day streak moves to Stats and the count starts again from today.`
             : "The count starts again from today."}
         </DialogDescription>
         <DialogActions>

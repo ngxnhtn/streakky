@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { defaultSettings, currentStreakDays } from "@streakky/core";
+import {
+  defaultSettings,
+  currentStreakDays,
+  loggedToday,
+  streaksOf,
+  type Habit,
+} from "@streakky/core";
 import { createStorage, openDevice } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
@@ -209,6 +215,57 @@ describe("a quit habit on a device", () => {
     const after = await openDevice(storage);
     expect(after.habits()).toMatchObject([
       { kind: "quit", name: "No smoking", quitDay: "2026-11-14", slips: ["2026-11-20"] },
+    ]);
+  });
+});
+
+describe("editing past days on a device", () => {
+  const streakLengths = (habit: Habit) => streaksOf(habit).map((s) => s.days);
+
+  it("joins two streaks into one when a missed day is backfilled", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    const { id } = device.habits()[0];
+    for (const day of ["2026-11-21", "2026-11-22", "2026-11-24"]) await device.toggleDay(id, day);
+    const before = streakLengths(device.habits()[0]);
+    await device.toggleDay(id, "2026-11-23");
+    expect([before, streakLengths(device.habits()[0])]).toEqual([[2, 1], [4]]);
+  });
+
+  it("splits a streak when a past check-in is removed", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    const { id } = device.habits()[0];
+    for (const day of ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]) {
+      await device.toggleDay(id, day);
+    }
+    const before = streakLengths(device.habits()[0]);
+    await device.toggleDay(id, "2026-11-22");
+    expect([before, streakLengths(device.habits()[0])]).toEqual([[5], [2, 2]]);
+  });
+
+  it("splits a quit streak with a past slip", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const { id } = device.habits()[0];
+    const before = streakLengths(device.habits()[0]);
+    await device.toggleDay(id, "2026-11-20");
+    // clean 15–19 November, the slip on the 20th, clean again 21–24 November
+    expect([before, streakLengths(device.habits()[0])]).toEqual([[10], [5, 4]]);
+  });
+
+  it("refuses a check-in or a slip on a future day", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const [morningRun, smoking] = device.habits();
+    await device.toggleDay(morningRun.id, "2026-11-25");
+    await device.toggleDay(smoking.id, "2026-11-25");
+    // when that day comes, neither was logged
+    vi.setSystemTime(new Date(2026, 10, 25, 9));
+    expect(device.habits().map((h) => [loggedToday(h), currentStreakDays(h)])).toEqual([
+      [false, 0],
+      [false, 11],
     ]);
   });
 });
