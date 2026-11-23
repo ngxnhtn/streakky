@@ -37,12 +37,16 @@ A calendar date on the person's device, changing at local midnight. Check-ins an
 _Avoid_: Timestamp, date-time
 
 **Check-in**:
-A day on which a build habit was done. A habit has at most one check-in per day.
-_Avoid_: Mark, log, done
+A day on which a build habit was done. A habit has at most one check-in per day. The verb is "check in".
+_Avoid_: Mark, done, log (as a name for it)
 
 **Slip**:
 A day after a quit habit's quit day on which it was broken. A habit has at most one slip per day.
 _Avoid_: Relapse, mark, failure
+
+**Logged day**:
+A day with a check-in (build habit) or a slip (quit habit). Logging is recording either one.
+_Avoid_: Entry, mark
 
 **Clean day**:
 A day after a quit habit's quit day on which no slip was recorded.

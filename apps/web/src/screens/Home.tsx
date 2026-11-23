@@ -116,7 +116,7 @@ export function Home() {
 }
 
 /**
- * Under the count: what it counts, or, with no streak yet, why: "log today to start" (build),
+ * Under the count: what it counts, or, with no streak yet, why: "check in today to start" (build),
  * "started today" or "slip logged today" (quit).
  */
 const labelOf = (habit: Habit, days: number) =>
@@ -172,7 +172,7 @@ function statusOf(habit: Habit): string {
     return streak.days === 0 ? "Started today" : `Since ${fmtDayMonth(streak.start)}`;
   }
   if (loggedToday(habit)) return "Checked in today";
-  return streak.days === 0 ? "Log today to start" : "Not checked in today";
+  return streak.days === 0 ? "Check in today to start" : "Not checked in today";
 }
 
 function EmptyHabits({ onAdd }: { onAdd: () => void }) {

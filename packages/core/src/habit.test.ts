@@ -263,3 +263,9 @@ describe("days after today", () => {
     expect([historyStart(habit), currentStreakDays(habit)]).toEqual(["2026-11-24", 0]);
   });
 });
+
+describe("build habit labels", () => {
+  it("say to check in today while there is no current streak", () => {
+    expect(sinceLabel(build(["2026-11-20"]))).toBe("check in today to start");
+  });
+});

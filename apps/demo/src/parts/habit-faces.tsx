@@ -16,8 +16,8 @@ export function statusOf(s: Habit): string {
     if (loggedToday(s)) return "Slip logged today";
     return streak.days === 0 ? "Started today" : `Since ${fmtDayMonth(streak.start)}`;
   }
-  if (loggedToday(s)) return "Done today";
-  return streak.days === 0 ? "Log today to start" : "Not logged today";
+  if (loggedToday(s)) return "Checked in today";
+  return streak.days === 0 ? "Check in today to start" : "Not checked in today";
 }
 
 export function LayoutSwitch() {

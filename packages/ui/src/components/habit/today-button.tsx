@@ -11,7 +11,7 @@ const base = [
 ].join(" ");
 
 /**
- * The action under the counter. Build: "Mark today done", then "Done today · Undo" (a toggle).
+ * The action under the counter. Build: "Check in today", then "Checked in today · Undo" (a toggle).
  * Quit: "I slipped today" (ask before calling onSlip), then "Undo today's slip".
  */
 export function TodayButton({
@@ -62,7 +62,7 @@ export function TodayButton({
             )}
           />
         </span>
-        {loggedToday ? "Done today" : "Mark today done"}
+        {loggedToday ? "Checked in today" : "Check in today"}
         {loggedToday && (
           <span className="ml-1 text-sm font-normal text-muted-foreground">Undo</span>
         )}

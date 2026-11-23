@@ -202,7 +202,7 @@ export const loggedToday = (h: Habit) => loggedDays(h).includes(todayISO());
 export function sinceLabel(h: Habit): string {
   const streak = currentStreak(h);
   if (streak.days > 0) return `since ${fmtShort(streak.start)}`;
-  if (h.kind === "build") return "log today to start";
+  if (h.kind === "build") return "check in today to start";
   return loggedToday(h) ? "slip logged today" : "started today";
 }
 

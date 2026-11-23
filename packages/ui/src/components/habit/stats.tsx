@@ -36,7 +36,7 @@ export function HabitStats({
           {
             value: habit.checkIns.length,
             unit: unit(habit.checkIns.length),
-            label: "Done in total",
+            label: "Check-ins",
           },
           {
             value: habit.checkIns.filter((d) => daysBetween(d, t) < 30).length,

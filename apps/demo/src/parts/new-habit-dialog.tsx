@@ -13,7 +13,7 @@ import { useDialogShape } from "./shape.tsx";
 const GOAL_CHOICES = ["7", "21", "30", "90", "365", "none"];
 
 const HINT: Record<Kind, string> = {
-  build: "Log it each day you do it. A missed day ends the streak.",
+  build: "Check in each day you do it. A missed day ends the streak.",
   quit: "Counts up every day by itself. Log a slip only if it happens.",
 };
 

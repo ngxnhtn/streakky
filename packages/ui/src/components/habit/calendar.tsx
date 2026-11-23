@@ -37,7 +37,7 @@ type DayInfo = {
 
 /**
  * A habit's days. Every done or clean day takes the habit colour in full; a slip is an
- * unfilled day with a dot; today, not logged yet, is a ring. Weeks: columns are weeks, newest
+ * unfilled day with a dot; today, not checked in yet, is a ring. Weeks: columns are weeks, newest
  * on the right, opening on today. Month: a classic grid with streaks drawn as bands.
  * "Edit days" turns days into buttons that call onToggleDay.
  */
@@ -107,7 +107,7 @@ export function HabitCalendar({
       {editing && (
         <p className="-mt-1.5 mb-4 text-[13px] text-muted-foreground">
           {habit.kind === "build"
-            ? "Tap a day to mark it done, or tap again to clear it."
+            ? "Tap a day to check in or undo it."
             : "Tap a day to log a slip on it, or tap again to remove it."}
         </p>
       )}
@@ -127,7 +127,7 @@ export function HabitCalendar({
       <ul className="mt-[18px] flex flex-wrap gap-x-[18px] gap-y-2 text-[13px] text-muted-foreground">
         <li className="flex items-center gap-2">
           <i className="h-2.5 w-4 rounded-full bg-habit" />
-          {habit.kind === "quit" ? "Clean day" : "Done"}
+          {habit.kind === "quit" ? "Clean day" : "Check-in"}
         </li>
         {habit.kind === "quit" ? (
           <li className="flex items-center gap-2">
@@ -137,7 +137,7 @@ export function HabitCalendar({
         ) : (
           <li className="flex items-center gap-2">
             <i className="mx-0.5 size-3 rounded-full shadow-[inset_0_0_0_1.5px_var(--habit)]" />
-            Not logged yet
+            Not checked in yet
           </li>
         )}
       </ul>
