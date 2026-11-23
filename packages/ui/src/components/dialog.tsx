@@ -63,7 +63,7 @@ function DialogContent({
         data-shape={shape}
         aria-describedby={undefined}
         className={cn(
-          "fixed z-50 overflow-y-auto bg-popover text-popover-foreground shadow-[0_-8px_40px_rgb(0_0_0/0.14)] outline-none",
+          "fixed z-50 overflow-y-auto bg-popover text-popover-foreground shadow-[0_-8px_40px_rgb(0_0_0/0.14)] outline-hidden",
           shapes[shape],
           className,
         )}

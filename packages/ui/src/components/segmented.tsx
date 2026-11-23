@@ -11,7 +11,7 @@ export const segmentTrack =
 export const segmentPill =
   "pointer-events-none absolute inset-y-[3px] left-[3px] w-[calc((100%-6px)/var(--n))] translate-x-[calc(var(--i)*100%)] rounded-full bg-habit transition-transform duration-240 ease-ui";
 export const segmentItem =
-  "relative z-10 flex items-center justify-center rounded-full px-2 text-sm font-medium text-foreground transition-colors duration-240 outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=on]:text-habit-foreground data-[state=active]:text-habit-foreground [&_svg]:size-[18px]";
+  "relative z-10 flex items-center justify-center rounded-full px-2 text-sm font-medium text-foreground transition-colors duration-240 outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring data-[state=on]:text-habit-foreground data-[state=active]:text-habit-foreground [&_svg]:size-[18px]";
 
 const sizes = { md: "h-11", sm: "h-10", xs: "h-9 text-[13px]" } as const;
 

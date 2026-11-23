@@ -10,8 +10,8 @@ import { cn } from "@streakky/ui/lib/utils";
 const buttonVariants = cva(
   [
     "relative inline-flex shrink-0 items-center justify-center gap-2 rounded-full font-medium whitespace-nowrap select-none",
-    "transition-[background-color,color,box-shadow,transform,translate,scale] duration-120 ease-ui outline-none",
-    "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+    "transition-[background-color,color,box-shadow,transform,translate,scale] duration-120 ease-ui outline-hidden",
+    "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring",
     "disabled:pointer-events-none disabled:opacity-40",
     "active:translate-y-px active:scale-[0.985] active:duration-90",
     "hover-fine:not-active:-translate-y-px hover-fine:duration-150",

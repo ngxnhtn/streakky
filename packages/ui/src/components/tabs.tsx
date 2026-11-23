@@ -54,7 +54,7 @@ function TabsContent({ className, ...props }: React.ComponentProps<typeof TabsPr
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"
-      className={cn("animate-rise outline-none", className)}
+      className={cn("animate-rise outline-hidden", className)}
       {...props}
     />
   );

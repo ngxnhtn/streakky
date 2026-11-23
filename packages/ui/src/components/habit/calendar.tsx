@@ -183,7 +183,7 @@ function Day({
       onClick={() => ctx.onToggleDay(toISO(d.date))}
       className={cn(
         className,
-        "cursor-pointer outline-none focus-visible:outline-2 focus-visible:outline-ring",
+        "cursor-pointer outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
       )}
     >
       {children}

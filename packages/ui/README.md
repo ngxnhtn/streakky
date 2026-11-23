@@ -52,6 +52,9 @@ Tokens follow shadcn's names (`bg-background`, `text-foreground`, `bg-muted`,
 - `bg-primary-hover`, `bg-press`, `bg-scrim`
 - `font-display`, `font-mono`; eases `ease-ui`, `ease-enter`
 - `hover-fine:`: hover on a fine pointer only (no sticky hover on touch)
+- focus rings: `outline-hidden focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring`.
+  `outline-hidden` (like `outline-none`) sets the outline style to none, so a focus ring must set
+  `outline-solid` itself or it never shows
 - animations: `animate-push-in(-left)`, `animate-push-out(-left)`, `animate-sheet-in/out`,
   `animate-dialog-in/out`, `animate-fade-in/out`, `animate-rise`, `animate-tick-pop`
 

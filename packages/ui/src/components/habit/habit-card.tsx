@@ -43,10 +43,10 @@ export function CheckInButton({
       aria-pressed={checkedIn}
       onClick={onToggle}
       className={cn(
-        "grid size-11 place-items-center rounded-full outline-none",
+        "grid size-11 place-items-center rounded-full outline-hidden",
         "transition-[background-color,transform,scale] duration-120 ease-ui",
         "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
-        "focus-visible:outline-2 focus-visible:outline-ring",
+        "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
         className,
       )}
     >
@@ -103,10 +103,9 @@ export function SlipButton({
       disabled={disabled}
       onClick={onToggle}
       className={cn(
-        "grid size-11 place-items-center rounded-full outline-none",
+        "grid size-11 place-items-center rounded-full outline-hidden",
         "transition-[background-color,transform,scale,opacity] duration-120 ease-ui",
         "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
-        // outline-none also sets the ring's style to none, so the focus ring restores it
         "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
         "disabled:pointer-events-none disabled:opacity-40",
         className,
@@ -118,14 +117,14 @@ export function SlipButton({
 }
 
 const tileGround = [
-  "w-full border border-transparent text-left outline-none",
+  "w-full border border-transparent text-left outline-hidden",
   "bg-habit/9 dark:bg-habit/16",
   "transition-[transform,border-color,box-shadow,background-color,translate,scale] duration-120 ease-ui",
 ].join(" ");
 const tileLift =
   "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_12px_24px_-14px_rgb(0_0_0/0.28)] hover-fine:duration-180";
 const focusRing =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring";
+  "focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-offset-2 focus-visible:outline-ring";
 const tile = [tileGround, tileLift, focusRing, "active:scale-[0.98] active:duration-90"].join(" ");
 
 type HabitFace = {
@@ -386,8 +385,8 @@ export function NewHabitTile({
       data-slot="new-habit"
       onClick={onClick}
       className={cn(
-        "flex w-full items-center justify-center gap-2 border-[1.5px] border-dashed border-input text-sm font-medium text-muted-foreground outline-none",
-        "transition-[border-color,color,transform,translate,scale] duration-120 ease-ui focus-visible:outline-2 focus-visible:outline-ring",
+        "flex w-full items-center justify-center gap-2 border-[1.5px] border-dashed border-input text-sm font-medium text-muted-foreground outline-hidden",
+        "transition-[border-color,color,transform,translate,scale] duration-120 ease-ui focus-visible:outline-2 focus-visible:outline-solid focus-visible:outline-ring",
         "hover-fine:border-foreground hover-fine:text-foreground active:scale-[0.98]",
         layout === "grid" ? "h-[168px] flex-col rounded-3xl" : "min-h-[60px] rounded-[20px]",
         "[&_svg]:size-5 [&_svg]:stroke-[1.75]",
