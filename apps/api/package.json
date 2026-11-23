@@ -1,0 +1,15 @@
+{
+  "name": "api",
+  "private": true,
+  "description": "The Cloudflare Worker at hb.nhutien.com: serves the web app's build and the API, on D1.",
+  "type": "module",
+  "scripts": {
+    "test": "vp test"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "wrangler": "catalog:"
+  }
+}
