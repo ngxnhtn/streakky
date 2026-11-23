@@ -32,6 +32,7 @@
     "better-sqlite3": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
+    "vite-plugin-pwa": "catalog:",
     "vite-plus": "catalog:"
   }
 }

@@ -10,9 +10,23 @@ import { openHabitStore, type HabitStore } from "./habit-store.ts";
  * The coordinator lets two tabs of the app share it safely.
  */
 export async function openBrowserHabitStore(): Promise<HabitStore> {
+  void requestPersistentStorage();
   const database = await openBrowserWASQLiteOPFSDatabase({ databaseName: "streakky.sqlite" });
   const coordinator = new BrowserCollectionCoordinator({ dbName: "streakky" });
   return openHabitStore({
     persistence: createBrowserWASQLitePersistence({ database, coordinator }),
   });
+}
+
+/**
+ * Asks the browser not to evict this origin's storage, where the habits live. Browsers may refuse,
+ * or decide without asking the person, and the store works the same either way.
+ */
+async function requestPersistentStorage() {
+  try {
+    if (!navigator.storage?.persist || (await navigator.storage.persisted())) return;
+    await navigator.storage.persist();
+  } catch {
+    // the storage stays best-effort
+  }
 }
