@@ -3,6 +3,7 @@ import { applyAppearance } from "./appearance.ts";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
 import { Home } from "./screens/Home.tsx";
 import { Settings } from "./screens/Settings.tsx";
+import { SignIn } from "./screens/SignIn.tsx";
 import { ScreenStack, type Route } from "./screens/stack.tsx";
 import { useSettings } from "./store/react.tsx";
 import { UpdatePrompt } from "./UpdatePrompt.tsx";
@@ -30,6 +31,8 @@ function screenOf(route: Route): ReactNode {
       return <HabitDetail id={route.id} />;
     case "settings":
       return <Settings />;
+    case "sign-in":
+      return <SignIn />;
   }
 }
 

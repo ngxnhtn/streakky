@@ -10,7 +10,11 @@ import {
 import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
 import { cn } from "@streakky/ui/lib/utils";
 
-export type Route = { name: "home" } | { name: "detail"; id: string } | { name: "settings" };
+export type Route =
+  | { name: "home" }
+  | { name: "detail"; id: string }
+  | { name: "settings" }
+  | { name: "sign-in" };
 type Entry = { key: number; route: Route; animate: boolean };
 /** The screens, Home first, and the one sliding out, if any. */
 type Stack = { entries: Entry[]; leaving: number | null };
@@ -26,7 +30,11 @@ type HistoryState = { screens: Route[] };
 
 const isScreen = (route: unknown): route is Route => {
   const r = route as Partial<{ name: unknown; id: unknown }> | null;
-  return r?.name === "settings" || (r?.name === "detail" && typeof r.id === "string");
+  return (
+    r?.name === "settings" ||
+    r?.name === "sign-in" ||
+    (r?.name === "detail" && typeof r.id === "string")
+  );
 };
 
 /** The screens a history entry keeps over Home; none for an entry this app didn't make. */

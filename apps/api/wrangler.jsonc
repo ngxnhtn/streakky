@@ -9,11 +9,27 @@
   "assets": {
     // the web app's production build, written by `vp run web#build`
     "directory": "../web/dist",
-    // a path with no file gets the app's index.html, so the app can route it
-    "not_found_handling": "single-page-application",
-    // only /api reaches the Worker, browser navigations included; the assets layer serves the rest
+    // the Worker reads the build through this binding, to answer paths that have no file
+    "binding": "ASSETS",
+    // a path with no file goes to the Worker, which answers with the app's index.html, or a 404
+    // under /assets/ (see src/index.ts)
+    "not_found_handling": "none",
+    // /api always reaches the Worker, browser navigations included; the assets layer serves every
+    // file of the build without running the Worker
     "run_worker_first": ["/api/*"],
   },
+  "vars": {
+    // the addresses that may sign in, separated by commas: the owner's first (empty until the owner
+    // sets it, so nobody can sign in yet)
+    "SIGN_IN_ALLOWLIST": "",
+    // the sender of sign-in codes; Resend must have hb.nhutien.com verified
+    "SIGN_IN_EMAIL_FROM": "Streakky <sign-in@hb.nhutien.com>",
+    // "resend" sends codes through Resend; local development passes "log" (see vite.config.ts),
+    // which writes them to the Worker's log instead
+    "EMAIL_DELIVERY": "resend",
+  },
+  // set with `wrangler secret put <NAME>`; a deploy fails while either is missing
+  "secrets": { "required": ["BETTER_AUTH_SECRET", "RESEND_API_KEY"] },
   "d1_databases": [
     {
       "binding": "DB",

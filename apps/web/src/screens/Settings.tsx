@@ -7,6 +7,7 @@ import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
 import { saveFile } from "../save-file.ts";
 import { useHabitStore, useSettings } from "../store/react.tsx";
+import { AccountSettings } from "./AccountSettings.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 
 /** This device's settings. Each change applies at once and stays on the device. */
@@ -26,6 +27,7 @@ export function Settings() {
       />
       <ScreenScroll>
         <div className="px-5">
+          <AccountSettings />
           <ListGroup title="Appearance">
             <List>
               <ListItem stacked>

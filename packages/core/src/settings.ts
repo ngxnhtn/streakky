@@ -26,6 +26,8 @@ export type Settings = {
   reminder: boolean;
   reminderTime: string;
   celebrate: boolean;
+  /** The web app's note that signed-out habits live only in this browser, once dismissed. */
+  signedOutNoteDismissed: boolean;
 };
 
 export const defaultSettings: Settings = {
@@ -36,4 +38,5 @@ export const defaultSettings: Settings = {
   reminder: true,
   reminderTime: "21:00",
   celebrate: true,
+  signedOutNoteDismissed: false,
 };
