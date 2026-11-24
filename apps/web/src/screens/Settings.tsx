@@ -1,5 +1,12 @@
 import { ChevronRight, Download } from "lucide-react";
-import type { Layout, Theme, WeekStart } from "@streakky/core";
+import {
+  LAYOUTS,
+  THEMES,
+  WEEK_STARTS,
+  type Layout,
+  type Theme,
+  type WeekStart,
+} from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
@@ -9,6 +16,10 @@ import { saveFile } from "../save-file.ts";
 import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
 import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
+
+/** A setting's choices from core, as a segmented control's options. */
+const optionsOf = <T extends string | number>(choices: { id: T; name: string }[]) =>
+  choices.map(({ id, name }) => ({ value: id, label: name }));
 
 /** This device's settings. Each change applies at once and stays on the device. */
 export function Settings() {
@@ -30,11 +41,7 @@ export function Settings() {
                   label="Theme"
                   value={settings.theme}
                   onValueChange={(theme) => store.changeSettings({ theme })}
-                  options={[
-                    { value: "system", label: "System" },
-                    { value: "light", label: "Light" },
-                    { value: "dark", label: "Dark" },
-                  ]}
+                  options={optionsOf(THEMES)}
                 />
               </ListItem>
               <ListItem stacked>
@@ -50,10 +57,7 @@ export function Settings() {
                   label="Home layout"
                   value={settings.layout}
                   onValueChange={(layout) => store.changeSettings({ layout })}
-                  options={[
-                    { value: "grid", label: "Grid" },
-                    { value: "list", label: "List" },
-                  ]}
+                  options={optionsOf(LAYOUTS)}
                 />
               </ListItem>
               <ListItem stacked>
@@ -62,10 +66,7 @@ export function Settings() {
                   label="Week starts on"
                   value={settings.weekStart}
                   onValueChange={(weekStart) => store.changeSettings({ weekStart })}
-                  options={[
-                    { value: 1, label: "Monday" },
-                    { value: 0, label: "Sunday" },
-                  ]}
+                  options={optionsOf(WEEK_STARTS)}
                 />
               </ListItem>
               <ListItem>
