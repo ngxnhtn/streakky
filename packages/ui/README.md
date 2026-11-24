@@ -72,8 +72,9 @@ Everything is sized in rem (Tailwind's scale, or arbitrary values such as `text-
 whole interface grows with the reader's browser text size. Only hairlines of 2px or less (borders,
 outlines, inset ring strokes, the 1px hover and press steps) stay in px. Tap targets are at least
 2.75rem (`size-11`, or `tap-target` around a smaller control), which is 44px at the default size.
-The one exception is a dense grid of days (the calendar while editing), whose cells stay at
-1.75rem, above WCAG 2.2's 1.5rem minimum.
+The calendar's days are 1.75rem squares at rest, where they're only read; in Edit days they grow to
+2.75rem in Weeks, and Month's rows are 2.75rem tall. Month's columns share the width, so below a
+22rem-wide calendar (a 320px phone) they're a little narrower than 2.75rem.
 
 ## Components
 
@@ -106,7 +107,7 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                                                           |
 | `today-button`  | `TodayButton`: check in today (build, one toggle named "Check in today") or log a slip (quit)                                                                                          |
 | `habit-card`    | `HabitCard` (grid), `HabitRow` (list), one set of props with `today` (logged, locked, onToggle); `CheckInTick`, `SlipIcon`, `TodayToggle` (2.75rem), `NewHabitTile`, `HabitCollection` |
-| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                                                                      |
+| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days (2.75rem buttons); each day tells a screen reader its date and what it was                                                           |
 | `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                                                               |
 | `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                                                         |
 | `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                                                                 |
