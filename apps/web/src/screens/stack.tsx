@@ -242,10 +242,20 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
   );
 }
 
-/** A screen's scrolling body under its app bar, with room left for the home indicator. */
+/**
+ * A screen's scrolling body under its app bar. Its end leaves room for the home indicator, and
+ * more while BottomNotices shows notices taller than that, so scrolled to the end nothing is
+ * left under them.
+ */
 export function ScreenScroll({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[4.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <main
+      className={cn(
+        "min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        // the notices' height, their offset from the bottom and a gap above them
+        "pb-[max(4.5rem,calc(var(--notices-height,0rem)_+_max(0.5rem,env(safe-area-inset-bottom))_+_0.5rem))]",
+      )}
+    >
       {children}
     </main>
   );

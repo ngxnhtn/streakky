@@ -4,6 +4,7 @@ import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
 import { cn } from "@streakky/ui/lib/utils";
+import { ScreenNotice, useScreenNoticesReady } from "../BottomNotices.tsx";
 import { useHabitStore, useSettings } from "../store/react.tsx";
 import { useInFront } from "./stack.tsx";
 
@@ -15,15 +16,21 @@ const SHOWN_MS = 6000;
  * build habit on the check-in that reaches its goal, for a quit habit the first time it is shown
  * on or after the day it does. Each plays once per streak and goal on this device, one at a time.
  * With Celebrations off in Settings, they pass without playing. `day` is today, so a quit habit
- * reaching its goal at midnight plays then. The screen renders the result once.
+ * reaching its goal at midnight plays then. The screen renders the result once; the notice shows
+ * in the bottom stack, above the update prompt, and ends when another screen covers this one or
+ * this one goes.
  */
 export function useCelebration(habits: Habit[], day: string): ReactNode {
   const store = useHabitStore();
   const { celebrate } = useSettings();
   const inFront = useInFront();
+  // waits for its place in the bottom stack, so the live region is there before what it says
+  const ready = useScreenNoticesReady();
   const [playing, setPlaying] = useState<Habit | null>(null);
+  // a screen covered by another, or going, ends its celebration
+  if (!inFront && playing) setPlaying(null);
   useEffect(() => {
-    if (!inFront || playing) return;
+    if (!inFront || !ready || playing) return;
     for (const habit of habits) {
       if (!store.celebrationDue(habit)) continue;
       store.markCelebrated(habit);
@@ -32,16 +39,14 @@ export function useCelebration(habits: Habit[], day: string): ReactNode {
         return;
       }
     }
-  }, [store, habits, day, inFront, playing, celebrate]);
+  }, [store, habits, day, inFront, ready, playing, celebrate]);
   return (
-    // always in the page, so screen readers announce what appears in it
-    <div
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-30 flex justify-center"
-    >
-      {playing && <GoalReached habit={playing} onDone={() => setPlaying(null)} />}
-    </div>
+    <ScreenNotice>
+      {/* always in the page, so screen readers announce what appears in it */}
+      <div role="status" aria-live="polite" className="flex justify-center">
+        {playing && <GoalReached habit={playing} onDone={() => setPlaying(null)} />}
+      </div>
+    </ScreenNotice>
   );
 }
 
@@ -69,6 +74,7 @@ function GoalReached({ habit, onDone }: { habit: Habit; onDone: () => void }) {
   return (
     <div
       ref={notice}
+      data-notice="celebration"
       data-habit-color={habit.color}
       className="pointer-events-auto relative w-full max-w-[26rem]"
       onPointerEnter={() => setHeld(true)}
@@ -116,7 +122,10 @@ const SHAPES = [
   "size-2 rounded-[0.125rem] bg-habit",
 ];
 
-/** Pieces of the habit's colour thrown up from the notice's top edge, falling away as they fade. */
+/**
+ * Pieces of the habit's colour thrown up from the notice's top edge, falling away as they fade.
+ * Taps go through them to the screen beneath.
+ */
 function Burst() {
   const pieces = useMemo(() => {
     // the same scatter every time: a small fixed sequence instead of Math.random
@@ -140,7 +149,7 @@ function Burst() {
     });
   }, []);
   return (
-    <div aria-hidden="true" className="absolute top-0 left-1/2">
+    <div aria-hidden="true" className="pointer-events-none absolute top-0 left-1/2">
       {pieces.map((piece, i) => (
         <span
           key={i}
