@@ -308,9 +308,10 @@ type DayRecord = {
   - **Turned off by itself:** if notifications are taken back in Android's settings, the reminder turns itself off.
   - **The setting:** it's `dailyReminder`, off by default. The playground's old `reminder` key, which devices stored as on, is ignored.
 - **Widget:**
-  - **Placing:** a configuration screen picks one active habit. Each widget instance shows one habit, and the widget can be resized.
+  - **Placing:** a configuration screen picks one active habit, and can pick again later. Each widget instance shows one habit. It can be resized down to one cell: below two cells either way it switches to a small layout, its count centred between its name and label in small type, and in either layout the count shrinks to fit.
   - **Data:** after every change, the web app writes each habit's widget summary (name, colour, kind, quit day or last slip and the archived days since it, last check-in and the streak length ending at it, archived or deleted) to shared native storage through the custom plugin, which then refreshes the widgets.
-  - **Midnight:** the widget recomputes its number at render time from the summary and today, and schedules its own refresh at midnight.
+  - **Midnight:** the widget recomputes its number at render time from the summary and today, and schedules its own refresh within ten minutes after midnight, without waking the phone. It also redraws when the clock or time zone changes.
+  - **Before the app writes:** just installed, or after its data is cleared, a widget asks for the app to be opened. One that lost its pick with the app's data asks to be tapped, and tapping it opens the configuration screen.
   - **Tapping:** opens the app on that habit through a deep link.
   - **Display-only:** there are no check-ins from the widget.
 - **Release:**
@@ -356,7 +357,7 @@ type DayRecord = {
   - A non-allowlisted email is refused, and no email is captured.
   - Pushing the same batch twice changes nothing.
   - Reordering syncs.
-- **Widget rule parity:** the Seam 1 tests export their widget-summary cases (summary, today, expected number) to a shared fixture file. A small Kotlin unit test runs the widget's native rule over the same file, so the two implementations can't drift.
+- **Widget rule parity:** the Seam 1 tests export their widget-summary cases (summary, today, expected number) to a shared fixture file. A small Kotlin unit test runs the widget's native rule over the same file, so the two implementations can't drift. It runs on the JVM with `vp run web#android-test`, not with `vp test`.
 - **Not covered by automated tests:**
   - Screens and layouts: verified by running the app.
   - Capacitor wiring, notifications and the widget's visuals: verified on the owner's phone.

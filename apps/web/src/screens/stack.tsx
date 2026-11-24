@@ -211,6 +211,7 @@ export function ScreenStack({
   routes,
   aside,
   backButton,
+  links,
   children,
 }: {
   routes: RouteTable;
@@ -218,6 +219,11 @@ export function ScreenStack({
   aside: ReactNode;
   /** Android's back button; none on the web, where the browser's back does it */
   backButton: Platform["backButton"];
+  /**
+   * Screens opened from outside the app, such as a habit from its widget: calls `show` with each,
+   * which shows it alone over Home, as the desktop sidebar's pages are; returns a function that stops.
+   */
+  links?: (show: (route: Route) => void) => () => void;
   /** what lies over every screen, such as a dialog any of them opens */
   children: ReactNode;
 }) {
@@ -432,6 +438,10 @@ export function ScreenStack({
     return true;
   };
   useEffect(() => backButton?.(() => backNow.current()), [backButton]);
+
+  const showNow = useRef(nav.go);
+  showNow.current = nav.go;
+  useEffect(() => links?.((route) => showNow.current(route)), [links]);
 
   // Screens don't slide on the desktop: one sliding as the window is resized past the phone
   // layout goes at once, and one that slid in doesn't slide in again on the way back.

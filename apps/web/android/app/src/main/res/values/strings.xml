@@ -4,4 +4,16 @@
     <string name="title_activity_main">Streakky</string>
     <string name="package_name">com.ngxnhtn.streakky</string>
     <string name="custom_url_scheme">com.ngxnhtn.streakky</string>
+    <!-- the home-screen widget (ticket 20) -->
+    <string name="widget_description">One habit\'s current streak</string>
+    <string name="widget_choose">Choose a habit</string>
+    <string name="widget_none">Add a habit in Streakky first, then place the widget again.</string>
+    <string name="widget_open_first">Open Streakky first, then place the widget again.</string>
+    <string name="widget_open">Open Streakky to show your habit</string>
+    <string name="widget_pick">Tap to choose a habit</string>
+    <string name="widget_archived">Archived</string>
+    <string name="widget_gone">This habit is no longer here</string>
+    <!-- what TalkBack reads for the widget: the habit's name, then its count and label -->
+    <string name="widget_says_count">%1$s, %2$d %3$s</string>
+    <string name="widget_says_archived">%1$s, archived</string>
 </resources>

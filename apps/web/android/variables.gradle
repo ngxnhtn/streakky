@@ -13,4 +13,7 @@ ext {
     androidxJunitVersion = '1.3.0'
     androidxEspressoCoreVersion = '3.7.0'
     cordovaAndroidVersion = '14.0.1'
+    // the widget's Kotlin (ticket 20), the version the notifications plugin builds with
+    kotlin_version = '2.0.21'
+    orgJsonVersion = '20240303'
 }

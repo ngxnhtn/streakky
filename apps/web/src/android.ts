@@ -5,7 +5,12 @@
  * the web build doesn't carry it.
  */
 import { App } from "@capacitor/app";
-import { SystemBars, SystemBarsStyle, type PluginListenerHandle } from "@capacitor/core";
+import {
+  registerPlugin,
+  SystemBars,
+  SystemBarsStyle,
+  type PluginListenerHandle,
+} from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
@@ -13,7 +18,7 @@ import { Share } from "@capacitor/share";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { createCapacitorSQLitePersistence } from "@tanstack/capacitor-db-sqlite-persistence";
-import { toISO, type Reminder } from "@streakky/core";
+import { toISO, type Reminder, type WidgetSummary } from "@streakky/core";
 import type { Platform, Reminders } from "./platform.ts";
 import type { ExportFile } from "./store/export.ts";
 import {
@@ -30,8 +35,9 @@ const SESSION_TOKEN_KEY = "streakky.session-token";
 
 /**
  * Opens the habit store on the phone's own storage, with what the app needs from Android: its back
- * button, the colour of the system bars' icons and the daily reminder's notifications. `applySettings` puts the settings on the page
- * once they're read, before the database opens, and says whether the page is dark. The app's
+ * button, the colour of the system bars' icons, the daily reminder's notifications, the home-screen
+ * widgets and the habits they open. `applySettings` puts the settings on the page once they're
+ * read, before the database opens, and says whether the page is dark. The app's
  * pages come from another origin than the API's, so its cookies wouldn't be its own: it keeps its
  * session as a token, in secure storage (spec, "Auth").
  */
@@ -59,9 +65,38 @@ export async function openAndroidApp(
       },
       systemBars: setSystemBars,
       reminders,
+      widgets: { update: (summaries) => StreakkyWidgets.update({ summaries }) },
+      habitLinks,
     },
   };
 }
+
+/** The app's own plugin for the home-screen widgets (android/app/.../widget/WidgetsPlugin.kt). */
+const StreakkyWidgets = registerPlugin<{
+  update(options: { summaries: WidgetSummary[] }): Promise<void>;
+}>("StreakkyWidgets");
+
+/**
+ * A habit's link, as its widget opens it: com.ngxnhtn.streakky://habit/<id>. The scheme is the
+ * app id, as `custom_url_scheme` in android/app/src/main/res/values/strings.xml, which the
+ * manifest's link filter and the widget both use.
+ */
+const HABIT_LINK = /^com\.ngxnhtn\.streakky:\/\/habit\/([^/?#]+)/;
+
+/** Habits opened from their widgets: the one the app was opened on, then each one after. */
+const habitLinks: Platform["habitLinks"] = (open) => {
+  const follow = (url: string | undefined) => {
+    const id = url && HABIT_LINK.exec(url)?.[1];
+    if (id) open(decodeURIComponent(id));
+  };
+  App.getLaunchUrl().then(
+    (launch) => follow(launch?.url),
+    // the app then opens on Home, as when opened from the launcher
+    (error: unknown) => console.error("The link the app was opened with couldn't be read:", error),
+  );
+  const listener = App.addListener("appUrlOpen", ({ url }) => follow(url));
+  return () => removeListener(listener);
+};
 
 const REMINDER_CHANNEL = "daily-reminder";
 /** Android's default importance: the reminder makes a sound but doesn't pop up over the screen. */

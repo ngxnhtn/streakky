@@ -1,4 +1,4 @@
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useMemo } from "react";
 import { useMediaQuery } from "@streakky/ui/hooks/use-media-query";
 import { applyAppearance, SYSTEM_DARK } from "./appearance.ts";
 import { PlatformProvider, type Platform } from "./platform.ts";
@@ -9,11 +9,12 @@ import { Home } from "./screens/Home.tsx";
 import { DesktopProvider } from "./screens/desktop.tsx";
 import { NewHabit, NewHabitProvider } from "./screens/NewHabitDialog.tsx";
 import { ReminderSchedule } from "./screens/Reminder.tsx";
+import { WidgetSummaries } from "./screens/Widgets.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { Sidebar } from "./screens/Sidebar.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
-import { ScreenStack, type RouteTable } from "./screens/stack.tsx";
-import { useSettings } from "./store/react.tsx";
+import { ScreenStack, type Route, type RouteTable } from "./screens/stack.tsx";
+import { useHabitStore, useSettings } from "./store/react.tsx";
 import { UpdatePrompt } from "./UpdatePrompt.tsx";
 
 /** Every screen, by its route's name. */
@@ -48,6 +49,17 @@ export function App({ platform }: { platform: Platform }) {
   const { theme, palette } = useSettings();
   // re-applies when the system switches between light and dark
   const systemDark = useMediaQuery(SYSTEM_DARK);
+  const store = useHabitStore();
+  // a habit opened from its widget shows, if it's still here, active or archived; else Home
+  const links = useMemo(() => {
+    const habitLinks = platform.habitLinks;
+    if (!habitLinks) return undefined;
+    return (show: (route: Route) => void) =>
+      habitLinks((id) => {
+        const here = [...store.habits(), ...store.archivedHabits()].some((h) => h.id === id);
+        show(here ? { name: "detail", id } : { name: "home" });
+      });
+  }, [platform, store]);
   useLayoutEffect(() => {
     const dark = applyAppearance({ theme, palette });
     platform.systemBars?.(dark);
@@ -59,10 +71,16 @@ export function App({ platform }: { platform: Platform }) {
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
       <PlatformProvider value={platform}>
         {platform.reminders && <ReminderSchedule reminders={platform.reminders} />}
+        {platform.widgets && <WidgetSummaries widgets={platform.widgets} />}
         <DesktopProvider>
           <NewHabitProvider>
             <BottomNotices appNotice={<UpdatePrompt />}>
-              <ScreenStack routes={ROUTES} aside={<Sidebar />} backButton={platform.backButton}>
+              <ScreenStack
+                routes={ROUTES}
+                aside={<Sidebar />}
+                backButton={platform.backButton}
+                links={links}
+              >
                 <NewHabit />
               </ScreenStack>
             </BottomNotices>

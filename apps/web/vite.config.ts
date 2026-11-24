@@ -24,6 +24,12 @@ export default defineConfig({
         dependsOn: ["web#build"],
         cache: false,
       },
+      // the widget's Kotlin rule over core's shared widget cases (ticket 20), on the JVM: no phone
+      "android-test": {
+        command:
+          "cd android && JAVA_HOME=$(/usr/libexec/java_home -v 21) ANDROID_HOME=${ANDROID_HOME:-/opt/homebrew/share/android-commandlinetools} ./gradlew :app:testDebugUnitTest",
+        cache: false,
+      },
       // that APK on the phone connected over adb, opened
       "android-install": {
         command:

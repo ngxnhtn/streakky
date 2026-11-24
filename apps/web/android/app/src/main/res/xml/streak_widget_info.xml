@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One habit's current streak, picked when it's placed, and re-pickable; any size from one cell,
+     with a smaller layout below two cells either way.
+     No timed updates: the widget refreshes when the app writes, and by its own alarm at midnight. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="com.ngxnhtn.streakky.widget.WidgetConfigureActivity"
+    android:description="@string/widget_description"
+    android:initialLayout="@layout/widget_streak"
+    android:minHeight="110dp"
+    android:minResizeHeight="40dp"
+    android:minResizeWidth="40dp"
+    android:minWidth="110dp"
+    android:previewLayout="@layout/widget_streak_preview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="2"
+    android:targetCellWidth="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

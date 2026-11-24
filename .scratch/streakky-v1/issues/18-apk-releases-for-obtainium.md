@@ -17,3 +17,7 @@
 - [ ] The release APK calls the production API at `hb.nhutien.com`.
 - [ ] The signing keystore is generated once, and the owner has confirmed a backup is stored outside CI.
 - [ ] On the owner's phone, Obtainium installs the app from the repo, then updates it over the existing install when the next tag is released.
+
+## Comments
+
+**From ticket 20:** the widget's Kotlin unit test runs with `vp run web#android-test`, not with `vp test`, so nothing runs it on its own yet. The release workflow should run it alongside `vp check` and `vp test` before building, so the widget's rule and core's can't drift unnoticed.
