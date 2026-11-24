@@ -76,3 +76,5 @@ On the calendar I can fix my history. For a build habit I can add or remove a ch
   - **Focus after navigating:** opening or leaving a screen leaves focus on the page body, as Settings already did. A keyboard user's next Tab lands on the new screen's first control. Returning focus to the card that opened the detail would be kinder.
   - **Fast double tap under reduced motion:** a double tap on the back arrow can fall through to Home's Settings button in the same spot, since the screens swap at once. This happened before this ticket. With motion, the slide-out guard catches it.
   - **No heading on Habit detail and Settings:** the screens have no heading element, because the app bar's title is a `<p>`.
+
+**Owner decision (2026-11-24): the build habit's today button says what it does.** It read "Checked in today · Undo" while its name stayed "Check in today", so the words on screen weren't its name (WCAG 2.5.3, label in name). It now reads "Check in today", then "Undo today's check-in" beside the filled tick, as the quit habit's reads "I slipped today", then "Undo today's slip". Its words are its name, and it no longer carries `aria-pressed`.

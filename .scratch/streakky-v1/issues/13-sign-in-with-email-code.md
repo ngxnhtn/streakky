@@ -129,4 +129,6 @@ Steps 1–7 are unverified: they need your accounts. Nothing here has contacted 
 
 **Correction (2026-11-24, code review).** The **Rate limits** note above says 10 sign-in tries a minute per IP. The code allows 4 (`customRules` in `apps/api/src/auth.ts`): one more than the 3 tries a code allows, so a fourth try at a used-up code hears that rather than "wait a minute". The per-address daily cap (10 codes and 20 tries a UTC day, `DAILY_LIMITS`), which came later in this ticket, is now in the spec's Auth section for the owner to decide on. A code request for anything but sign-in is now refused before it counts towards that cap.
 
+**Owner decision (2026-11-24): the daily cap per address stays** at 10 codes and 20 tries a UTC day, as the spec's Auth section now records.
+
 **Live (2026-11-24).** After the first deploy, the owner signed in on https://hb.nhutien.com with a real code from `hb@nhutien.com`. A code request for an address off the allowlist answered 403 `EMAIL_NOT_ALLOWED` with no email sent, and better-auth's rate limiter wrote its row to the remote D1 through the Drizzle adapter.

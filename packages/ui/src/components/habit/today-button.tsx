@@ -11,9 +11,9 @@ const base = [
 ].join(" ");
 
 /**
- * The action under the counter. Build: "Check in today", then "Checked in today · Undo", one
- * toggle whose name stays "Check in today" while `aria-pressed` says whether it's done. Quit:
- * "I slipped today" (ask before calling onSlip), then "Undo today's slip", two actions.
+ * The action under the counter, named by the words it shows (WCAG's label in name). Build:
+ * "Check in today", then "Undo today's check-in" beside a filled tick. Quit: "I slipped today"
+ * (ask before calling onSlip), then "Undo today's slip".
  */
 export function TodayButton({
   kind,
@@ -35,8 +35,6 @@ export function TodayButton({
     return (
       <button
         type="button"
-        aria-label="Check in today"
-        aria-pressed={loggedToday}
         onClick={onToggle}
         className={cn(
           base,
@@ -64,10 +62,7 @@ export function TodayButton({
             )}
           />
         </span>
-        {loggedToday ? "Checked in today" : "Check in today"}
-        {loggedToday && (
-          <span className="ml-1 text-sm font-normal text-muted-foreground">Undo</span>
-        )}
+        {loggedToday ? "Undo today's check-in" : "Check in today"}
       </button>
     );
   }

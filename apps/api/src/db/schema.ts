@@ -90,7 +90,7 @@ export const syncVersions = sqliteTable("sync_versions", {
 
 /**
  * Sign-in steps per address and UTC day, across every client IP, so guessing a code stays capped
- * however many addresses an attacker has (see src/auth.ts, DAILY_LIMITS).
+ * however many IPs an attacker has (see src/auth.ts, DAILY_LIMITS).
  */
 export const signInAttempts = sqliteTable(
   "sign_in_attempts",

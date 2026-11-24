@@ -254,7 +254,7 @@ type DayRecord = {
   - The WebView origin is `https://localhost`, so cookies would be third-party. The app uses bearer tokens instead.
   - The API exposes the session token header through CORS, lists `https://localhost` as a trusted origin, and the app keeps the token in secure device storage.
 - **Rate limiting:** better-auth's rate limiting, keyed on Cloudflare's client IP header: 3 code requests and 4 sign-in tries a minute per IP.
-- **Daily cap per address:** at most 10 code requests and 20 sign-in tries a UTC day for each address, whatever IPs they come from, counted in D1. It keeps guessing a code capped for someone with many IPs; the cost is that they can use up the owner's tries for the day. Requests refused for other reasons, such as an address off the allowlist or a code that isn't for sign-in, don't count. The Worker has done this since ticket 13; it's recorded here for the owner to decide on, and stays as it is until then.
+- **Daily cap per address:** at most 10 code requests and 20 sign-in tries a UTC day for each address, whatever IPs they come from, counted in D1. It keeps guessing a code capped for someone with many IPs; the cost is that they can use up the owner's tries for the day. Requests refused for other reasons, such as an address off the allowlist or a code that isn't for sign-in, don't count. The Worker has done this since ticket 13, and the owner chose to keep it (2026-11-24).
 - Not used: passwords, Google or other social sign-in, magic links, passkeys, anonymous sessions.
 
 ### D1
