@@ -1,6 +1,7 @@
 import { useLayoutEffect } from "react";
 import { useMediaQuery } from "@streakky/ui/hooks/use-media-query";
 import { applyAppearance, SYSTEM_DARK } from "./appearance.ts";
+import type { Platform } from "./platform.ts";
 import { BottomNotices } from "./BottomNotices.tsx";
 import { ArchivedHabits } from "./screens/ArchivedHabits.tsx";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
@@ -42,18 +43,23 @@ const ROUTES: RouteTable = {
  * or, on a wide screen, the desktop layout with the sidebar beside them, and the notices along the
  * bottom over them.
  */
-export function App() {
+export function App({ platform }: { platform: Platform }) {
   const { theme, palette } = useSettings();
   // re-applies when the system switches between light and dark
   const systemDark = useMediaQuery(SYSTEM_DARK);
-  useLayoutEffect(() => applyAppearance({ theme, palette }), [theme, palette, systemDark]);
+  useLayoutEffect(() => {
+    const dark = applyAppearance({ theme, palette });
+    platform.systemBars?.(dark);
+  }, [platform, theme, palette, systemDark]);
 
   return (
-    <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
+    // In the Android app and an installed web app the page reaches under the status bar and the
+    // screen's rounded edges (viewport-fit=cover); the app keeps inside them, its ground beneath.
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
       <DesktopProvider>
         <NewHabitProvider>
           <BottomNotices appNotice={<UpdatePrompt />}>
-            <ScreenStack routes={ROUTES} aside={<Sidebar />}>
+            <ScreenStack routes={ROUTES} aside={<Sidebar />} backButton={platform.backButton}>
               <NewHabit />
             </ScreenStack>
           </BottomNotices>

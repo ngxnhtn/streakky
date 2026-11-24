@@ -11,6 +11,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@streakky/ui/components/button";
 import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
+import type { Platform } from "../platform.ts";
 import { useDesktop } from "./desktop.tsx";
 
 export type Route =
@@ -209,11 +210,14 @@ const DOUBLE_TAP_MS = 400;
 export function ScreenStack({
   routes,
   aside,
+  backButton,
   children,
 }: {
   routes: RouteTable;
   /** the desktop layout's sidebar, beside the screen in front */
   aside: ReactNode;
+  /** Android's back button; none on the web, where the browser's back does it */
+  backButton: Platform["backButton"];
   /** what lies over every screen, such as a dialog any of them opens */
   children: ReactNode;
 }) {
@@ -417,6 +421,17 @@ export function ScreenStack({
       show(screens, false);
     },
   };
+
+  // The back button closes an open sheet, whose history entry the app is on, or goes back a
+  // screen, as the in-app back does. On Home with nothing open, it has nothing to go back to.
+  const backNow = useRef<() => boolean>(() => false);
+  backNow.current = () => {
+    if (sheetOf(here.current) !== undefined) history.back();
+    else if (screensNow.length > 0) nav.pop();
+    else return false;
+    return true;
+  };
+  useEffect(() => backButton?.(() => backNow.current()), [backButton]);
 
   // Screens don't slide on the desktop: one sliding as the window is resized past the phone
   // layout goes at once, and one that slid in doesn't slide in again on the way back.

@@ -48,7 +48,7 @@ export function BottomNotices({
         ref={stack}
         data-slot="bottom-notices"
         className={cn(
-          "pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 flex flex-col",
+          "pointer-events-none absolute right-(--edge-right) bottom-(--edge-bottom) left-(--edge-left) z-40 flex flex-col",
           // with the update prompt under it, a celebration keeps a gap above the prompt
           "[&:has([data-notice=update])_[data-notice=celebration]]:mb-2",
         )}

@@ -1,6 +1,8 @@
 /**
- * Renders the web app's icons into public/ from the Streakky mark (the open ring in the design
- * playground's header), in the teal palette's dark colours: a ground-coloured ring on ink.
+ * Renders the web app's icons into public/, and the Android app's icons for Android before 8 into
+ * android/'s mipmaps, from the Streakky mark (the open ring in the design playground's header), in
+ * the teal palette's dark colours: a ground-coloured ring on ink. Android 8 and later draw the
+ * mark from android/app/src/main/res/drawable/ic_launcher_mark.xml instead.
  *
  *   vpx scripts/render-icons.ts      (from apps/web; set CHROME to use another Chrome binary)
  *
@@ -16,6 +18,7 @@ const ink = "#06525c";
 const ground = "#f7f9f8";
 const chrome = process.env.CHROME ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const publicDir = join(import.meta.dirname, "../public");
+const androidRes = join(import.meta.dirname, "../android/app/src/main/res");
 
 /**
  * The mark on a 512 square: the playground's 24-unit ring scaled 12 times, so it spans about half
@@ -33,20 +36,28 @@ const icon = (corner: number) =>
 
 const rounded = icon(112);
 const fullBleed = icon(0);
+const circle = icon(256);
 const renders = [
-  { file: "icon-192.png", svg: rounded, size: 192 },
-  { file: "icon-512.png", svg: rounded, size: 512 },
+  { file: join(publicDir, "icon-192.png"), svg: rounded, size: 192 },
+  { file: join(publicDir, "icon-512.png"), svg: rounded, size: 512 },
   // launchers cut maskable icons to their own shape, and iOS rounds touch icons itself
-  { file: "icon-maskable-512.png", svg: fullBleed, size: 512 },
-  { file: "apple-touch-icon.png", svg: fullBleed, size: 180 },
+  { file: join(publicDir, "icon-maskable-512.png"), svg: fullBleed, size: 512 },
+  { file: join(publicDir, "apple-touch-icon.png"), svg: fullBleed, size: 180 },
+  // Android's launcher icons by screen density, square-ish and round
+  ...Object.entries({ mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192 }).flatMap(
+    ([density, size]) => [
+      { file: join(androidRes, `mipmap-${density}/ic_launcher.png`), svg: rounded, size },
+      { file: join(androidRes, `mipmap-${density}/ic_launcher_round.png`), svg: circle, size },
+    ],
+  ),
 ];
 
 const scratch = mkdtempSync(join(tmpdir(), "streakky-icons-"));
 try {
   writeFileSync(join(publicDir, "favicon.svg"), rounded);
-  for (const { file, svg, size } of renders) {
+  for (const [i, { file, svg, size }] of renders.entries()) {
     // a page at the icon's pixel size, since Chrome won't make a window narrower than about 500
-    const source = join(scratch, `${file}.html`);
+    const source = join(scratch, `${i}.html`);
     const sized = svg.replace("<svg ", `<svg width="${size}" height="${size}" `);
     writeFileSync(source, `<body style="margin:0;background:transparent">${sized}</body>`);
     execFileSync(chrome, [
@@ -56,10 +67,10 @@ try {
       "--force-device-scale-factor=1",
       "--default-background-color=00000000",
       `--window-size=${size},${size}`,
-      `--screenshot=${join(publicDir, file)}`,
+      `--screenshot=${file}`,
       pathToFileURL(source).href,
     ]);
-    console.log(`public/${file}`);
+    console.log(file);
   }
 } finally {
   rmSync(scratch, { recursive: true, force: true });

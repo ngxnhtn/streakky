@@ -55,7 +55,7 @@ function DialogShapeProvider({ shape, children }: { shape: Shape; children: Reac
 
 const shapes: Record<Shape, string> = {
   sheet:
-    "inset-x-2 bottom-2 max-h-[calc(100%-4rem)] rounded-[2rem] px-5 pt-2.5 pb-6 data-open:animate-sheet-in data-closed:animate-sheet-out",
+    "right-(--edge-right) bottom-(--edge-bottom) left-(--edge-left) max-h-[calc(100%-4rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] rounded-[2rem] px-5 pt-2.5 pb-6 data-open:animate-sheet-in data-closed:animate-sheet-out",
   center:
     "top-1/2 left-1/2 w-[min(27.5rem,calc(100%-3rem))] max-h-[calc(100%-6rem)] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] p-7 data-open:animate-dialog-in data-closed:animate-dialog-out",
 };

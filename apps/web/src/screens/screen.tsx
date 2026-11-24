@@ -60,7 +60,7 @@ export function Screen({
           "min-h-0 flex-1 overflow-y-auto overscroll-contain",
           // the notices' height, their offset from the bottom and a gap above them, so scrolled
           // to the end nothing is left under them
-          "pb-[max(4.5rem,calc(var(--notices-height,0rem)_+_max(0.5rem,env(safe-area-inset-bottom))_+_0.5rem))]",
+          "pb-[max(4.5rem,calc(var(--notices-height,0rem)_+_var(--edge-bottom)_+_0.5rem))]",
           !desktop && "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
         )}
       >

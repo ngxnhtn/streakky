@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ChevronRight, Download } from "lucide-react";
 import {
   LAYOUTS,
@@ -14,6 +15,7 @@ import { Switch } from "@streakky/ui/components/switch";
 import { saveFile } from "../save-file.ts";
 import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
+import { SaveError } from "./saving.tsx";
 import { Screen } from "./screen.tsx";
 import { useNav } from "./stack.tsx";
 
@@ -27,6 +29,15 @@ export function Settings() {
   const store = useHabitStore();
   const settings = useSettings();
   const archived = useArchivedHabits();
+  const [exportFailed, setExportFailed] = useState(false);
+  // a download can't fail, but the Android app's share sheet can be refused its file
+  const exportHabits = () => {
+    setExportFailed(false);
+    saveFile(store.exportHabits()).catch((cause: unknown) => {
+      console.error(cause);
+      setExportFailed(true);
+    });
+  };
   return (
     <Screen title="Settings">
       {/* as wide as reads well on the desktop */}
@@ -87,11 +98,16 @@ export function Settings() {
                 <ChevronRight />
               </span>
             </ListButton>
-            <ListButton onClick={() => void saveFile(store.exportHabits())}>
+            <ListButton onClick={exportHabits}>
               Export as JSON
               <Download />
             </ListButton>
           </List>
+          {exportFailed && (
+            <div className="mx-1 mt-2.5">
+              <SaveError>Couldn't export. Try again.</SaveError>
+            </div>
+          )}
         </ListGroup>
       </div>
     </Screen>

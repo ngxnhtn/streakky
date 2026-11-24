@@ -9,6 +9,13 @@
     "test": "vp test"
   },
   "dependencies": {
+    "@capacitor-community/sqlite": "catalog:",
+    "@capacitor/android": "catalog:",
+    "@capacitor/app": "catalog:",
+    "@capacitor/core": "catalog:",
+    "@capacitor/filesystem": "catalog:",
+    "@capacitor/preferences": "catalog:",
+    "@capacitor/share": "catalog:",
     "@fontsource-variable/instrument-sans": "catalog:",
     "@fontsource/dm-mono": "catalog:",
     "@journeyapps/wa-sqlite": "catalog:",
@@ -17,6 +24,7 @@
     "@streakky/ui": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/browser-db-sqlite-persistence": "catalog:",
+    "@tanstack/capacitor-db-sqlite-persistence": "catalog:",
     "@tanstack/db": "catalog:",
     "@tanstack/db-sqlite-persistence-core": "catalog:",
     "fractional-indexing": "catalog:",
@@ -26,6 +34,7 @@
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
+    "@capacitor/cli": "catalog:",
     "@tanstack/node-db-sqlite-persistence": "catalog:",
     "@types/better-sqlite3": "catalog:",
     "@types/node": "catalog:",

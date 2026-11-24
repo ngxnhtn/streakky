@@ -180,7 +180,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 - **Commands:** create a habit, edit name, colour or goal, move the quit day, archive, restore, delete, reorder, toggle a day (a check-in or a slip, depending on kind), sign in (request a code, verify a code), sign out, and export.
 - **Live queries:** active habits in order, archived habits, one habit with its derived streak data, sync status (signed in or out, pending changes, last synced) and device settings.
 - It's built on TanStack DB collections for habits and days, with optimistic local writes and an offline queue of pending pushes.
-- **Persistence:** SQLite on the device. In the browser that's TanStack DB's OPFS wa-sqlite persistence; on Android it's native SQLite through a Capacitor SQLite plugin.
+- **Persistence:** SQLite on the device. In the browser that's TanStack DB's OPFS wa-sqlite persistence; on Android it's native SQLite through `@capacitor-community/sqlite`, with TanStack DB's Capacitor persistence.
 - **Device settings** (theme, palette, layout, week start, reminder on/off and time, celebrations, whether the signed-out note was dismissed) live in device-local key-value storage. They're never synced and they survive sign-out.
 
 ### Synced data shape
@@ -282,7 +282,14 @@ type DayRecord = {
 
 ### Android
 
-- **Capacitor project:** lives inside the web app. The app id is under the owner's domain. The app calls the API at `https://hb.nhutien.com/api`.
+- **Capacitor project:**
+  - It lives inside the web app (`apps/web/android`, `capacitor.config.ts`). The app id is `com.ngxnhtn.streakky`, under the owner's own handle.
+  - The app calls the API at `https://hb.nhutien.com/api`.
+  - The app always uses the phone layout and registers no service worker.
+  - Device settings live in native preferences (Capacitor Preferences), read into memory as the app opens.
+  - Export opens the share sheet. The back button closes an open sheet, goes back a screen, and closes the app from Home.
+  - It draws edge to edge, padding itself with the safe-area insets. Its icons are set light or dark by the theme.
+  - It's built on the owner's Mac with the command-line Android SDK and Java 21: `vp run web#android` builds the debug APK, and `vp run web#android-install` installs it over adb.
 - **Reminder:**
   - Implemented with Capacitor local notifications.
   - The app schedules the daily reminder for the next several days whenever habits or check-ins change, on app start and on day change.

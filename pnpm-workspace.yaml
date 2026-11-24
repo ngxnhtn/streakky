@@ -6,10 +6,19 @@ packages:
 catalogMode: prefer
 
 catalog:
+  "@capacitor-community/sqlite": ^8.1.1
+  "@capacitor/android": ^8.6.2
+  "@capacitor/app": ^8.1.2
+  "@capacitor/cli": ^8.6.2
+  "@capacitor/core": ^8.6.2
+  "@capacitor/filesystem": ^8.1.5
+  "@capacitor/preferences": ^8.0.1
+  "@capacitor/share": ^8.0.3
   "@fontsource-variable/instrument-sans": ^5.3.0
   "@fontsource/dm-mono": ^5.3.0
   "@journeyapps/wa-sqlite": ^1.7.2
   "@tanstack/browser-db-sqlite-persistence": 1.0.0-rc.1.5
+  "@tanstack/capacitor-db-sqlite-persistence": 1.0.0-rc.1.5
   "@tanstack/db": 1.0.0-rc.1.5
   "@tanstack/db-sqlite-persistence-core": 1.0.0-rc.1.5
   "@tanstack/node-db-sqlite-persistence": 1.0.0-rc.1.5
