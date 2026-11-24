@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { applyAppearance } from "./appearance.ts";
+import { ArchivedHabits } from "./screens/ArchivedHabits.tsx";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
 import { Home } from "./screens/Home.tsx";
 import { Settings } from "./screens/Settings.tsx";
@@ -33,6 +34,8 @@ function screenOf(route: Route): ReactNode {
       return <Settings />;
     case "sign-in":
       return <SignIn />;
+    case "archived":
+      return <ArchivedHabits />;
   }
 }
 

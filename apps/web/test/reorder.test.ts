@@ -52,17 +52,6 @@ async function storedHabits(storage: DeviceStorage): Promise<HabitRecord[]> {
   return stored;
 }
 
-/**
- * Adds a habit record straight to a device's storage, as an archived habit would be. The store
- * can't archive habits yet (ticket 07).
- */
-async function storeHabit(storage: DeviceStorage, record: HabitRecord) {
-  const records = habitRecordsIn(storage);
-  await records.preload();
-  await records.insert(record).when("settled");
-  await records.cleanup();
-}
-
 /** Habit records by their order position alone. */
 const byPosition = (a: HabitRecord, b: HabitRecord) => (a.order < b.order ? -1 : 1);
 
@@ -170,29 +159,34 @@ describe("reordering habits on a device", () => {
     expect(() => keys.forEach((key) => generateKeyBetween(key, null))).not.toThrow();
   });
 
-  it("places a moved habit after its shown neighbour without taking a hidden habit's position", async () => {
+  it("places a moved habit after its shown neighbour without taking an archived habit's position", async () => {
     const storage = createStorage();
-    const device = await deviceWith(storage, "Morning run", "Read 20 pages", "Stretch");
+    const device = await deviceWith(storage, "Morning run", "Floss", "Read 20 pages", "Stretch");
+    // archived, "Floss" keeps its position between the first two shown, which is where the
+    // midpoint of their positions falls
+    const floss = idOf(device, "Floss");
+    await device.archiveHabit(floss);
+    await move(device, "Stretch", "Morning run");
+    const shown = namesOf(device);
+    await device.restoreHabit(floss);
+    const restored = namesOf(device);
     await device.close();
-    // an archived habit between the first two, where the midpoint of their positions would go
-    const [run, read] = (await storedHabits(storage)).toSorted(byPosition);
-    await storeHabit(storage, {
-      ...run,
-      id: "archived-habit",
-      name: "Floss",
-      archived: true,
-      order: generateKeyBetween(run.order, read.order),
-    });
 
-    const reopened = await openDevice(storage);
-    await move(reopened, "Stretch", "Morning run");
-    const shown = namesOf(reopened);
-    await reopened.close();
-    const stored = (await storedHabits(storage)).toSorted(byPosition);
-    expect([shown, stored.map((h) => h.name)]).toEqual([
+    const positions = (await storedHabits(storage)).map((h) => h.order);
+    expect([shown, restored]).toEqual([
       ["Morning run", "Stretch", "Read 20 pages"],
       ["Morning run", "Stretch", "Floss", "Read 20 pages"],
     ]);
-    expect(new Set(stored.map((h) => h.order)).size).toBe(4);
+    expect(new Set(positions).size).toBe(4);
+  });
+
+  it("ignores a move of or after an archived habit", async () => {
+    const device = await deviceWith(createStorage(), "Morning run", "Floss", "Read 20 pages");
+    const floss = idOf(device, "Floss");
+    await device.archiveHabit(floss);
+    await device.moveHabit(idOf(device, "Read 20 pages"), floss);
+    await device.moveHabit(floss, null);
+    await device.restoreHabit(floss);
+    expect(namesOf(device)).toEqual(["Morning run", "Floss", "Read 20 pages"]);
   });
 });

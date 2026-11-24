@@ -24,7 +24,7 @@
   - It is built on the private `changeHabit(habitId, change)` helper agreed with 06 and 07, right after `habits` in `openHabitStore`. The helper sets each changed field's edit time to `Date.now()`, and leaves a missing or deleted habit alone.
   - **Where the new position goes:** positions are shared with archived and deleted habits, so a plain midpoint between the two shown neighbours could equal a hidden habit's position. The new key goes strictly between `after`'s position and the next position above it held by any other habit, shown or hidden. Moved first, it goes before every habit's position. Being strictly between two neighbouring positions, it can't equal another habit's. So a habit dropped where an archived habit sits between the shown ones lands right after its shown neighbour, ahead of the archived one. When 07 restores the archived habit, it comes back after the moved one.
   - **Ties:** two habits can share a position only after sync (14), when two devices add a habit at the same spot offline. A habit dropped between two tied habits lands after both. No position fits between them, and the rule is that only the moved habit changes.
-- **Harness tests** (`apps/web/test/reorder.test.ts`, 9 tests):
+- **Harness tests** (`apps/web/test/reorder.test.ts`, 10 tests):
   - a move between two others, to the top and to the end;
   - the order after a restart;
   - only the moved habit's `order` and `edited.order` changing, read from the device's stored records;
@@ -32,9 +32,12 @@
   - moves to or of missing habits ignored;
   - a new habit added at the end after a reorder;
   - 300 moves squeezed in after the same habit, each giving the expected order, with distinct, valid keys, the same order after a restart, and the first habit's record unchanged;
-  - a move next to an archived habit, written straight to storage, not taking its position.
+  - a move across an archived habit, which sits where a plain midpoint would go, not taking its position, and the restored habit coming back after the moved one (this test fails if `moveHabit` skips archived habits' positions);
+  - moves of or after an archived habit ignored.
 
-  The file reads and writes stored records through a plain TanStack collection on the device's database (`storedHabits`, `storeHabit`). 06 and 07 may want those helpers in `devices.ts`.
+  The file reads stored records through a plain TanStack collection on the device's database (`storedHabits`). Other tickets may want that helper in `devices.ts`.
+
+- **Merged with 07 (2026-11-24):** `moveHabit` sits on main's `changeHabit`. After a keyboard move, the hook gives focus back only if the list changed into the order that move asked for. Any other change, such as an archive through 07's `keepFocus`, leaves focus to its own code. Checked in headless Chrome: archived a habit from its options sheet, dragged a habit into the gap it left, moved one with Alt+↓, and restored the archived habit from Archived habits. It came back after the moved habits, and the order survived a reload.
 
 - **Dragging (UI package):**
   - `useReorder` (`packages/ui/src/hooks/use-reorder.ts`) is written by hand with pointer events, with no dependency. The faces sit in equal grid slots, in both layouts, so finding the drop slot is a nearest-slot search. Hand-written code also controls the details below directly. The web bundle grew by 2.6 kB of gzipped JS (206.15 → 208.72 kB) and 0.3 kB of CSS. A library such as dnd-kit wasn't measured.

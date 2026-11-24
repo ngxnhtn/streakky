@@ -90,7 +90,8 @@ export function useReorder({
   latest.current = { keyString, count: keys.length, onMove, busy: drag !== null };
   const gesture = React.useRef<Gesture | null>(null);
   const ender = React.useRef<((drop: Drop) => void) | null>(null);
-  const refocus = React.useRef<HTMLElement | null>(null);
+  /** after a keyboard move: what had the focus, and the order the move asked for */
+  const refocus = React.useRef<{ el: HTMLElement; keys: string } | null>(null);
 
   const announce = (to: number) =>
     setAnnouncement(`Moved to position ${to + 1} of ${latest.current.count}.`);
@@ -280,11 +281,14 @@ export function useReorder({
     setDrag(null);
   }, [drag, keyString]);
 
-  // A keyboard move: React moves some items' elements, which takes the focus off them.
+  // A keyboard move: React moves some items' elements, which takes the focus off them. Only
+  // the order that move asked for gives it back; any other change, such as a habit leaving,
+  // is left to whoever made it.
   React.useLayoutEffect(() => {
-    const el = refocus.current;
+    const move = refocus.current;
     refocus.current = null;
-    if (el?.isConnected && document.activeElement !== el) el.focus();
+    if (move?.keys !== keyString) return;
+    if (move.el.isConnected && document.activeElement !== move.el) move.el.focus();
   }, [keyString]);
 
   /** What each item's element takes: its place in a drag, and the keyboard moves. */
@@ -313,8 +317,10 @@ export function useReorder({
         if (to === null) return;
         e.preventDefault();
         if (to < 0 || to >= keys.length) return;
-        refocus.current =
-          document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        const el = document.activeElement;
+        const moved = [...keys];
+        moved.splice(to, 0, ...moved.splice(index, 1));
+        refocus.current = el instanceof HTMLElement ? { el, keys: moved.join("\n") } : null;
         onMove(index, to);
         announce(to);
       },

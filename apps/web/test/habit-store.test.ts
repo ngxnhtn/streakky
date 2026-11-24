@@ -317,9 +317,39 @@ describe("an export from a device", () => {
     expect(JSON.parse(device.exportHabits().text)).toMatchObject({ habits: [] });
   });
 
-  // the store can't archive or delete a habit until ticket 07 adds those commands
-  it.todo("includes archived habits, marked archived, in their place in the order");
-  it.todo("leaves out deleted habits and their days");
+  it("includes archived habits, marked archived, in their place in the order", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    await device.createHabit(build("Stretch"));
+    const [morningRun, smoking, stretch] = device.habits();
+    await device.toggleDay(smoking.id, "2026-11-20");
+    await device.archiveHabit(smoking.id);
+
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect(habits).toEqual([
+      { ...morningRun, archived: false },
+      { ...device.archivedHabits()[0], archived: true },
+      { ...stretch, archived: false },
+    ]);
+    expect(habits[1]).toMatchObject({ name: "No smoking", slips: ["2026-11-20"] });
+  });
+
+  it("leaves out deleted habits and their days", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    await device.createHabit(build("Stretch"));
+    await device.createHabit(quit("No smoking", "2026-11-14"));
+    const [morningRun, stretch, smoking] = device.habits();
+    await device.toggleDay(stretch.id);
+    await device.toggleDay(smoking.id, "2026-11-20");
+    await device.archiveHabit(smoking.id);
+    await device.deleteHabit(stretch.id);
+    await device.deleteHabit(smoking.id);
+
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect(habits).toEqual([{ ...morningRun, archived: false }]);
+  });
 });
 
 describe("editing past days on a device", () => {

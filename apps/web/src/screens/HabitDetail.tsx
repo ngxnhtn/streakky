@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Menu } from "lucide-react";
 import {
   canToggle,
   counterLabel,
@@ -14,7 +14,9 @@ import { StreakRing } from "@streakky/ui/components/habit/ring";
 import { HabitStats } from "@streakky/ui/components/habit/stats";
 import { TodayButton } from "@streakky/ui/components/habit/today-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@streakky/ui/components/tabs";
-import { useHabit, useHabitStore, useSettings } from "../store/react.tsx";
+import { useArchivedHabit, useHabit, useHabitStore, useSettings } from "../store/react.tsx";
+import { ArchivedNote } from "./ArchivedHabits.tsx";
+import { HabitOptions, type HabitDialog } from "./HabitOptions.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
@@ -25,17 +27,22 @@ const TAB_LABEL: Record<Tab, string> = { calendar: "Calendar", stats: "Stats" };
 
 /**
  * One habit: its current streak and since when, today's check-in or slip, then its calendar
- * (where past days can be edited) and its stats with every streak.
+ * (where past days can be edited) and its stats with every streak. An archived habit shows the
+ * same history, but its days stay as they are until it's restored.
  */
 export function HabitDetail({ id }: { id: string }) {
   const store = useHabitStore();
-  const habit = useHabit(id);
+  const active = useHabit(id);
+  const archivedHabit = useArchivedHabit(id);
+  const habit = active ?? archivedHabit;
+  const archived = active === undefined;
   const { weekStart } = useSettings();
   const day = useToday();
   const { pop } = useNav();
   const [tab, setTab] = useState<Tab>("calendar");
   const [view, setView] = useState<CalendarView>("weeks");
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
+  const [dialog, setDialog] = useState<HabitDialog>(null);
   const back = (
     <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
       <ChevronLeft strokeWidth={1.75} />
@@ -54,22 +61,45 @@ export function HabitDetail({ id }: { id: string }) {
 
   return (
     <div data-habit-color={habit.color} className="contents">
-      <AppBar left={back} title={habit.name} />
+      <AppBar
+        left={back}
+        title={habit.name}
+        right={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Habit options"
+            aria-haspopup="dialog"
+            onClick={() => setDialog("options")}
+          >
+            <Menu strokeWidth={1.75} />
+          </Button>
+        }
+      />
       <ScreenScroll>
         <StreakRing
           days={days}
           goal={habit.goal}
           label={counterLabel(habit, days)}
-          since={sinceLabel(habit)}
+          // an archived habit can't be checked in, so it isn't asked to
+          since={
+            archived && habit.kind === "build" && days === 0
+              ? "no current streak"
+              : sinceLabel(habit)
+          }
         />
         <div className="flex justify-center px-5 pt-1 pb-5">
-          <TodayButton
-            kind={habit.kind}
-            loggedToday={loggedToday(habit)}
-            disabled={!canToggle(habit, day)}
-            onToggle={() => void store.toggleDay(habit.id)}
-            onSlip={() => toggleSlip(habit)}
-          />
+          {archived ? (
+            <ArchivedNote habit={habit} />
+          ) : (
+            <TodayButton
+              kind={habit.kind}
+              loggedToday={loggedToday(habit)}
+              disabled={!canToggle(habit, day)}
+              onToggle={() => void store.toggleDay(habit.id)}
+              onSlip={() => toggleSlip(habit)}
+            />
+          )}
         </div>
         <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
           <div className="px-5 pt-2">
@@ -87,7 +117,9 @@ export function HabitDetail({ id }: { id: string }) {
               weekStart={weekStart}
               view={view}
               onViewChange={setView}
-              onToggleDay={(pastDay) => void store.toggleDay(habit.id, pastDay)}
+              onToggleDay={
+                archived ? undefined : (pastDay) => void store.toggleDay(habit.id, pastDay)
+              }
             />
           </TabsContent>
           <TabsContent value="stats" className="min-h-[23.75rem] px-5 pt-6">
@@ -96,6 +128,7 @@ export function HabitDetail({ id }: { id: string }) {
         </Tabs>
       </ScreenScroll>
       {slipDialog}
+      <HabitOptions habit={habit} archived={archived} dialog={dialog} setDialog={setDialog} />
     </div>
   );
 }
