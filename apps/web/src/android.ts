@@ -27,6 +27,7 @@ import {
   type KeyValueStorage,
   type SessionTokenStorage,
 } from "./store/habit-store.ts";
+import type { WidgetLook } from "./widget-look.ts";
 
 /** The app's pages come from inside the APK, so the API is reached at its own address. */
 const API_ORIGIN = "https://hb.nhutien.com";
@@ -65,7 +66,7 @@ export async function openAndroidApp(
       },
       systemBars: setSystemBars,
       reminders,
-      widgets: { update: (summaries) => StreakkyWidgets.update({ summaries }) },
+      widgets: { update: (summaries, look) => StreakkyWidgets.update({ summaries, look }) },
       habitLinks,
     },
   };
@@ -73,7 +74,7 @@ export async function openAndroidApp(
 
 /** The app's own plugin for the home-screen widgets (android/app/.../widget/WidgetsPlugin.kt). */
 const StreakkyWidgets = registerPlugin<{
-  update(options: { summaries: WidgetSummary[] }): Promise<void>;
+  update(options: { summaries: WidgetSummary[]; look?: WidgetLook }): Promise<void>;
 }>("StreakkyWidgets");
 
 /**

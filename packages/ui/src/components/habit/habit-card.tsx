@@ -99,9 +99,15 @@ export function TodayToggle({
   );
 }
 
+/**
+ * A habit card's tint: the habit's colour, faint over the page's ground. For drawing a habit's tile
+ * elsewhere as the card draws it.
+ */
+export const habitTileTint = "bg-habit/9 dark:bg-habit/16";
+
 const tileGround = [
   "w-full border border-transparent text-left",
-  "bg-habit/9 dark:bg-habit/16",
+  habitTileTint,
   "transition-[transform,border-color,box-shadow,background-color,translate,scale] duration-120 ease-ui",
 ].join(" ");
 const tileLift =

@@ -1,20 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The widget in the teal palette, as the app's habit card draws it: the habit's colour,
-     and its tile, that colour at 16% over the dark ground. Copied from the habit
-     colours in packages/ui/src/styles/globals.css; keep the two in step. -->
+<!-- The widget's default look, in the teal palette: the widget list's preview (Morning run, in
+     green) and a widget before the app has written its own look, which the app measures from
+     its stylesheet (apps/web/src/widget-look.ts). A habit's tile is its colour at
+     16% over the dark ground. Copied from packages/ui/src/styles/globals.css; keep the two in step. -->
 <resources>
+    <color name="widget_ground">#06525C</color>
     <color name="widget_name">#F7F9F8</color>
     <color name="widget_label">#C1D0D2</color>
     <color name="habit_teal">#F7F9F8</color>
     <color name="habit_teal_tile">#2D6D75</color>
-    <color name="habit_red">#FFA597</color>
-    <color name="habit_red_tile">#2E5F65</color>
-    <color name="habit_blue">#A9C8F5</color>
-    <color name="habit_blue_tile">#206574</color>
-    <color name="habit_ochre">#EFD27A</color>
-    <color name="habit_ochre_tile">#2B6661</color>
-    <color name="habit_rose">#F6B0DC</color>
-    <color name="habit_rose_tile">#2C6170</color>
     <color name="habit_green">#B4DEA0</color>
     <color name="habit_green_tile">#226867</color>
 </resources>

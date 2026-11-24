@@ -81,7 +81,7 @@ The widget is native code (ADR-0001). The app writes a small summary of each hab
   - The Kotlin type was renamed to core's `WidgetSummary`, and stale comments were fixed.
 - **Limits:**
   - **Days logged ahead:** check-ins, slips or a quit day dated after the phone's today, such as from a device in a later time zone, aren't in the summary. Until the app opens again, the widget's count can be off once those days come.
-  - **Teal only:** the widget uses the teal palette's habit colours, following the system theme rather than the app's palette and theme settings.
+  - **Teal only:** the widget uses the teal palette's habit colours, following the system theme rather than the app's palette and theme settings. (Settled by ticket 21.)
   - **Links while a screen slides:** a widget tapped while the app is mid-transition, or a reload of the app's page, may open Home or the launch habit again instead.
   - **Lawnchair's widget list** didn't show Streakky until Lawnchair was restarted after the first install.
 - **Glossary:** "Home-screen widget" and "widget summary" were added on 2026-11-25.

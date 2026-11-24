@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
+import android.appwidget.AppWidgetProviderInfo
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -13,18 +14,14 @@ import android.os.Bundle
 import android.util.SizeF
 import android.view.View
 import android.widget.RemoteViews
-import androidx.annotation.ColorRes
-import androidx.core.content.ContextCompat
 import com.ngxnhtn.streakky.MainActivity
 import com.ngxnhtn.streakky.R
 import java.util.Calendar
 
-/** A habit colour as its widget draws it: the count's colour and the tile's. */
-data class HabitColors(@ColorRes val count: Int, @ColorRes val tile: Int)
-
 /**
  * The home-screen widget (ticket 20): one habit's current streak, in its colour, worked out from
- * the summary the app last wrote and today, so it stays right after midnight without the app.
+ * the summary the app last wrote and today, so it stays right after midnight without the app. It
+ * takes the app's palette and theme (ticket 21), which the app writes with the summaries.
  * Tapping it opens the app on that habit. It only shows; there's nothing to check in from it.
  */
 class StreakWidget : AppWidgetProvider() {
@@ -65,19 +62,6 @@ class StreakWidget : AppWidgetProvider() {
             Intent.ACTION_TIMEZONE_CHANGED,
         )
 
-        /** Each habit colour's count colour and tile colour, light or dark by the system theme. */
-        private val COLORS = mapOf(
-            "teal" to HabitColors(R.color.habit_teal, R.color.habit_teal_tile),
-            "red" to HabitColors(R.color.habit_red, R.color.habit_red_tile),
-            "blue" to HabitColors(R.color.habit_blue, R.color.habit_blue_tile),
-            "ochre" to HabitColors(R.color.habit_ochre, R.color.habit_ochre_tile),
-            "rose" to HabitColors(R.color.habit_rose, R.color.habit_rose_tile),
-            "green" to HabitColors(R.color.habit_green, R.color.habit_green_tile),
-        )
-
-        /** A habit colour's count colour and tile colour; teal for one it doesn't know. */
-        internal fun colorsOf(color: String?): HabitColors = COLORS[color] ?: COLORS.getValue("teal")
-
         /** Draws every placed widget again, as after the app writes new summaries. */
         fun updateAll(context: Context) {
             val manager = AppWidgetManager.getInstance(context)
@@ -97,7 +81,8 @@ class StreakWidget : AppWidgetProvider() {
         fun render(context: Context, manager: AppWidgetManager, widgetId: Int) {
             val summaries = WidgetStore.summaries(context)
             val habitId = WidgetStore.habitOf(context, widgetId)
-            val draw = { layout: Int -> drawn(context, widgetId, layout, summaries, habitId) }
+            val look = WidgetStore.look(context)
+            val draw = { layout: Int -> drawn(context, widgetId, layout, summaries, habitId, look) }
             val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 // the launcher shows the biggest that fits, and the smallest when none does
                 RemoteViews(mapOf(FULL to draw(R.layout.widget_streak), SMALL to draw(R.layout.widget_streak_small)))
@@ -123,12 +108,11 @@ class StreakWidget : AppWidgetProvider() {
             layout: Int,
             summaries: Map<String, WidgetSummary>?,
             habitId: String?,
+            look: WidgetLook,
         ): RemoteViews {
             val views = RemoteViews(context.packageName, layout)
             val summary = habitId?.let { summaries?.get(it) }
-            val colors = colorsOf(summary?.color)
-            colorText(context, views, R.id.count, colors.count)
-            tintImage(context, views, R.id.tile, colors.tile)
+            paintHabit(context, views, look, summary?.color)
             when {
                 summary == null -> {
                     val note = when {
@@ -173,25 +157,33 @@ class StreakWidget : AppWidgetProvider() {
             return views
         }
 
-        /**
-         * Colours a text from a colour resource: on Android 12 and later as the resource itself, so
-         * it follows the system's light or dark theme as it changes; before, as it is now.
-         */
-        private fun colorText(context: Context, views: RemoteViews, viewId: Int, @ColorRes color: Int) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                views.setColorStateList(viewId, "setTextColor", color)
-            } else {
-                views.setTextColor(viewId, ContextCompat.getColor(context, color))
-            }
+        /** Colours a layout's tile, name, count and label in the look, for a habit colour. */
+        private fun paintHabit(context: Context, views: RemoteViews, look: WidgetLook, color: String?) {
+            look.paint(context, views, R.id.tile, "setColorFilter") { it.of(color).tile }
+            look.paint(context, views, R.id.count, "setTextColor") { it.of(color).count }
+            look.paint(context, views, R.id.name, "setTextColor") { it.name }
+            look.paint(context, views, R.id.label, "setTextColor") { it.label }
         }
 
-        /** Tints an image from a colour resource, following the theme as `colorText` does. */
-        private fun tintImage(context: Context, views: RemoteViews, viewId: Int, @ColorRes color: Int) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                views.setColorStateList(viewId, "setImageTintList", color)
-            } else {
-                views.setInt(viewId, "setColorFilter", ContextCompat.getColor(context, color))
-            }
+        /**
+         * On Android 15 and later, the widget list's preview in the app's look, once it has
+         * changed: before, and until then, the list draws it from the app's resources, in teal.
+         * Android limits how often an app may publish one; one it refuses is tried again with the
+         * app's next write. Launchers may keep drawing the resources' preview: Lawnchair does.
+         */
+        fun publishPreview(context: Context) {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
+            val written = WidgetStore.lookJson(context) ?: return
+            if (written == WidgetStore.previewLook(context)) return
+            val views = RemoteViews(context.packageName, R.layout.widget_streak_preview)
+            // the preview's habit, Morning run, is green
+            paintHabit(context, views, WidgetStore.look(context), "green")
+            val published = AppWidgetManager.getInstance(context).setWidgetPreview(
+                ComponentName(context, StreakWidget::class.java),
+                AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN,
+                views,
+            )
+            if (published) WidgetStore.setPreviewLook(context, written)
         }
 
         /** Opens the habit chooser for a widget that has none, as after the app's data is cleared. */

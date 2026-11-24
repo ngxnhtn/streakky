@@ -102,17 +102,17 @@ width, so on a phone narrower than about 22rem (a 320px one) they're a little un
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
 `@streakky/core` and callbacks, and keep no app state.
 
-| Component       | What it is                                                                                                                                                                             |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                                                           |
-| `today-button`  | `TodayButton`: check in today or undo it (build), log a slip or undo it (quit); its words are its name                                                                                 |
-| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), one set of props with `today` (logged, locked, onToggle); `CheckInTick`, `SlipIcon`, `TodayToggle` (2.75rem), `NewHabitTile`, `HabitCollection` |
-| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days (2.75rem buttons); each day tells a screen reader its date and what it was                                                           |
-| `streaks-chart` | `StreaksChart`: every streak as a bar, the longest and the current tagged; one slider control (arrow keys, Home, End, a tap), a readout and a hidden table                             |
-| `stats`         | `HabitStats`: four tiles from core's `habitStats` and the streaks chart                                                                                                                |
-| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                                                                 |
-| `habit-fields`  | `NameField`, `QuitDayField`: a habit's name and quit day, with their errors                                                                                                            |
-| `color-picker`  | `HabitColorPicker`                                                                                                                                                                     |
+| Component       | What it is                                                                                                                                                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                                                                                                                                |
+| `today-button`  | `TodayButton`: check in today or undo it (build), log a slip or undo it (quit); its words are its name                                                                                                                                                      |
+| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), one set of props with `today` (logged, locked, onToggle); `CheckInTick`, `SlipIcon`, `TodayToggle` (2.75rem), `NewHabitTile`, `HabitCollection`; `habitTileTint`, the classes that tint a card in its habit's colour |
+| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days (2.75rem buttons); each day tells a screen reader its date and what it was                                                                                                                                |
+| `streaks-chart` | `StreaksChart`: every streak as a bar, the longest and the current tagged; one slider control (arrow keys, Home, End, a tap), a readout and a hidden table                                                                                                  |
+| `stats`         | `HabitStats`: four tiles from core's `habitStats` and the streaks chart                                                                                                                                                                                     |
+| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                                                                                                                                      |
+| `habit-fields`  | `NameField`, `QuitDayField`: a habit's name and quit day, with their errors                                                                                                                                                                                 |
+| `color-picker`  | `HabitColorPicker`                                                                                                                                                                                                                                          |
 
 Hooks: `@streakky/ui/hooks/use-tween` (`useTween`), `@streakky/ui/hooks/use-media-query`
 (`useMediaQuery`) and `@streakky/ui/hooks/use-reorder`. Helpers: `@streakky/ui/lib/motion`

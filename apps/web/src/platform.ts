@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 import type { Reminder, WidgetSummary } from "@streakky/core";
+import type { WidgetLook } from "./widget-look.ts";
 
 /**
  * Inside the Android app (ticket 16), Capacitor's bridge defines `window.Capacitor` before the
@@ -22,10 +23,11 @@ export type Platform = {
   /** The daily reminder's notifications (ticket 19), in the Android app only. */
   reminders?: Reminders;
   /**
-   * The home-screen widgets (ticket 20), in the Android app only: takes every active and archived
-   * habit's summary, which the widgets count from, and draws them again.
+   * The home-screen widgets (tickets 20 and 21), in the Android app only: takes every active and
+   * archived habit's summary, which the widgets count from, and the app's look, which they're
+   * drawn in, and draws them again. Without a look they keep the last one.
    */
-  widgets?: { update(summaries: WidgetSummary[]): Promise<void> };
+  widgets?: { update(summaries: WidgetSummary[], look?: WidgetLook): Promise<void> };
   /**
    * Habits opened from outside the app, as by tapping a widget: calls `open` with each one's id,
    * the one the app was opened on included, and returns a function that stops.
