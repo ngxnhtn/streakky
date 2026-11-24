@@ -305,30 +305,42 @@ describe("syncing between two signed-in devices", () => {
   it("doesn't let a push sent again undo a later edit from the other device", async () => {
     const clock = testClock();
     const email = accounts[nextAccount++];
-    // the phone's first push reaches the server, but its answer is lost on the way back
+    // The phone's first push reaches the server, but the network drops before the answer comes
+    // back, and stays down for the rest of that sync: the phone hears nothing of what the server
+    // stored, so everything it pushed still waits, and its next sync sends the same push again.
     let lose = true;
-    const losesFirstPush: Connection = (storage) => {
+    let dropNetwork = () => {};
+    const losesFirstPushAnswer: Connection = (storage) => {
       const reach = online(server)(storage);
       return async (path, init) => {
         const response = await reach(path, init);
-        if (path === "/api/sync/push" && lose) {
+        if (path.endsWith("/push") && lose) {
           lose = false;
+          dropNetwork();
           throw new TypeError("fetch failed");
         }
         return response;
       };
     };
-    const phone = await signedInDevice(email, { now: clock.now }, { via: losesFirstPush });
+    const phone = await signedInDevice(email, { now: clock.now }, { via: losesFirstPushAnswer });
     const laptop = await signedInDevice(email, { now: clock.now });
+    dropNetwork = () => phone.goOffline();
     await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.toggleDay(phone.habits()[0].id, daysAgo(1));
     await phone.sync();
+    const waiting = phone.syncStatus();
     await laptop.sync();
+    // later, the laptop renames the habit and takes the check-in back
     clock.tick();
-    await laptop.editHabit(laptop.habits()[0].id, { name: "Read a chapter" });
+    const id = laptop.habits()[0].id;
+    await laptop.editHabit(id, { name: "Read a chapter" });
+    await laptop.toggleDay(id, daysAgo(1));
     await laptop.sync();
-    // the phone still holds its first push as pending, and sends it again
+    phone.goOnline();
     await syncBoth(phone, laptop);
-    expect([names(phone), names(laptop)]).toEqual([["Read a chapter"], ["Read a chapter"]]);
+    const expected = [{ name: "Read a chapter", color: "blue", days: [] }];
+    expect(waiting).toMatchObject({ pending: 2, failing: true });
+    expect([shown(phone), shown(laptop)]).toEqual([expected, expected]);
   });
 
   it("syncs a long history, more than one push or pull carries", async () => {
