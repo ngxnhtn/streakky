@@ -158,6 +158,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
     - Slips can only be logged after the quit day, and slips on or before the quit day are ignored when counting.
     - Moving the quit day reports which slips it would remove.
     - A habit has archived state and an order position.
+    - A quit habit stops counting while it's archived: its archived days, from the day after archiving to the day before restoring, are neither clean days nor slips, and don't end its streak. Build habits count as before.
   - Core also owns two small functions shared with the Android widget: building a habit's **widget summary**, and computing the current-streak number from a summary plus a given today.
   - The date helpers keep working on local `YYYY-MM-DD` dates with no time zone.
 - **UI package (design system only):**
@@ -194,6 +195,8 @@ type Habit = {
   goal: number | null;
   quitDay: string | null; // YYYY-MM-DD, quit habits only
   archived: boolean;
+  // every time it was archived, oldest first; YYYY-MM-DD, restoredOn null while it still is
+  archivedPeriods: { archivedOn: string; restoredOn: string | null }[];
   order: string; // fractional position, so a reorder changes only one habit
   deleted: boolean; // tombstone: once true, never false again
   edited: Record<EditableField, number>; // device edit time of each field's last change
@@ -208,6 +211,11 @@ type DayRecord = {
 ```
 
 - Removing a check-in or slip writes `logged: false` rather than deleting the record, so "the later edit wins" works per habit and day.
+- **Archived periods:**
+  - Archiving opens a period on the device's today, and restoring closes the open one on its today. Both write `archived` and `archivedPeriods` together, with one edit time, so a merge always takes the two from the same device's edit (ADR-0002).
+  - A quit habit's archived days are the days strictly between `archivedOn` and `restoredOn` (through today while still archived), after its quit day. They're neither clean days nor slips, and slips on them are ignored when counting. Build habits keep periods too, but count nothing from them.
+  - Every period is kept, including ones with no archived days (restored the same day or the next).
+  - Habits stored before the field came (before sync was built) have neither `archivedPeriods` nor `edited.archivedPeriods`. Read them as `[]` and as `edited.archived`. The device's stored collection keeps `schemaVersion: 1`: changing it would reset the collection, wiping stored habits, or refuse to open it.
 - On the server, each row also carries the owning account and a per-account server version number, which drives incremental pulls.
 
 ### Sync API (Worker)
@@ -264,7 +272,7 @@ type DayRecord = {
   - Notification permission is requested when the reminder is turned on. Exact delivery time isn't guaranteed by Android.
 - **Widget:**
   - **Placing:** a configuration screen picks one active habit. Each widget instance shows one habit, and the widget can be resized.
-  - **Data:** after every change, the web app writes each habit's widget summary (name, colour, kind, quit day or last slip, last check-in and the streak length ending at it, archived or deleted) to shared native storage through the custom plugin, which then refreshes the widgets.
+  - **Data:** after every change, the web app writes each habit's widget summary (name, colour, kind, quit day or last slip and the archived days since it, last check-in and the streak length ending at it, archived or deleted) to shared native storage through the custom plugin, which then refreshes the widgets.
   - **Midnight:** the widget recomputes its number at render time from the summary and today, and schedules its own refresh at midnight.
   - **Tapping:** opens the app on that habit through a deep link.
   - **Display-only:** there are no check-ins from the widget.
@@ -280,7 +288,7 @@ type DayRecord = {
 
 ### Export
 
-- Export produces one JSON file containing every habit (archived included, deleted excluded) with its check-ins or slips.
+- Export produces one JSON file containing every habit (archived included, deleted excluded) with its check-ins or slips and its archived periods (file version 2; version 1 had no archived periods).
 - The web downloads the file; Android opens the share sheet.
 
 ## Testing Decisions

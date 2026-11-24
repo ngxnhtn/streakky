@@ -350,6 +350,19 @@
   }
 }
 
+/*
+ * A quit habit's archived days on a calendar: fine diagonal lines over the muted ground, apart
+ * from the habit colour (days that count) and the plain muted ground (slips, days not done).
+ */
+@utility bg-archived {
+  background-color: var(--color-muted);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    color-mix(in oklab, var(--color-muted-foreground) 34%, transparent) 0 0.09375rem,
+    transparent 0.09375rem 0.3125rem
+  );
+}
+
 @custom-variant hover-fine {
   @media (hover: hover) and (pointer: fine) {
     &:hover {

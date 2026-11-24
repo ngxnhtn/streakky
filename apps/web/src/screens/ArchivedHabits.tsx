@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { ArchiveRestore, ChevronLeft } from "lucide-react";
-import { longestStreakDays, plural, type Habit } from "@streakky/core";
+import { archivedSince, fmtShort, longestStreakDays, plural, type Habit } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { List } from "@streakky/ui/components/list";
@@ -55,7 +55,8 @@ export function ArchivedHabits() {
           ) : (
             <>
               <p className="mx-1 mb-4 text-sm text-muted-foreground">
-                Hidden from Home, with every check-in and slip kept. Restore one to track it again.
+                Hidden from Home, with every check-in and slip kept. A quit habit stops counting
+                until it's restored.
               </p>
               <List aria-label="Archived habits">
                 {habits.map((habit) => (
@@ -136,15 +137,20 @@ function ArchivedRow({
 
 /**
  * On an archived habit's Habit detail, in place of today's button: what archiving did, and a way
- * to undo it. Once restored, today's button takes its place, and focus with it.
+ * to undo it. Once restored, today's button takes its place, and focus with it. A quit habit says
+ * its count stopped on the day it was archived; one archived before the app kept that day says
+ * nothing of it.
  */
 export function ArchivedNote({ habit }: { habit: Habit }) {
   const store = useHabitStore();
   const note = useRef<HTMLDivElement>(null);
+  const since = archivedSince(habit);
   return (
     <div ref={note} className="flex flex-col items-center gap-3">
-      <p className="text-center text-[0.8125rem] text-muted-foreground">
-        Archived: hidden from Home, with its history kept.
+      <p className="max-w-[20rem] text-center text-[0.8125rem] text-balance text-muted-foreground">
+        {habit.kind === "quit" && since
+          ? `Archived on ${fmtShort(since)}: hidden from Home, its count held there until you restore it.`
+          : "Archived: hidden from Home, with its history kept."}
       </p>
       <Button
         variant="habit"

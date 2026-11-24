@@ -27,7 +27,7 @@ The day a person started tracking a quit habit; the first clean day is the day a
 _Avoid_: Start date
 
 **Archived habit**:
-A habit hidden from everyday views, with its history kept so it can be restored.
+A habit hidden from everyday views, with its history kept so it can be restored. A quit habit stops counting while it's archived, and carries on from where it stopped once restored.
 _Avoid_: Paused habit, hidden habit
 
 ### Days
@@ -49,16 +49,20 @@ A day with a check-in (build habit) or a slip (quit habit). Logging is recording
 _Avoid_: Entry, mark
 
 **Clean day**:
-A day after a quit habit's quit day on which no slip was recorded.
+A day after a quit habit's quit day on which no slip was recorded, and which isn't an archived day.
+
+**Archived day**:
+A day a quit habit spent archived: from the day after it was archived to the day before it was restored. It is neither a clean day nor a slip, and doesn't end a streak. A build habit has none: its days while archived are days without check-ins.
+_Avoid_: Paused day
 
 ### Streaks and goals
 
 **Streak**:
-An unbroken stretch of days: consecutive check-ins for a build habit, or consecutive clean days for a quit habit.
+An unbroken stretch of days: consecutive check-ins for a build habit, or clean days with no slip between them for a quit habit.
 _Avoid_: Run, chain
 
 **Current streak**:
-The streak still going today. A build habit's current streak survives through today before today's check-in; a quit habit's grows by one each day without a slip.
+The streak still going today. A build habit's current streak survives through today before today's check-in; a quit habit's grows by one each clean day.
 
 **Longest streak**:
 The longest streak in a habit's whole history.
