@@ -73,10 +73,28 @@ export type NewHabit = NewBuildHabit | NewQuitHabit;
 /** What the screens use: commands that change habits, and the habits as the core model sees them. */
 export type HabitStore = {
   createHabit(input: NewHabit): Promise<void>;
-  /** Adds or removes a check-in (build) or a slip (quit); today when `day` is left out. */
+  /**
+   * Adds or removes a check-in (build) or a slip (quit); today when `day` is left out. Only on an
+   * active habit: an archived habit's days stay as they are until it's restored, and a deleted
+   * habit's for good.
+   */
   toggleDay(habitId: string, day?: string): Promise<void>;
+  /** Hides a habit from the active habits, keeping its days. Does nothing to a deleted habit. */
+  archiveHabit(habitId: string): Promise<void>;
+  /**
+   * Brings an archived habit back to the active habits, in its old place, with all its days.
+   * Does nothing to a deleted habit: nothing undoes a delete.
+   */
+  restoreHabit(habitId: string): Promise<void>;
+  /**
+   * Deletes a habit for good, active or archived: it and its days leave every view. Its record
+   * stays as a tombstone, so sync can tell other devices (ADR-0002).
+   */
+  deleteHabit(habitId: string): Promise<void>;
   /** Active habits in the person's order. The same array until something changes. */
   habits: () => Habit[];
+  /** Archived habits in the person's order. The same array until something changes. */
+  archivedHabits: () => Habit[];
   /** Changes some of this device's settings; the rest stay as they are. */
   changeSettings(change: Partial<Settings>): void;
   /** This device's settings: never synced, kept on sign-out. The same object until one changes. */
@@ -183,9 +201,11 @@ export async function openHabitStore({
   let settings = readSettings(keyValueStorage);
 
   let snapshot: Habit[] | null = null;
+  let archivedSnapshot: Habit[] | null = null;
   const listeners = new Set<() => void>();
   const changed = () => {
     snapshot = null;
+    archivedSnapshot = null;
     for (const listener of listeners) listener();
   };
   const subscriptions = [
@@ -218,6 +238,32 @@ export async function openHabitStore({
   const habits = () =>
     (snapshot ??= toHabits(
       habitRecords.toArray.filter((h) => !h.deleted && !h.archived).toSorted(byOrder),
+    ));
+
+  /**
+   * Changes some of a habit's editable fields, giving each the device time of this change, for
+   * sync. A missing or deleted habit is left alone: a tombstone is never edited (ADR-0002).
+   */
+  const changeHabit = async (
+    habitId: string,
+    change: Partial<Pick<HabitRecord, EditableField>>,
+  ): Promise<void> => {
+    const habit = habitRecords.get(habitId);
+    const fields = EDITABLE_FIELDS.filter((field) => change[field] !== undefined);
+    if (!habit || habit.deleted || fields.length === 0) return;
+    const editedAt = Date.now();
+    const tx = habitRecords.update(habitId, (h) => {
+      for (const field of fields) {
+        Object.assign(h, { [field]: change[field] });
+        h.edited[field] = editedAt;
+      }
+    });
+    await tx.when("settled");
+  };
+
+  const archivedHabits = () =>
+    (archivedSnapshot ??= toHabits(
+      habitRecords.toArray.filter((h) => !h.deleted && h.archived).toSorted(byOrder),
     ));
 
   return {
@@ -257,6 +303,17 @@ export async function openHabitStore({
         : dayRecords.insert({ habitId, day, logged: true, edited: Date.now() });
       await tx.when("settled");
     },
+    archiveHabit: (habitId) => changeHabit(habitId, { archived: true }),
+    restoreHabit: (habitId) => changeHabit(habitId, { archived: false }),
+    async deleteHabit(habitId) {
+      if (habitRecords.get(habitId)?.deleted !== false) return;
+      // the record stays, so sync can carry the delete; `deleted` has no edit time, since no later
+      // edit can undo it. Its day records stay too, unseen, as the server keeps them (ADR-0002).
+      const tx = habitRecords.update(habitId, (h) => {
+        h.deleted = true;
+      });
+      await tx.when("settled");
+    },
     changeSettings(change) {
       // onto the stored settings, not this store's copy, so a change made in another tab stays
       settings = { ...readSettings(keyValueStorage, settings), ...change };
@@ -264,6 +321,7 @@ export async function openHabitStore({
       for (const listener of listeners) listener();
     },
     habits,
+    archivedHabits,
     settings: () => settings,
     exportHabits() {
       const records = habitRecords.toArray.filter((h) => !h.deleted).toSorted(byOrder);

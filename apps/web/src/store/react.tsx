@@ -32,6 +32,17 @@ export function useHabit(id: string): Habit | undefined {
   return useHabits().find((h) => h.id === id);
 }
 
+/** Archived habits in order; the screen re-renders whenever they change. */
+export function useArchivedHabits(): Habit[] {
+  const store = useHabitStore();
+  return useSyncExternalStore(store.subscribe, store.archivedHabits);
+}
+
+/** One archived habit, or undefined if there's none with that id. */
+export function useArchivedHabit(id: string): Habit | undefined {
+  return useArchivedHabits().find((h) => h.id === id);
+}
+
 /** This device's settings; the screen re-renders whenever one changes. */
 export function useSettings(): Settings {
   const store = useHabitStore();

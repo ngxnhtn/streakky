@@ -43,7 +43,8 @@ type DayInfo = {
  * A habit's days. Every check-in or clean day takes the habit colour in full; a slip is an
  * unfilled day with a dot; today, not checked in yet, is a ring. Weeks: columns are weeks, newest
  * on the right, opening on today. Month: a classic grid with streaks drawn as bands.
- * "Edit days" turns days into buttons that call onToggleDay.
+ * "Edit days" turns days into buttons that call onToggleDay. Without onToggleDay the calendar only
+ * shows the days, with no "Edit days".
  */
 export function HabitCalendar({
   habit,
@@ -58,12 +59,14 @@ export function HabitCalendar({
   weekStart: WeekStart;
   view: CalendarView;
   onViewChange: (view: CalendarView) => void;
-  onToggleDay: (iso: string) => void;
+  /** left out when the days can't be changed */
+  onToggleDay?: (iso: string) => void;
   /** weeks the Weeks view shows at least, before its history began if need be */
   minWeeks?: number;
   className?: string;
 }) {
-  const [editing, setEditing] = useState(false);
+  const [editingOn, setEditing] = useState(false);
+  const editing = editingOn && onToggleDay !== undefined;
   // not memoised on the habit: a quit habit's clean days grow at midnight while the habit stays the same
   const streakDayMap = daysByStreak(habit);
   const t = today();
@@ -100,15 +103,17 @@ export function HabitCalendar({
             { value: "month", label: "Month" },
           ]}
         />
-        <Button
-          size="sm"
-          variant={editing ? "habit" : "outline"}
-          aria-pressed={editing}
-          onClick={() => setEditing(!editing)}
-          className="hover-fine:not-active:translate-y-0"
-        >
-          {editing ? "Done" : "Edit days"}
-        </Button>
+        {onToggleDay && (
+          <Button
+            size="sm"
+            variant={editing ? "habit" : "outline"}
+            aria-pressed={editing}
+            onClick={() => setEditing(!editing)}
+            className="hover-fine:not-active:translate-y-0"
+          >
+            {editing ? "Done" : "Edit days"}
+          </Button>
+        )}
       </div>
       {editing && (
         <p className="-mt-1.5 mb-4 text-[0.8125rem] text-muted-foreground">
@@ -154,7 +159,7 @@ export function HabitCalendar({
 type CellCtx = {
   editing: boolean;
   kind: Habit["kind"];
-  onToggleDay: (iso: string) => void;
+  onToggleDay?: (iso: string) => void;
 };
 
 /** A day: plain at rest, a button while editing. */
@@ -187,7 +192,7 @@ function Day({
       type="button"
       aria-pressed={on}
       aria-label={`${fmtShort(d.date)}: ${state}`}
-      onClick={() => ctx.onToggleDay(toISO(d.date))}
+      onClick={() => ctx.onToggleDay?.(toISO(d.date))}
       className={cn(className, "cursor-pointer focus-ring-flush")}
     >
       {children}
