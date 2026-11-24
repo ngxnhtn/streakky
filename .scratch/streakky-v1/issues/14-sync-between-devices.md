@@ -46,3 +46,10 @@ Settings shows whether I'm synced and when I last synced. This ticket covers hab
 ## Comments
 
 **Note (2026-11-24): Drizzle manages D1.** Add the habit and day-record tables to `apps/api/src/db/schema.ts`, then run `vp run api#db-generate --name sync` for the migration. Query through `openDatabase(env.DB)` (`src/db/database.ts`); use `db.batch([...])` where writes must land together, since D1 has no interactive transactions. If a later change makes drizzle-kit rebuild a table, read the generated SQL before committing: it toggles `PRAGMA foreign_keys`, which D1 doesn't honour inside a migration.
+
+**Note (2026-11-24): habits gain `archivedPeriods`** (ticket 07's follow-up, "archived quit habits stop counting").
+
+- **The field:** `HabitRecord.archivedPeriods` is `{ archivedOn, restoredOn }[]` (YYYY-MM-DD, `restoredOn` null while still archived), and `EDITABLE_FIELDS` includes it. Give the habits table a column for it (JSON text) and an edit time beside the others.
+- **Merging:** archive and restore always write it with `archived` at one edit time, so "later edit wins, field by field" takes both from the same device. Keep the tie-break identical for every field of one push, so they never split. ADR-0002 has the rule, and adds that slips on a quit habit's archived days are ignored when counting.
+- **Older records:** habits stored on a device before this change have neither `archivedPeriods` nor `edited.archivedPeriods`. Push them as `[]` with `edited.archivedPeriods = edited.archived`.
+- **Harness scenario worth adding:** one device archives and restores while another archives offline; after both sync, both devices show the same count.
