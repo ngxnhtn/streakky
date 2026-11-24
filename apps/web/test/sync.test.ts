@@ -263,6 +263,47 @@ describe("syncing between two signed-in devices", () => {
     ]);
   });
 
+  it("keeps the other device's rename and moves when one device moves a habit later", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        for (const name of ["Read", "Stretch", "Walk", "Meditate"]) {
+          await phone.createHabit({ kind: "build", name, color: "blue" });
+        }
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const [read, , walk, meditate] = phone.habits();
+    await laptop.editHabit(meditate.id, { name: "Meditate daily" });
+    await laptop.moveHabit(read.id, walk.id);
+    // later, on the phone, which hasn't seen those
+    clock.tick();
+    await phone.moveHabit(meditate.id, null);
+    await together(phone, laptop);
+    const expected = ["Meditate daily", "Stretch", "Walk", "Read"];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
+  it("changes nothing when a habit is dropped where it already was", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        for (const name of ["Read", "Stretch", "Walk"]) {
+          await phone.createHabit({ kind: "build", name, color: "blue" });
+        }
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const [read, stretch, walk] = phone.habits();
+    await laptop.moveHabit(stretch.id, walk.id);
+    // later, on the phone, which hasn't seen that move
+    clock.tick();
+    await phone.moveHabit(stretch.id, read.id);
+    await together(phone, laptop);
+    const expected = ["Read", "Walk", "Stretch"];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
   it("moves a habit between two that the devices added offline after the same one", async () => {
     const [phone, laptop] = await apartAfter((phone) =>
       phone.createHabit({ kind: "build", name: "Read", color: "blue" }),
@@ -315,6 +356,32 @@ describe("syncing between two signed-in devices", () => {
       device.archivedHabits().map((h) => ({ name: h.name, streak: streaksOf(h).at(-1)?.days }));
     expect([names(phone), archived(phone)]).toEqual([[], [{ name: "No sugar", streak: 10 }]]);
     expect([names(laptop), archived(laptop)]).toEqual([names(phone), archived(phone)]);
+  });
+
+  it("lets archiving an archived habit, or restoring an active one, undo nothing elsewhere", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+        await phone.createHabit({ kind: "build", name: "Stretch", color: "green" });
+        await phone.archiveHabit(phone.habits()[1].id);
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const read = phone.habits()[0];
+    const stretch = phone.archivedHabits()[0];
+    await laptop.archiveHabit(read.id);
+    await laptop.restoreHabit(stretch.id);
+    // later, on the phone, which hasn't seen those: each is already as asked there
+    clock.tick();
+    await phone.restoreHabit(read.id);
+    await phone.archiveHabit(stretch.id);
+    await together(phone, laptop);
+    const sides = (device: Device) => [names(device), device.archivedHabits().map((h) => h.name)];
+    expect([sides(phone), sides(laptop)]).toEqual([
+      [["Stretch"], ["Read"]],
+      [["Stretch"], ["Read"]],
+    ]);
   });
 
   it("doesn't let a push sent again undo a later edit from the other device", async () => {
