@@ -5,6 +5,7 @@ import { Button } from "@streakky/ui/components/button";
 import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
+import { Switch } from "@streakky/ui/components/switch";
 import { saveFile } from "../save-file.ts";
 import { useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
@@ -74,6 +75,14 @@ export function Settings() {
                     { value: "1", label: "Monday" },
                     { value: "0", label: "Sunday" },
                   ]}
+                />
+              </ListItem>
+              <ListItem>
+                <ListLabel>Goal celebrations</ListLabel>
+                <Switch
+                  aria-label="Goal celebrations"
+                  checked={settings.celebrate}
+                  onCheckedChange={(celebrate) => store.changeSettings({ celebrate })}
                 />
               </ListItem>
             </List>

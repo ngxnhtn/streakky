@@ -20,6 +20,7 @@ import {
   NewHabitTile,
 } from "@streakky/ui/components/habit/habit-card";
 import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
+import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
 import { SignedOutNote } from "./SignedOutNote.tsx";
@@ -37,6 +38,7 @@ export function Home() {
   const { push } = useNav();
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
+  const celebration = useCelebration(habits, day);
   const open = (habit: Habit) => push({ name: "detail", id: habit.id });
   return (
     <>
@@ -104,6 +106,7 @@ export function Home() {
       </ScreenScroll>
       <NewHabitDialog open={adding} onClose={() => setAdding(false)} />
       {slipDialog}
+      {celebration}
     </>
   );
 }

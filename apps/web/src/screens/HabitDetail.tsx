@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, Menu } from "lucide-react";
 import {
   canToggle,
   counterLabel,
@@ -10,22 +10,26 @@ import {
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { HabitCalendar, type CalendarView } from "@streakky/ui/components/habit/calendar";
+import { HabitGoal } from "@streakky/ui/components/habit/goal";
 import { StreakRing } from "@streakky/ui/components/habit/ring";
 import { HabitStats } from "@streakky/ui/components/habit/stats";
 import { TodayButton } from "@streakky/ui/components/habit/today-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@streakky/ui/components/tabs";
 import { useHabit, useHabitStore, useSettings } from "../store/react.tsx";
+import { useCelebration } from "./Celebration.tsx";
+import { HabitOptions } from "./HabitOptions.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { ScreenScroll, useInFront, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
-const TABS = ["calendar", "stats"] as const;
+const TABS = ["calendar", "stats", "goal"] as const;
 type Tab = (typeof TABS)[number];
-const TAB_LABEL: Record<Tab, string> = { calendar: "Calendar", stats: "Stats" };
+const TAB_LABEL: Record<Tab, string> = { calendar: "Calendar", stats: "Stats", goal: "Goal" };
 
 /**
  * One habit: its current streak and since when, today's check-in or slip, then its calendar
- * (where past days can be edited) and its stats with every streak.
+ * (where past days can be edited), its stats with every streak, and its goal. The app bar's
+ * right-hand button opens its options, such as Edit habit.
  */
 export function HabitDetail({ id }: { id: string }) {
   const store = useHabitStore();
@@ -35,7 +39,13 @@ export function HabitDetail({ id }: { id: string }) {
   const { pop } = useNav();
   const [tab, setTab] = useState<Tab>("calendar");
   const [view, setView] = useState<CalendarView>("weeks");
+  const [options, setOptions] = useState(false);
+  // the browser's back or forward button can leave the screen while the options are open
+  const inFront = useInFront();
+  if (!inFront && options) setOptions(false);
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
+  const shown = useMemo(() => (habit ? [habit] : []), [habit]);
+  const celebration = useCelebration(shown, day);
   const back = (
     <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
       <ChevronLeft strokeWidth={1.75} />
@@ -54,7 +64,21 @@ export function HabitDetail({ id }: { id: string }) {
 
   return (
     <div data-habit-color={habit.color} className="contents">
-      <AppBar left={back} title={habit.name} />
+      <AppBar
+        left={back}
+        title={habit.name}
+        right={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Habit options"
+            aria-haspopup="dialog"
+            onClick={() => setOptions(true)}
+          >
+            <Menu strokeWidth={1.75} />
+          </Button>
+        }
+      />
       <ScreenScroll>
         <StreakRing
           days={days}
@@ -93,9 +117,17 @@ export function HabitDetail({ id }: { id: string }) {
           <TabsContent value="stats" className="min-h-[23.75rem] px-5 pt-6">
             <HabitStats habit={habit} />
           </TabsContent>
+          <TabsContent value="goal" className="min-h-[23.75rem] px-5 pt-6">
+            <HabitGoal
+              habit={habit}
+              onGoalChange={(goal) => void store.editHabit(habit.id, { goal })}
+            />
+          </TabsContent>
         </Tabs>
       </ScreenScroll>
+      <HabitOptions habit={habit} open={options} onClose={() => setOptions(false)} />
       {slipDialog}
+      {celebration}
     </div>
   );
 }
