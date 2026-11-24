@@ -1,29 +1,81 @@
 import { lt, sql } from "drizzle-orm";
+import { Hono, type MiddlewareHandler } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { AUTH_PATH, createAuth } from "./auth.ts";
 import { authDatabase, openDatabase, type Database } from "./db/database.ts";
 import { signInAttempts } from "./db/schema.ts";
 import { sendSignInCode } from "./email.ts";
+import { pull, push, readPush } from "./sync.ts";
+
+/** The Worker's bindings, and what a signed-in request carries past the session check. */
+type Worker = { Bindings: Env; Variables: { userId: string } };
+
+/** A push's largest body: a full push of the longest habits is far smaller. */
+const MAX_PUSH_BYTES = 512 * 1024;
+
+/**
+ * Sync's push and pull (src/sync.ts), for a signed-in device only: its session cookie, or the
+ * bearer token the Android app sends.
+ */
+const sync = new Hono<Worker>()
+  .use(async (c, next) => {
+    const session = await authFor(c.req.raw, c.env).api.getSession({ headers: c.req.raw.headers });
+    if (!session) return c.json({ error: "Not signed in" }, 401);
+    c.set("userId", session.user.id);
+    await next();
+  })
+  .get("/pull", async (c) => {
+    const since = Number(c.req.query("since") ?? "0");
+    if (!Number.isSafeInteger(since) || since < 0) return c.json({ error: "Bad since" }, 400);
+    return c.json(await pull(openDatabase(c.env.DB), c.var.userId, since));
+  })
+  .post(
+    "/push",
+    sameOrigin(),
+    bodyLimit({ maxSize: MAX_PUSH_BYTES, onError: (c) => c.json({ error: "Too large" }, 413) }),
+    async (c) => {
+      const body: unknown = await c.req.json().catch(() => undefined);
+      const pushed = readPush(body);
+      if (pushed === "too-large") return c.json({ error: "Too large" }, 413);
+      if (pushed === "invalid") return c.json({ error: "Bad push" }, 400);
+      await push(openDatabase(c.env.DB), c.var.userId, pushed);
+      // rows the server couldn't read stay waiting on the device; the rest are stored
+      return c.json({ refused: pushed.refused });
+    },
+  );
 
 /**
  * The Worker at hb.nhutien.com. The assets layer serves every file of the web app's build without
  * running it (see `assets` in wrangler.jsonc). It answers /api, and any path with no file.
  */
-export default {
-  async fetch(request, env): Promise<Response> {
-    const { pathname } = new URL(request.url);
-    if (pathname === "/api/health") return health(env);
-    if (pathname.startsWith(`${AUTH_PATH}/`)) return authFor(request, env).handler(request);
-    if (pathname === "/api" || pathname.startsWith("/api/")) {
-      return Response.json({ error: "Not found" }, { status: 404 });
-    }
-    return appFallback(request, env);
-  },
-} satisfies ExportedHandler<Env>;
+const app = new Hono<Worker>()
+  .get("/api/health", async (c) => {
+    // healthy once the Worker has reached its D1 database
+    await openDatabase(c.env.DB).run(sql`select 1`);
+    return c.json({ ok: true });
+  })
+  .on(["GET", "POST"], `${AUTH_PATH}/*`, (c) => authFor(c.req.raw, c.env).handler(c.req.raw))
+  .route("/api/sync", sync)
+  .all("/api", (c) => c.json({ error: "Not found" }, 404))
+  .all("/api/*", (c) => c.json({ error: "Not found" }, 404))
+  .all("*", (c) => appFallback(c.req.raw, c.env));
 
-/** Healthy once the Worker has reached its D1 database. */
-async function health(env: Env): Promise<Response> {
-  await openDatabase(env.DB).run(sql`select 1`);
-  return Response.json({ ok: true });
+export default app;
+
+/**
+ * Refuses a write that rides on the session cookie from a page on another origin, as better-auth
+ * does for its own writes. A bearer token is never sent by the browser on its own, so a request
+ * carrying one, such as the Android app's, needs no such check.
+ */
+function sameOrigin(): MiddlewareHandler<Worker> {
+  return async (c, next) => {
+    const origin = c.req.header("Origin");
+    const bearer = c.req.header("Authorization")?.startsWith("Bearer ");
+    if (!bearer && origin !== undefined && origin !== new URL(c.req.url).origin) {
+      return c.json({ error: "Wrong origin" }, 403);
+    }
+    await next();
+  };
 }
 
 let auth: { origin: string; instance: ReturnType<typeof createAuth> } | undefined;

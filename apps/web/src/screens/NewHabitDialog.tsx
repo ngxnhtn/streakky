@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import {
+  HABIT_NAME_MAX_LENGTH,
   GOALS,
   HABIT_COLORS,
   canBeQuitDay,
@@ -83,6 +84,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
           <Input
             id={id}
             value={name}
+            maxLength={HABIT_NAME_MAX_LENGTH}
             placeholder={kind === "build" ? "Morning run" : "No smoking"}
             autoComplete="off"
             aria-invalid={invalid || undefined}

@@ -8,8 +8,17 @@ import type { HabitStore, KeyValueStorage } from "./habit-store.ts";
 /** Calls the API Worker: `fetch` on the app's own origin in the browser. */
 export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
 
-/** Whether this device is signed in, and as whom. Sync (ticket 14) adds its own state here. */
-export type SyncStatus = { signedIn: false } | { signedIn: true; email: string };
+/** Whether this device is signed in, and as whom. */
+export type AccountStatus = { signedIn: false } | { signedIn: true; email: string };
+
+/**
+ * Whether this device is signed in, as whom, and how its sync stands: how many changes wait for a
+ * push, when it last synced with the server (device time; null before the first sync), and
+ * whether its last try didn't go through.
+ */
+export type SyncStatus =
+  | { signedIn: false }
+  | { signedIn: true; email: string; pending: number; lastSynced: number | null; failing: boolean };
 
 /** The codes the server emails: how many digits, and how many minutes each works (auth.ts). */
 export const SIGN_IN_CODE = { length: 6, minutes: 5 } as const;
@@ -57,11 +66,11 @@ const FAILURES: Record<string, SignInFailure> = {
   TOO_MANY_ATTEMPTS: "used-up-code",
 };
 
-/** The habit store's sign-in commands and status, which the store hands on as they are. */
+/** The habit store's sign-in commands, which the store hands on, and whether it's signed in. */
 export type Account = Pick<
   HabitStore,
-  "requestSignInCode" | "signIn" | "signOut" | "checkSession" | "syncStatus"
->;
+  "requestSignInCode" | "signIn" | "signOut" | "checkSession"
+> & { status: () => AccountStatus };
 
 export function openAccount({
   api,
@@ -111,7 +120,7 @@ export function openAccount({
   };
 
   return {
-    syncStatus: () => status,
+    status: () => status,
     async requestSignInCode(email) {
       const response = await post("/email-otp/send-verification-otp", {
         email: email.trim(),
@@ -152,7 +161,7 @@ async function failure(response: Response): Promise<SignInError> {
   return new SignInError(FAILURES[body?.code ?? ""] ?? "server");
 }
 
-const statusOf = (stored: Stored): SyncStatus =>
+const statusOf = (stored: Stored): AccountStatus =>
   stored && "email" in stored ? { signedIn: true, email: stored.email } : { signedIn: false };
 
 function readStored(storage: KeyValueStorage): Stored {

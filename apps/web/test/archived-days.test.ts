@@ -51,6 +51,8 @@ describe("an archived quit habit", () => {
     const device = await openDevice(storage);
     await device.createHabit(quit("No smoking", "2026-11-14"));
     const { id } = device.habits()[0];
+    // a minute after making it
+    vi.setSystemTime(new Date(2026, 10, 24, 9, 1));
     await device.archiveHabit(id);
     await device.close();
     const archived = (await storedHabits(storage))[0];
@@ -67,8 +69,8 @@ describe("an archived quit habit", () => {
         archived: true,
         archivedPeriods: [{ archivedOn: "2026-11-24", restoredOn: null }],
         edited: {
-          archived: new Date(2026, 10, 24, 9).getTime(),
-          archivedPeriods: new Date(2026, 10, 24, 9).getTime(),
+          archived: new Date(2026, 10, 24, 9, 1).getTime(),
+          archivedPeriods: new Date(2026, 10, 24, 9, 1).getTime(),
         },
       },
       {

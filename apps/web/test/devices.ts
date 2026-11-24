@@ -8,6 +8,7 @@ import {
   type DayRecord,
   type HabitRecord,
   type HabitStore,
+  type HabitStoreOptions,
   type KeyValueStorage,
 } from "../src/store/habit-store.ts";
 
@@ -34,15 +35,40 @@ export type Connection = (storage: DeviceStorage) => ApiFetch;
 /** No server answers: the device is offline, or the Worker is down. */
 export const unreachable: Connection = () => () => Promise.reject(new TypeError("fetch failed"));
 
+/** A connection that drops and comes back, as a phone's does. */
+export function switchable(connection: Connection) {
+  let up = true;
+  const switched: Connection = (storage) => {
+    const reach = connection(storage);
+    const none = unreachable(storage);
+    return (path, init) => (up ? reach(path, init) : none(path, init));
+  };
+  return {
+    connection: switched,
+    goOffline: () => void (up = false),
+    goOnline: () => void (up = true),
+  };
+}
+
+/**
+ * How a simulated device behaves beyond its storage and network: its clock, and when it syncs by
+ * itself. By default it syncs only when it opens, after signing in, and when a test says so.
+ */
+export type DeviceOptions = Pick<HabitStoreOptions, "now" | "timing" | "syncTriggers">;
+
 /** Opens the real habit store on a simulated device's storage, as the app does on launch. */
 export const openDevice = (
   storage: DeviceStorage,
   connection: Connection = unreachable,
+  { now, timing, syncTriggers }: DeviceOptions = {},
 ): Promise<HabitStore> =>
   openHabitStore({
     persistence: createNodeSQLitePersistence({ database: storage.database }),
     keyValueStorage: storage.keyValues,
     api: connection(storage),
+    now,
+    timing: { syncDelay: Infinity, syncInterval: Infinity, ...timing },
+    syncTriggers,
   });
 
 /** A device's stored habit records, as the store keeps them (the same id and schema version). */

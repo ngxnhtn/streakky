@@ -72,8 +72,10 @@ describe("reordering habits on a device", () => {
     expect(after.filter((h) => h !== movedAfter)).toEqual(
       expect.arrayContaining(before.filter((h) => h !== moved)),
     );
-    expect(movedAfter).toEqual({
-      ...moved,
+    // what the person's records hold, leaving out sync's own bookkeeping on the device
+    const fields = ({ changeIds: _changeIds, pending: _pending, ...record }: HabitRecord) => record;
+    expect(fields(movedAfter)).toEqual({
+      ...fields(moved),
       order: expect.not.stringMatching(`^${moved.order}$`),
       edited: { ...moved.edited, order: new Date(2026, 10, 24, 18).getTime() },
     });

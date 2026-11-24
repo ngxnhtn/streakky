@@ -63,6 +63,9 @@ export type Streak = { start: string; end: string; days: number; current: boolea
 
 export const GOALS = [7, 14, 21, 30, 60, 90, 180, 365];
 
+/** The longest name a habit can have; the server takes longer ones, so every name syncs. */
+export const HABIT_NAME_MAX_LENGTH = 100;
+
 /**
  * Habit colours, in an order that keeps neighbours apart for colour-blind readers.
  * Their light and dark values live in @streakky/ui (globals.css, `data-habit-color`).

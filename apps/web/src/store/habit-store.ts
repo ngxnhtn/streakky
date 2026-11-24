@@ -25,6 +25,7 @@ import {
 } from "@streakky/core";
 import { toExportFile, type ExportFile } from "./export.ts";
 import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
+import { DEFAULT_TIMING, openSync, type SyncTiming } from "./sync.ts";
 
 export {
   SIGN_IN_CODE,
@@ -77,6 +78,13 @@ export type HabitRecord = {
    * came have no time for it: read it as `archived`'s, since the two change together.
    */
   edited: Record<Exclude<EditableField, "archivedPeriods">, number> & { archivedPeriods?: number };
+  /**
+   * The id of each editable field's last change, which breaks a tie in edit time when devices
+   * merge. Records stored before sync have none, and count as the lowest.
+   */
+  changeIds?: Partial<Record<EditableField, string>>;
+  /** Device-local: whether a change waits for a push. Records stored before sync do. */
+  pending?: boolean;
 };
 
 /**
@@ -98,9 +106,14 @@ export type DayRecord = {
   logged: boolean;
   /** device time of the last change */
   edited: number;
+  /** the id of the last change, which breaks a tie in edit time; none before sync */
+  changeId?: string;
+  /** Device-local: whether a change waits for a push. Records stored before sync do. */
+  pending?: boolean;
 };
 
-const dayKey = (habitId: string, day: string) => `${habitId}/${day}`;
+/** A day record's key: its habit and its day. */
+export const dayKey = ({ habitId, day }: { habitId: string; day: string }) => `${habitId}/${day}`;
 
 /** `goal` is one of core's `GOALS`, or none when null or left out. */
 type NewHabitBase = { name: string; color: ColorId; goal?: number | null };
@@ -188,8 +201,17 @@ export type HabitStore = {
   signOut(): Promise<void>;
   /** Asks the server whether this device is still signed in. The store does this when it opens. */
   checkSession(): Promise<void>;
-  /** Whether this device is signed in. The same object until it changes. */
+  /**
+   * Whether this device is signed in, and how its sync stands: changes waiting for a push and the
+   * last sync. The same object until it changes.
+   */
   syncStatus: () => SyncStatus;
+  /**
+   * Pushes this device's pending changes and pulls the account's changes from other devices, now
+   * or once the sync already running ends. Does nothing while signed out. The store also syncs by
+   * itself: when it opens, after signing in, a moment after each change, and every few minutes.
+   */
+  sync(): Promise<void>;
   subscribe: (listener: () => void) => () => void;
   /** Stops the store; its data stays on the device for the next open. */
   close(): Promise<void>;
@@ -204,8 +226,17 @@ export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
 export type HabitStoreOptions = {
   persistence: PersistedCollectionPersistence;
   keyValueStorage: KeyValueStorage;
-  /** How the store reaches the API Worker, for signing in. */
+  /** How the store reaches the API Worker, for signing in and sync. */
   api: ApiFetch;
+  /** The device's clock, for edit times. */
+  now?: () => number;
+  /** When sync runs by itself; the defaults suit the app. */
+  timing?: Partial<SyncTiming>;
+  /**
+   * The platform's moments to sync, such as the device coming back online or the app back to the
+   * foreground: it calls `sync` then, and returns a function that stops.
+   */
+  syncTriggers?: (sync: () => void) => () => void;
 };
 
 const SETTINGS_KEY = "streakky.settings";
@@ -292,6 +323,9 @@ export async function openHabitStore({
   persistence,
   keyValueStorage,
   api,
+  now = Date.now,
+  timing,
+  syncTriggers,
 }: HabitStoreOptions): Promise<HabitStore> {
   const habitRecords = createCollection(
     persistedCollectionOptions<HabitRecord, string>({
@@ -304,7 +338,7 @@ export async function openHabitStore({
   const dayRecords = createCollection(
     persistedCollectionOptions<DayRecord, string>({
       id: "days",
-      getKey: (d) => dayKey(d.habitId, d.day),
+      getKey: dayKey,
       persistence,
       schemaVersion: 1,
     }),
@@ -314,24 +348,59 @@ export async function openHabitStore({
 
   let snapshot: Habit[] | null = null;
   let archivedSnapshot: Habit[] | null = null;
+  let statusSnapshot: SyncStatus | null = null;
   const listeners = new Set<() => void>();
+  const notify = () => {
+    statusSnapshot = null;
+    for (const listener of listeners) listener();
+  };
   const changed = () => {
     snapshot = null;
     archivedSnapshot = null;
-    for (const listener of listeners) listener();
+    notify();
   };
   const subscriptions = [
     habitRecords.subscribeChanges(changed),
     dayRecords.subscribeChanges(changed),
   ];
-  const account = openAccount({
+  const account = openAccount({ api, storage: keyValueStorage, changed: notify });
+  const signedInAs = () => {
+    const status = account.status();
+    return status.signedIn ? status.email : null;
+  };
+  const sync = openSync({
     api,
+    habitRecords,
+    dayRecords,
     storage: keyValueStorage,
-    changed: () => {
-      for (const listener of listeners) listener();
-    },
+    signedInAs,
+    now,
+    timing: { ...DEFAULT_TIMING, ...timing },
+    triggers: syncTriggers,
+    changed: notify,
+    sessionEnded: () => void account.checkSession(),
   });
   void account.checkSession();
+  void sync.sync();
+
+  const syncStatus = (): SyncStatus =>
+    (statusSnapshot ??= (() => {
+      const status = account.status();
+      return status.signedIn ? { ...status, ...sync.progress(status.email) } : status;
+    })());
+
+  /** A change of this device's, once stored: it waits for a push, which follows in a moment. */
+  const saved = async (tx: { when(state: "settled"): Promise<unknown> }) => {
+    await tx.when("settled");
+    sync.changedHere();
+  };
+
+  /**
+   * An edit time for a change to something last edited at `previous`: the device's time, or just
+   * after `previous` if the clock reads earlier, so a later edit on this device always wins.
+   */
+  const editTime = (...previous: (number | undefined)[]) =>
+    Math.max(now(), ...previous.map((p) => (p ?? 0) + 1));
 
   const toHabits = (records: HabitRecord[]): Habit[] => {
     const logged = new Map<string, string[]>();
@@ -369,14 +438,19 @@ export async function openHabitStore({
     const habit = habitRecords.get(habitId);
     const fields = EDITABLE_FIELDS.filter((field) => change[field] !== undefined);
     if (!habit || habit.deleted || fields.length === 0) return;
-    const editedAt = Date.now();
+    // one time and one change id for every field changed together
+    const editedAt = editTime(...fields.map((field) => habit.edited[field]));
+    const changeId = crypto.randomUUID();
     const tx = habitRecords.update(habitId, (h) => {
+      h.changeIds ??= {};
       for (const field of fields) {
         Object.assign(h, { [field]: change[field] });
         h.edited[field] = editedAt;
+        h.changeIds[field] = changeId;
       }
+      h.pending = true;
     });
-    await tx.when("settled");
+    await saved(tx);
   };
 
   const archivedHabits = () =>
@@ -418,7 +492,8 @@ export async function openHabitStore({
         const habit: Habit = { ...input, id, goal, slips: [], archivedPeriods: [] };
         if (goalReached(habit)) markCelebrated(habit);
       }
-      const editedAt = Date.now();
+      const editedAt = now();
+      const changeId = crypto.randomUUID();
       // after every habit, archived and deleted ones too, so no two habits share a position
       const last = habitRecords.toArray.toSorted(byOrder).at(-1);
       const tx = habitRecords.insert({
@@ -435,8 +510,10 @@ export async function openHabitStore({
         edited: Object.fromEntries(
           EDITABLE_FIELDS.map((field) => [field, editedAt]),
         ) as HabitRecord["edited"],
+        changeIds: Object.fromEntries(EDITABLE_FIELDS.map((field) => [field, changeId])),
+        pending: true,
       });
-      await tx.when("settled");
+      await saved(tx);
     },
     async editHabit(habitId, { name, color, goal }) {
       const record = habitRecords.get(habitId);
@@ -478,29 +555,40 @@ export async function openHabitStore({
       // the quit day first: the slips on or before it stop counting at once
       await changeHabit(habitId, { quitDay });
       if (removed.length === 0) return;
-      const editedAt = Date.now();
-      const tx = dayRecords.update(
-        removed.map((day) => dayKey(habitId, day)),
-        (days) => {
-          for (const d of days) {
-            d.logged = false;
-            d.edited = editedAt;
-          }
-        },
-      );
-      await tx.when("settled");
+      const keys = removed.map((day) => dayKey({ habitId, day }));
+      const editedAt = editTime(...keys.map((key) => dayRecords.get(key)?.edited));
+      const changeId = crypto.randomUUID();
+      const tx = dayRecords.update(keys, (days) => {
+        for (const d of days) {
+          d.logged = false;
+          d.edited = editedAt;
+          d.changeId = changeId;
+          d.pending = true;
+        }
+      });
+      await saved(tx);
     },
     async toggleDay(habitId, day = todayISO()) {
       const habit = habits().find((h) => h.id === habitId);
       if (!habit || !canToggle(habit, day)) return;
-      const key = dayKey(habitId, day);
+      const key = dayKey({ habitId, day });
+      const changeId = crypto.randomUUID();
       const tx = dayRecords.has(key)
         ? dayRecords.update(key, (d) => {
             d.logged = !d.logged;
-            d.edited = Date.now();
+            d.edited = editTime(d.edited);
+            d.changeId = changeId;
+            d.pending = true;
           })
-        : dayRecords.insert({ habitId, day, logged: true, edited: Date.now() });
-      await tx.when("settled");
+        : dayRecords.insert({
+            habitId,
+            day,
+            logged: true,
+            edited: editTime(),
+            changeId,
+            pending: true,
+          });
+      await saved(tx);
     },
     async moveHabit(habitId, after) {
       const shown = habits();
@@ -549,8 +637,9 @@ export async function openHabitStore({
       // edit can undo it. Its day records stay too, unseen, as the server keeps them (ADR-0002).
       const tx = habitRecords.update(habitId, (h) => {
         h.deleted = true;
+        h.pending = true;
       });
-      await tx.when("settled");
+      await saved(tx);
     },
     changeSettings,
     habits,
@@ -564,12 +653,21 @@ export async function openHabitStore({
       const archived = new Set(records.filter((h) => h.archived).map((h) => h.id));
       return toExportFile(toHabits(records).map((h) => ({ ...h, archived: archived.has(h.id) })));
     },
-    ...account,
+    requestSignInCode: account.requestSignInCode,
+    async signIn(email, code) {
+      await account.signIn(email, code);
+      void sync.sync();
+    },
+    signOut: account.signOut,
+    checkSession: account.checkSession,
+    syncStatus,
+    sync: () => sync.sync(),
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
     },
     async close() {
+      await sync.close();
       for (const subscription of subscriptions) subscription.unsubscribe();
       listeners.clear();
       await Promise.all([habitRecords.cleanup(), dayRecords.cleanup()]);

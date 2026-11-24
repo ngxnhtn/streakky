@@ -171,7 +171,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
   - It owns the real screens: Home, Habit detail, New habit, Edit habit, Archived habits, Settings and Sign-in. Their designs come from the playground's phone and desktop layouts, built with the UI package.
   - It owns the **habit store**, the interface the screens call (see below).
   - It also owns the PWA manifest and the service worker that caches the app shell, and the Capacitor project.
-- **API Worker:** a new Cloudflare Worker app. It serves the web app's static build, with a fallback to the single-page app for unknown paths, plus `/api/auth/*` (better-auth) and `/api/sync/*` (push and pull). It's bound to one D1 database and attached to the custom domain `hb.nhutien.com`, whose zone is already on Cloudflare.
+- **API Worker:** a new Cloudflare Worker app, routed with Hono. It serves the web app's static build, with a fallback to the single-page app for unknown paths, plus `/api/auth/*` (better-auth) and `/api/sync/*` (push and pull). It's bound to one D1 database and attached to the custom domain `hb.nhutien.com`, whose zone is already on Cloudflare.
 - **Android widget (native):** Kotlin code in the Capacitor Android project, plus a small custom Capacitor plugin that the web app calls to write widget summaries and refresh widgets.
 
 ### Habit store (the interface the screens use)
@@ -200,6 +200,7 @@ type Habit = {
   order: string; // fractional position, so a reorder changes only one habit
   deleted: boolean; // tombstone: once true, never false again
   edited: Record<EditableField, number>; // device edit time of each field's last change
+  changeIds: Record<EditableField, string>; // id of each field's last change, for ties in edit time
 };
 
 type DayRecord = {
@@ -207,10 +208,13 @@ type DayRecord = {
   day: string; // YYYY-MM-DD; with habitId, the record's identity
   logged: boolean; // true = check-in (build) or slip (quit); false = removed
   edited: number; // device edit time
+  changeId: string; // id of the last change, for ties in edit time
 };
 ```
 
 - Removing a check-in or slip writes `logged: false` rather than deleting the record, so "the later edit wins" works per habit and day.
+- **Edit times and change ids:** each change takes the device's time, or one millisecond after the time it replaces if the clock reads earlier, so a later edit on one device always beats its own earlier one. Every change gets a fresh change id; fields changed together share one time and one id. Records kept from before sync have no change ids and send `""`, the lowest.
+- **Pending:** the device marks each record it changes as waiting for a push, a device-local flag that never syncs. Records kept from before sync count as waiting, so signing in pushes them.
 - **Archived periods:**
   - Archiving opens a period on the device's today, and restoring closes the open one on its today. Both write `archived` and `archivedPeriods` together, with one edit time, so a merge always takes the two from the same device's edit (ADR-0002).
   - A quit habit's archived days are the days strictly between `archivedOn` and `restoredOn` (through today while still archived), after its quit day. They're neither clean days nor slips, and slips on them are ignored when counting. Build habits keep periods too, but count nothing from them.

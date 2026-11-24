@@ -75,3 +75,9 @@ _Avoid_: Target, milestone
 **Celebration**:
 What a device plays once when a habit's current streak reaches its goal, through a check-in, a slip-free day or the days passing. Setting a goal or moving a quit day never plays one. It can be turned off in Settings.
 _Avoid_: Milestone, reward
+
+### Devices and sync
+
+**Sync**:
+How a signed-in person's habits, check-ins and slips reach their other devices, through the server. A change waits on the device until sync carries it; Settings counts the changes waiting and says when the device last synced.
+_Avoid_: Backup, upload

@@ -16,6 +16,8 @@ The server applies these when two devices have changed the same thing offline:
 
 "Later" means the edit time on the device that made the edit, so a device with a wrong clock can win a conflict it shouldn't. We accept that for one person's own devices.
 
+Two edits with the same time go to the one with the higher change id: every change gets a random id of its own, shared by the fields it changes together, so devices that edited the same thing in the same millisecond still agree on one winner. A device never gives a change an earlier time than the edit it replaces: if its clock reads earlier, the change takes that edit's time plus a millisecond, so a device's own later edit always beats its earlier one.
+
 ## Consequences
 
 We own delta pull, idempotent pushes and tombstones for deletes. TanStack DB 1.0 was still a release candidate when we chose it.

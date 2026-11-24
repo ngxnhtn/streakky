@@ -18,7 +18,27 @@ export async function openBrowserHabitStore(): Promise<HabitStore> {
     keyValueStorage: window.localStorage,
     // the API is on the app's own origin, so the browser keeps the session cookie first-party
     api: (path, init) => fetch(path, init),
+    syncTriggers: whenBack,
   });
+}
+
+/**
+ * Syncs when the device is back online, and when the app is back in front: its tab shown again
+ * or its window focused. The store runs one sync at a time, so moments that come together cost
+ * one more at most.
+ */
+function whenBack(sync: () => void): () => void {
+  const whenShown = () => {
+    if (document.visibilityState === "visible") sync();
+  };
+  window.addEventListener("online", sync);
+  window.addEventListener("focus", sync);
+  document.addEventListener("visibilitychange", whenShown);
+  return () => {
+    window.removeEventListener("online", sync);
+    window.removeEventListener("focus", sync);
+    document.removeEventListener("visibilitychange", whenShown);
+  };
 }
 
 /**

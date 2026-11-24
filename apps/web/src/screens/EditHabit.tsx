@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
+  HABIT_NAME_MAX_LENGTH,
   canBeQuitDay,
   fmtShort,
   plural,
@@ -78,6 +79,7 @@ export function EditHabitForm({ habit, onDone }: { habit: Habit; onDone: () => v
             <Input
               id={id}
               value={name}
+              maxLength={HABIT_NAME_MAX_LENGTH}
               autoComplete="off"
               aria-invalid={invalid || undefined}
               aria-describedby={describedBy}

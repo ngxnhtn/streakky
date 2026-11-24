@@ -14,6 +14,9 @@ beforeAll(async () => {
 });
 afterAll(() => server?.stop());
 
+/** A signed-in device's status: the address, with sync's progress beside it. */
+const signedInAs = (email: string) => expect.objectContaining({ signedIn: true, email });
+
 /** A device with its own storage and network address, reaching the server. */
 const newDevice = () => {
   const storage = createStorage();
@@ -25,7 +28,7 @@ describe("signing in with an email code", () => {
     const device = await newDevice();
     await device.requestSignInCode(owner);
     await device.signIn(owner, codeSentTo(server, owner));
-    expect(device.syncStatus()).toEqual({ signedIn: true, email: owner });
+    expect(device.syncStatus()).toEqual(signedInAs(owner));
   });
 
   it("sends the code from Streakky's own address", async () => {
@@ -59,7 +62,7 @@ describe("signing in with an email code", () => {
     const device = await newDevice();
     await device.requestSignInCode("Owner@Example.com");
     await device.signIn("Owner@Example.com", codeSentTo(server, owner));
-    expect(device.syncStatus()).toEqual({ signedIn: true, email: owner });
+    expect(device.syncStatus()).toEqual(signedInAs(owner));
   });
 
   it("rejects a wrong code, and still takes the right one after it", async () => {
@@ -70,10 +73,7 @@ describe("signing in with an email code", () => {
     await expect(wrong).rejects.toMatchObject({ reason: "wrong-code" });
     const afterWrong = device.syncStatus();
     await device.signIn(owner, code);
-    expect([afterWrong, device.syncStatus()]).toEqual([
-      { signedIn: false },
-      { signedIn: true, email: owner },
-    ]);
+    expect([afterWrong, device.syncStatus()]).toEqual([{ signedIn: false }, signedInAs(owner)]);
   });
 
   it("stops taking a code after three wrong tries, from any device", async () => {
@@ -102,10 +102,7 @@ describe("signing in with an email code", () => {
     const elsewhere = await newDevice();
     await elsewhere.requestSignInCode(partner);
     await elsewhere.signIn(partner, codeSentTo(server, partner));
-    expect([tries.at(-1), elsewhere.syncStatus()]).toEqual([
-      "rate-limited",
-      { signedIn: true, email: partner },
-    ]);
+    expect([tries.at(-1), elsewhere.syncStatus()]).toEqual(["rate-limited", signedInAs(partner)]);
   });
 
   it("asks a device that requests codes too often to wait, but not other devices", async () => {
@@ -137,7 +134,7 @@ describe("a signed-in device", () => {
     await device.close();
     const restarted = await openDevice(storage, online(server));
     await restarted.checkSession();
-    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: regular });
+    expect(restarted.syncStatus()).toEqual(signedInAs(regular));
   });
 
   it("is still signed in after a restart with no server reachable", async () => {
@@ -145,7 +142,7 @@ describe("a signed-in device", () => {
     await device.close();
     const restarted = await openDevice(storage);
     await restarted.checkSession();
-    expect(restarted.syncStatus()).toEqual({ signedIn: true, email: regular });
+    expect(restarted.syncStatus()).toEqual(signedInAs(regular));
   });
 
   it("keeps its habits when it signs out", async () => {
