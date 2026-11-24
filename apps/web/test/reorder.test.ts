@@ -190,3 +190,37 @@ describe("reordering habits on a device", () => {
     expect(namesOf(device)).toEqual(["Morning run", "Floss", "Read 20 pages"]);
   });
 });
+
+describe("the reorder hint", () => {
+  it("isn't dismissed on a new device", async () => {
+    const device = await openDevice(createStorage());
+    expect(device.settings().reorderHintDismissed).toBe(false);
+  });
+
+  it("is dismissed by the first reorder, and stays dismissed after a restart", async () => {
+    const storage = createStorage();
+    const device = await deviceWith(storage, "Morning run", "Read 20 pages");
+    await move(device, "Read 20 pages", null);
+    const dismissed = device.settings().reorderHintDismissed;
+    await device.close();
+
+    const restarted = await openDevice(storage);
+    expect([dismissed, restarted.settings().reorderHintDismissed]).toEqual([true, true]);
+  });
+
+  it("stays when a habit is dropped where it already was", async () => {
+    const device = await deviceWith(createStorage(), "Morning run", "Read 20 pages");
+    await move(device, "Read 20 pages", "Morning run");
+    expect(device.settings().reorderHintDismissed).toBe(false);
+  });
+
+  it("stays dismissed after a restart once dismissed", async () => {
+    const storage = createStorage();
+    const device = await openDevice(storage);
+    device.changeSettings({ reorderHintDismissed: true });
+    await device.close();
+
+    const restarted = await openDevice(storage);
+    expect(restarted.settings().reorderHintDismissed).toBe(true);
+  });
+});

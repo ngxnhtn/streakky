@@ -84,3 +84,15 @@
   - A long press to reorder can't be seen. Should Home hint at it once, say with the first few habits?
   - The keyboard shortcut isn't announced to screen readers. Only the live region speaks after a move. Should the faces carry `aria-keyshortcuts` or a description? That needs a prop on `HabitCard` and `HabitRow`.
   - List rows scale by 1.03 like cards, which on a phone makes a lifted row about 0.7rem wider. Is that all right, or should rows lift less?
+
+- **Owner decisions (2026-11-24):**
+  - **One-time hint: yes.** Home now says once that habits can be reordered (`ReorderHint.tsx`):
+    - Worded for the device's main pointer, `(pointer: coarse)`. On touch: "Touch and hold a habit, then drag it into your own order." With a mouse: "Drag a habit into your own order, or move it with Alt and ↑ or ↓." That also tells keyboard users about the shortcut.
+    - Shown only while Home has two habits or more.
+    - It goes for good on this device after the first move that changes the order, or when dismissed with its 44px close button. The state is the device setting `reorderHintDismissed` in core's `Settings`, next to `signedOutNoteDismissed`. `moveHabit` sets it, so a keyboard move counts too. A drop in place doesn't.
+    - It folds away over 200ms rather than jolting the habits up at once. A hint already dismissed when Home opens renders nothing.
+    - **With the signed-out note:** Home has one note slot. The signed-out note comes first, since keeping the habits safe matters more, and the hint shows only once that note is gone (dismissed, signed in, or the Android app). `SignedOutNote.tsx` now exports `useSignedOutNoteShown()` for Home to choose.
+    - Harness tests ("the reorder hint" in `reorder.test.ts`): not dismissed on a new device; dismissed by the first reorder and still after a restart; kept by a drop in place; kept dismissed after a restart once dismissed.
+    - Checked in headless Chrome, light and dark: the signed-out note alone first, then the hint in its place once the note was dismissed. The mouse and touch wordings showed, and the close button measured 44×44. The first drag folded the hint (83px to 0) and it stayed gone after a reload. Dismissing it by hand did the same. A new device showed no hint with one habit and the hint with two. No console errors.
+    - Dismissing it, like dismissing the signed-out note, leaves keyboard focus on the page, so the next Tab starts at the top.
+  - **Lifted list rows growing like cards: fine as is.** No change.

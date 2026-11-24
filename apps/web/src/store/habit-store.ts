@@ -82,6 +82,7 @@ export type HabitStore = {
   /**
    * Reorders: puts an active habit just after another active habit (`after`), or first with
    * null. Only the moved habit's order position changes. Does nothing if either one isn't active.
+   * The first move that changes the order also dismisses Home's reorder hint on this device.
    */
   moveHabit(habitId: string, after: string | null): Promise<void>;
   /** Hides a habit from the active habits, keeping its days. Does nothing to a deleted habit. */
@@ -146,6 +147,7 @@ const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
   reminderTime: (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
   celebrate: (v) => typeof v === "boolean",
   signedOutNoteDismissed: (v) => typeof v === "boolean",
+  reorderHintDismissed: (v) => typeof v === "boolean",
 };
 
 /**
@@ -271,6 +273,13 @@ export async function openHabitStore({
       habitRecords.toArray.filter((h) => !h.deleted && h.archived).toSorted(byOrder),
     ));
 
+  const changeSettings = (change: Partial<Settings>) => {
+    // onto the stored settings, not this store's copy, so a change made in another tab stays
+    settings = { ...readSettings(keyValueStorage, settings), ...change };
+    writeSettings(keyValueStorage, settings);
+    for (const listener of listeners) listener();
+  };
+
   return {
     async createHabit(input) {
       const { kind, name, color } = input;
@@ -322,6 +331,8 @@ export async function openHabitStore({
         habitRecords.toArray
           .filter((h) => h.id !== habitId && (lower === null || h.order > lower))
           .toSorted(byOrder)[0]?.order ?? null;
+      // the person has found reordering, so Home's hint about it can go
+      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
       await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
     },
     archiveHabit: (habitId) => changeHabit(habitId, { archived: true }),
@@ -335,12 +346,7 @@ export async function openHabitStore({
       });
       await tx.when("settled");
     },
-    changeSettings(change) {
-      // onto the stored settings, not this store's copy, so a change made in another tab stays
-      settings = { ...readSettings(keyValueStorage, settings), ...change };
-      writeSettings(keyValueStorage, settings);
-      for (const listener of listeners) listener();
-    },
+    changeSettings,
     habits,
     archivedHabits,
     settings: () => settings,

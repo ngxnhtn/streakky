@@ -5,17 +5,23 @@ import { useHabitStore, useHabits, useSettings, useSyncStatus } from "../store/r
 import { useNav } from "./stack.tsx";
 
 /**
- * On the web, while signed out and once there is a habit to lose: one small note that the habits
- * live only in this browser, which opens sign-in. Once dismissed it stays dismissed on this
- * device. The Android app keeps its data in its own storage, so it never shows the note.
+ * Whether Home shows the signed-out note: on the web, while signed out and once there is a habit
+ * to lose, until it's dismissed on this device. The Android app keeps its data in its own
+ * storage, so it never shows the note.
  */
-export function SignedOutNote() {
-  const store = useHabitStore();
+export function useSignedOutNoteShown(): boolean {
   const { signedIn } = useSyncStatus();
   const { signedOutNoteDismissed } = useSettings();
-  const { push } = useNav();
   const hasHabits = useHabits().length > 0;
-  if (signedIn || signedOutNoteDismissed || !hasHabits || insideNativeApp()) return null;
+  return !signedIn && !signedOutNoteDismissed && hasHabits && !insideNativeApp();
+}
+
+/** One small note that the habits live only in this browser, which opens sign-in. */
+export function SignedOutNote() {
+  const store = useHabitStore();
+  const { push } = useNav();
+  const shown = useSignedOutNoteShown();
+  if (!shown) return null;
   return (
     <div data-slot="signed-out-note" className="px-5 pb-5">
       <div className="flex items-center gap-1 rounded-2xl bg-muted py-1 pr-1 text-[0.875rem] leading-snug">

@@ -22,7 +22,8 @@ import {
 import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
-import { SignedOutNote } from "./SignedOutNote.tsx";
+import { ReorderHint } from "./ReorderHint.tsx";
+import { SignedOutNote, useSignedOutNoteShown } from "./SignedOutNote.tsx";
 import { ScreenScroll, useInFront, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
@@ -37,6 +38,7 @@ export function Home() {
   const { push } = useNav();
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
+  const signedOutNoteShown = useSignedOutNoteShown();
   const open = (habit: Habit) => push({ name: "detail", id: habit.id });
   // a habit dragged to `to` goes just after the habit that ends up before it there
   const move = (from: number, to: number) => {
@@ -70,7 +72,8 @@ export function Home() {
             Habits
           </h1>
         </header>
-        <SignedOutNote />
+        {/* one note at a time: keeping the habits safe comes before the reorder hint */}
+        {signedOutNoteShown ? <SignedOutNote /> : <ReorderHint />}
         <div className="px-5 pb-5">
           {habits.length === 0 ? (
             <EmptyHabits onAdd={() => setAdding(true)} />
