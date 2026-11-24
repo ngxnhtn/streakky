@@ -13,7 +13,7 @@ While I'm signed out on the web, one small note I can dismiss says my habits liv
 - [x] better-auth runs in the Worker directly on the D1 binding, with the email-code plugin. Its tables are part of the D1 migrations.
 - [x] Settings has an Account section: "Sign in" when signed out, and my email with "Sign out" when signed in.
 - [x] Sign-in flow:
-  - [x] Entering an allowlisted email sends a 6-digit code through Resend, from an address on `hb.nhutien.com`. _(Checked against a stand-in for Resend's API; a real email needs the owner's setup in the Comments.)_
+  - [x] Entering an allowlisted email sends a 6-digit code through Resend, from an address on `hb.nhutien.com`. _(Checked against a stand-in for Resend's API, then for real from `hb@nhutien.com` on 2026-11-24; see the owner decision in the Comments.)_
   - [x] Entering the code signs me in, and a wrong or expired code shows an error.
 - [x] A non-allowlisted email is told it can't sign in. No email is sent and no account is created.
 - [x] The allowlist is a Worker config variable, and the Resend API key and auth secret are Worker secrets.
@@ -126,3 +126,5 @@ Steps 1–7 are unverified: they need your accounts. Nothing here has contacted 
 - Checked: `vp test` (103 passed, 2 todo), `vp check`, a no-op second `db-generate`, `wrangler d1 migrations apply --local` on an empty database (only `0000_initial.sql`, `meta/` ignored), and `wrangler deploy --dry-run`: 376 KiB gzipped, from 336 KiB.
 
 **Owner decision (2026-11-24): codes come from `hb@nhutien.com`.** `SIGN_IN_EMAIL_FROM` is now `Streakky <hb@nhutien.com>`, which replaces `sign-in@hb.nhutien.com` everywhere above. Resend verifies the root domain `nhutien.com` instead of `hb.nhutien.com`: its records sit on `send.nhutien.com` and `resend._domainkey.nhutien.com`, and the API key is limited to `nhutien.com`.
+
+**Live (2026-11-24).** After the first deploy, the owner signed in on https://hb.nhutien.com with a real code from `hb@nhutien.com`. A code request for an address off the allowlist answered 403 `EMAIL_NOT_ALLOWED` with no email sent, and better-auth's rate limiter wrote its row to the remote D1 through the Drizzle adapter.

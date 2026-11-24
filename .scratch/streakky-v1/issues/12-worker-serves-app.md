@@ -13,7 +13,7 @@ This ticket also starts the server side of the test harness: tests run the real 
 - [x] The Worker serves the web app's build, unknown paths return the app, and a route under `/api` responds.
 - [x] The Worker is bound to one D1 database, and its migrations apply both in local dev and on deploy.
 - [x] In local dev, the web app reaches `/api` on the same origin, with the Worker running against a local D1.
-- [ ] The deploy command builds the web app, applies migrations and deploys to `hb.nhutien.com`. The owner runs the first deploy, which needs their Cloudflare login.
+- [x] The deploy command builds the web app, applies migrations and deploys to `hb.nhutien.com`. The owner runs the first deploy, which needs their Cloudflare login. _(First deploy 2026-11-24.)_
 - [x] Nothing used needs a paid Cloudflare plan.
 - [x] Harness: a test starts the Worker in the Workers runtime with a local D1 and checks that it serves the app and falls back to it.
 - [x] `vp check` and `vp test` pass.
@@ -68,3 +68,5 @@ What I verified:
 Steps 2 to 7 are unverified, because they need your account. Wrangler sends anonymous usage telemetry by default. To turn it off, run `vp -C apps/api exec wrangler telemetry disable`.
 
 **Follow-up (2026-11-24): Drizzle manages D1.** The owner asked for Drizzle on the backend. This replaces "What exists" above: `0001_initial.sql` is gone. Every table is defined in `apps/api/src/db/schema.ts`, drizzle-kit writes the migrations into the same `migrations/` folder (`0000_initial.sql`, with drizzle-kit's bookkeeping in `migrations/meta/`), and Wrangler still applies them on deploy, in `vp run api#dev` and in `startWorker`. The deploy steps below don't change.
+
+**First deploy (2026-11-24).** The owner created the D1 database and set the secrets, and `vp run api#deploy` deployed the Worker to `hb.nhutien.com` (version `70a2b9a5`). Checked live: `0000_initial.sql` applied with none left, `/api/health` answered `{"ok":true}`, `/` and a deep link served the app, and a missing `/assets/` file answered 404.
