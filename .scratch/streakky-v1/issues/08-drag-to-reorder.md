@@ -78,7 +78,7 @@
   - screenshots of lifted faces in light and dark;
   - no console errors or warnings from the app. The only one was the 502 from `/api/auth/get-session`, since no API Worker ran beside the dev server.
 - **Found and worked around:**
-  - **Reduced motion:** the global reduced-motion rule in `globals.css` sets `transition-duration: 1ms !important` on every element. `transition-property` defaults to `all`, so under reduced motion every style change tweens for one frame. Here that briefly drew two faces swapped after a drop. The faces now set `transition-none` outside a drag's steps. Other components may show the same one-frame tween. A fix in the design system would also set `transition-property` in that rule.
+  - **Reduced motion:** the global reduced-motion rule in `globals.css` sets `transition-duration: 1ms !important` on every element. `transition-property` defaults to `all`, so under reduced motion every style change tweens for one frame. Here that briefly drew two faces swapped after a drop. The faces now set `transition-none` outside a drag's steps. Other components may show the same one-frame tween. A fix in the design system would also set `transition-property` in that rule. (Since fixed in the rule itself, and the workaround removed: see the owner decisions below.)
 - **Not checked:** a real phone. The long-press menu on Android Chrome, and iOS Safari's callout and scroll blocking after a long press, need a device. DevTools touch emulation stands in for both.
 - **For the owner:**
   - A long press to reorder can't be seen. Should Home hint at it once, say with the first few habits?
@@ -96,3 +96,17 @@
     - Checked in headless Chrome, light and dark: the signed-out note alone first, then the hint in its place once the note was dismissed. The mouse and touch wordings showed, and the close button measured 44×44. The first drag folded the hint (83px to 0) and it stayed gone after a reload. Dismissing it by hand did the same. A new device showed no hint with one habit and the hint with two. No console errors.
     - Dismissing it, like dismissing the signed-out note, leaves keyboard focus on the page, so the next Tab starts at the top.
   - **Lifted list rows growing like cards: fine as is.** No change.
+  - **Fix the design system's reduced-motion rule.** Done in `packages/ui/src/styles/globals.css`, and the faces' `transition-none` workaround is gone:
+    - The rule now sets `animation-duration`, `animation-delay`, `transition-duration` and `transition-delay` to `0s`, not `1ms`. It still does its job, which is that nothing moves or fades under reduced motion.
+    - Animations still run, taking no time, and a zero-length animation still fires `animationend`. Radix dialogs wait on it to unmount, and the screen stacks of the web app and the playground listen for it, though under reduced motion they swap screens without animating.
+    - Transitions no longer run at all. Nothing waits on `transitionend`. The drag uses timers, the celebration a timer, and the ring's `useTween` already jumps under reduced motion.
+    - Re-recorded frame by frame under reduced motion, before and after (headless Chrome, `rAF` sampling of boxes and computed opacity). Before, each case drew a stray frame of old or starting values:
+      - a screen pop drew Home 88px to the left;
+      - a tab switch showed the new panel at opacity 0 and the pill where it was;
+      - the New habit sheet opened with the scrim at 0 and the sheet off-screen;
+      - a drop drew two faces swapped.
+    - After, a drop, a screen push and pop, a dialog opening and a tab switch each change in one step. A closing dialog spends one frame in its end state (scrim clear, sheet off-screen), then unmounts.
+    - With normal motion, the same steps still animate and finish.
+    - The playground (`apps/demo`, `vp dev`) gave the same results: push, pop, tab switch and dialog in one step under reduced motion, and the dialog unmounted. Its only console error is a missing `favicon.ico`.
+    - 06's goal celebration, checked by moving a quit habit's clock to its 7-day goal: under reduced motion its notice shows at full opacity from the first frame with no burst. The burst is turned off in JavaScript, so the CSS rule doesn't decide it. With motion, it rises in with its 28 pieces.
+- **Merged with 06 (2026-11-24):** Home keeps its one note slot at the top, and 06's celebration notice sits at the bottom of the screen, so they never cover each other. The store keeps `changeSettings` as a shared function beside `activeHabit` and `markCelebrated`. 177 tests pass.

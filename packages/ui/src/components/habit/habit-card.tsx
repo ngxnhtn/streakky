@@ -470,9 +470,6 @@ export function HabitCollection({
                   // a resting finger lifts the face, so it mustn't pick text or call up a menu
                   "select-none [-webkit-touch-callout:none]",
                   layout === "grid" ? "rounded-3xl" : "rounded-[1.25rem]",
-                  // Only a drag's steps animate. When the new order arrives, the old offsets go
-                  // at once, even under reduced motion, whose 1ms transitions apply to `all`.
-                  "transition-none",
                 ],
                 state && reorderLook[state],
               )}
