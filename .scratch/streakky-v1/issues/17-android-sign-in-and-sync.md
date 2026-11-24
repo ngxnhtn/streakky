@@ -6,14 +6,14 @@
 
 **Blocked by:** 15 (Sign-in merge and sign-out wipe), 16 (Android app tracer)
 
-**Status:** in progress: the code is done, waiting to be checked on the owner's phone against the deployed Worker
+**Status:** done
 
 - [x] Sign-in with an email code works inside the Android app, and the session survives app restarts.
 - [x] The app stores its bearer token in secure device storage and sends it on every API call.
 - [x] The Worker trusts the `https://localhost` origin and exposes the session token header through CORS. Web sign-in with cookies keeps working.
 - [x] A change made on the phone appears on the web after syncing, and the reverse also works. The phone syncs when the app returns to the foreground.
 - [x] Sign-out on Android warns about pending changes and wipes habits as on the web.
-- [ ] Verified on the owner's phone against the deployed Worker.
+- [x] Verified on the owner's phone against the deployed Worker.
 - [x] `vp check` and `vp test` pass.
 
 ## Comments
@@ -42,3 +42,13 @@
 - **Not covered by tests:**
   - That the token is forgotten would mean reading it out of the device's storage.
   - That the server ended the session can't be told apart from the outside, since the forgotten token can't be used either way.
+
+**Checked on the owner's Pixel 8 against the deployed Worker (2026-11-24).**
+
+- **Deploy:** the owner deployed. The live Worker's preflight for `/api/sync/push` from `https://localhost` answered 204, allowing the app's origin, `Content-Type` and `Authorization`, and exposing `set-auth-token`.
+- **Sign-in:** the owner signed in on the phone with a real code. The app showed the owner's address and a sync time.
+- **Phone → web:** a habit made on the phone, "Sync check from phone", synced with nothing left waiting, and the owner saw it on the web.
+- **Web → phone:** the owner made "Sync check from web" on the web. The app went to the background and came back to the front, and the habit appeared.
+- **A mistake of mine:** two test habits from ticket 16's checks ("Read" and "No sugar") were still on the phone when the owner signed in, so the sign-in merge put them in the owner's account. With the owner's OK, all four test habits were deleted on the phone, which synced the deletions.
+- **Not explained:** one `console.error` (an object) showed up once during these checks and didn't come back in a dedicated run. Everything worked.
+- **Ticket 16's last build** (after its review) was in use throughout: native storage, settings, sign-in, sync and deleting all behaved.
