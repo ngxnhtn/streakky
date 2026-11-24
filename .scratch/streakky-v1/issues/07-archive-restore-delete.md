@@ -98,3 +98,58 @@
 - **For the owner:**
   - **The signed-out note hides while every habit is archived.** `useSignedOutNoteShown` counts only active habits, but archived habits still live only in this browser. Home's note slot then falls to the reorder hint, which stays folded because it needs two active habits. Counting archived habits there would be a one-line change.
   - **Focus after a restore:** after restoring a habit in Archived habits and going back, the See archived habits button is gone, so focus is left on the page and the next Tab starts at the top.
+
+**Follow-up (2026-11-24): archived quit habits stop counting.**
+
+As the owner decided: while a quit habit is archived, its days are neither clean days nor slips and don't end its streak. Its count stays where it was on the day it was archived, and carries on from there once it's restored. Build habits are unchanged: their days while archived are days without check-ins.
+
+- **The rule:** the archived days run from the day after archiving through the day before restoring, on the device's local day (`todayISO()`). The archive day and the restore day count as usual, so archiving and restoring on the same day, or the next, leaves no archived days. Every archived period is kept and left out.
+- **Core** (`packages/core/src/habit.ts`):
+  - `Habit` gains `archivedPeriods: ArchivedPeriod[]`, each `{ archivedOn, restoredOn }` (YYYY-MM-DD, `restoredOn` null while still archived), on both kinds.
+  - `archivedDays(h)` lists a quit habit's archived days: after the quit day, up to today. A build habit has none.
+  - `loggedDays` leaves out slips on archived days. Only a merge from another device can put one there.
+  - `streaksOf` leaves archived days out of the streak they fall in, so the current and longest streaks, the streaks chart and Stats leave them out. `daysByStreak` leaves them unfilled.
+  - `canToggle` refuses archived days.
+  - `goalDate` skips them. While the habit is archived short of its goal, `goalDate` is null: the goal can't be reached until it's restored. `goalReached` and `celebrationDue` follow from the count, so no celebration comes from archived time.
+  - `archivedSince(h)` gives the day it was archived on while it still is.
+- **Store** (`apps/web/src/store/habit-store.ts`):
+  - `HabitRecord` gains `archivedPeriods`, and `EDITABLE_FIELDS` gains `"archivedPeriods"`.
+  - `archiveHabit` opens a period today; `restoreHabit` closes the open one today. Both write `archived` and `archivedPeriods` in one `changeHabit` call, so the two always share an edit time.
+  - Archiving an archived habit or restoring an active one now does nothing; before, it rewrote `archived` with a new edit time.
+  - **Older records:** `archivedPeriods` and `edited.archivedPeriods` are optional on the record type. A record stored before this change reads as having no archived periods (`archivedPeriodsOf`). Its first archive opens one. A habit archived before this change still counts the days it has spent archived so far, and restoring it adds no period, since its archive day isn't known.
+  - An open period on a habit that isn't archived is ignored; archive and restore never leave one.
+  - **`schemaVersion` stays 1.** I checked TanStack's SQLite persistence (`sqlite-core-adapter.ts`, `handleSchemaMismatch`): a changed `schemaVersion` deletes every stored row of the collection (policy `sync-present-reset`). In the browser's local-only mode (`sync-absent-error`), it refuses to open the collection instead. Either would lose the owner's habits, so nothing is migrated: a missing field reads as empty.
+- **Merging (for 14, and ADR-0002):** the field-by-field "later edit wins" carries `archived` and `archivedPeriods` from the same device's edit, since they always share an edit time and ties break the same way for both. So the result is one device's whole archive history, never a mix. For example, if A archived on the 10th and restored on the 15th, and B archived on the 12th and is still archived, whichever edited last wins both fields. The loser's archiving and restoring are dropped, and its archived days count as the winner recorded them. A slip logged on a device where the habit was active, on a day the winning device has as archived, is ignored when counting, like a slip on or before the quit day. ADR-0002 now says both.
+- **Export** (`apps/web/src/store/export.ts`): **version 2.** Every habit gains `archivedPeriods: [{ "archivedOn": "2026-11-24", "restoredOn": "2026-11-30" }, { "archivedOn": "2026-12-02", "restoredOn": null }]`, oldest first, after `archived`. Without them, an import would count archived days as clean. Build habits carry theirs too, though they count nothing. A version 1 file has none: read it as `[]`. Slips on archived days are kept in the file, like other slips that don't count.
+- **Screens:**
+  - **Calendar** (`packages/ui/src/components/habit/calendar.tsx`): archived days are hatched, using a new `bg-archived` utility in the UI package's `globals.css`: fine diagonal lines in the muted ink over the muted ground. In Weeks they're hatched cells. In Month they're hatched discs, apart from the streak bands, since they aren't streak days. A per-cell hatched band showed seams between cells. The legend gains "Archived day" when the habit has any. In Edit days they're locked like other days that can't change.
+  - **Archived detail:** a quit habit's note now says "Archived on Tue 24 Nov: hidden from Home, its count held there until you restore it." A build habit, or a quit habit archived before this change, keeps "Archived: hidden from Home, with its history kept."
+  - **Archived habits:** the intro now reads "Hidden from Home, with every check-in and slip kept. A quit habit stops counting until it's restored."
+- **Docs:** the glossary's Archived habit and Clean day state the rule, Archived day is new, and Streak and Current streak follow it. The spec's synced `Habit` gains `archivedPeriods`, with rules for older records. Its core rules, widget summary and export follow. Ticket 14 has a note.
+- **Tests:**
+  - **Core:** 22 new (77 in all): one period, repeated periods, the same day and the next, still archived, across midnight, carrying on after a restore, periods before the quit day, a period restored before its archive day (flying west), a slip the day before archiving, on the archive day and on an archived day, the longest streak, the calendar, editable days, `archivedSince`, a goal across a period, while archived, after a restore and reached before archiving, no celebration for archived days, and a build habit unchanged.
+  - **Harness:** `apps/web/test/archived-days.test.ts` (17), moving the fake `Date` across days:
+    - archive, move the clock, restore: 10, 10, 11, then 12 the next day;
+    - the stored record after archiving and after restoring, with equal edit times for `archived` and `archivedPeriods`;
+    - the count held across a restart;
+    - the same-day restore, and repeated periods;
+    - a slip before archiving, and slips refused on archived days but taken on the archive and restore days;
+    - the goal date, and celebrations: none while archived or on restoring, then due on the real goal day;
+    - a build habit's streak breaking;
+    - archiving or restoring again changing nothing;
+    - three records planted as stored before this change;
+    - the export: version 2, the periods, matching the archived habits shown, a slip on an archived day kept, and an older record's empty list.
+  - `storedHabits` moved from `reorder.test.ts` to `devices.ts`, beside a new `storeRecords` for planting records. Two export tests in `habit-store.test.ts` now expect version 2.
+  - After merging main (the Home and bottom-notice follow-ups), 222 tests pass and `vp check` is clean.
+- **Checked in headless Chrome 158** (`vp dev`, 400px wide, mobile emulation, a fresh browser context per run, driven over the DevTools protocol; the clock moved with a `Date` wrapper and a reload), before and after merging main:
+  - **Archive and restore:** No smoking (quit 14 Nov, goal 14) had 10 days free on the 24th and was archived from its options. Six days later its archived detail still said 10, after a reload too, with "Archived on Tue 24 Nov: …". The calendar hatched the 25th to the 30th in both views, with the "Archived day" legend. Stats said 10 everywhere, and Archived habits said "Longest streak 10 days". Restore habit gave 11 (the restore day counts), with the 25th to the 29th still hatched and the 30th clean. The Goal tab said "3 clean days to go, 14-day goal on Thu 3 Dec". The next day said 12. In Edit days, only the 24th and the 30th of 24–30 Nov were buttons.
+  - **Looks:** light and dark screenshots of the archived detail, both calendar views, Stats, the restored calendar and Edit days looked right.
+  - **Keyboard:** Tab reached Settings, Archived habits, the archived row and Restore habit (220×52), each with the 2px ring. Enter restored it, with focus on "I slipped today". In Edit days, Tab went from 24 Nov to 28 Nov, past the archived 25th to 27th, and Enter logged a slip on the 28th (the restore day).
+  - **Console:** no errors or warnings from the app. The usual 502 for `/api/auth/get-session` was ignored, since no API Worker ran.
+- **Found, not fixed:** archiving the only habit by keyboard leaves focus on the page (`body`), with main's "Every habit is archived" state too. `neighbourOfFocus()` finds no next card and no New habit tile. This is like the "Focus after a restore" note above; it's Home's to fix, and outside this follow-up.
+- **For the owner:**
+  - **Habits archived before this update** still count the days they've spent archived so far, since their archive day wasn't kept. The record's `edited.archived` holds when it was archived (the device time). Reading that as the archive day would fix them, but you asked for a missing field to read as empty. Say if you want it.
+  - **Build habits keep archived periods too,** in the record and the export, though nothing counts them. They come for free and would serve if build habits ever skip archived days.
+  - **An archived day can't be edited after restoring,** even to log a slip you remember, since it's neither clean nor a slip. Moving the quit day still works across it.
+  - **Restored the next day leaves no archived days,** as the rule says: archived Monday, restored Tuesday, and both count.
+  - **For 20 (widget):** a restored quit habit's count is the days since the last slip minus its archived days. The widget summary needs the archived days since the last slip, as the spec now says.

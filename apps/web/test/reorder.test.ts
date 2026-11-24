@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { createCollection } from "@tanstack/db";
-import { persistedCollectionOptions } from "@tanstack/db-sqlite-persistence-core";
-import { createNodeSQLitePersistence } from "@tanstack/node-db-sqlite-persistence";
 import { generateKeyBetween } from "fractional-indexing";
 import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
-import { createStorage, openDevice, type DeviceStorage } from "./devices.ts";
+import { createStorage, openDevice, storedHabits, type DeviceStorage } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
 beforeEach(() => {
@@ -29,28 +26,6 @@ const idOf = (device: HabitStore, name: string) =>
 /** Moves the habit named `name` to just after the one named `after`, or first with null. */
 const move = (device: HabitStore, name: string, after: string | null) =>
   device.moveHabit(idOf(device, name), after === null ? null : idOf(device, after));
-
-const habitRecordsIn = (storage: DeviceStorage) =>
-  createCollection(
-    persistedCollectionOptions<HabitRecord, string>({
-      id: "habits",
-      getKey: (h) => h.id,
-      persistence: createNodeSQLitePersistence({ database: storage.database }),
-      schemaVersion: 1,
-    }),
-  );
-
-/**
- * The habit records kept in a device's storage, read the way the store reads them, archived and
- * deleted ones included: what sync will send.
- */
-async function storedHabits(storage: DeviceStorage): Promise<HabitRecord[]> {
-  const records = habitRecordsIn(storage);
-  await records.preload();
-  const stored = records.toArray.map((h) => structuredClone(h));
-  await records.cleanup();
-  return stored;
-}
 
 /** Habit records by their order position alone. */
 const byPosition = (a: HabitRecord, b: HabitRecord) => (a.order < b.order ? -1 : 1);

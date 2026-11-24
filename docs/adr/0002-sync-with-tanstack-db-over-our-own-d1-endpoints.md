@@ -7,8 +7,10 @@ Each device keeps its habits in a local TanStack DB store, persisted to SQLite o
 The server applies these when two devices have changed the same thing offline:
 
 - A day's check-in or slip: the later edit wins, per habit per day.
-- A habit's name, colour, goal, quit day, archived state and order: the later edit wins, field by field.
+- A habit's name, colour, goal, quit day, archived state, archived periods and order: the later edit wins, field by field.
+- A habit's archived periods (the days it was archived and restored on, each time) only ever change with its archived state, at one edit time. So both come from the same device's edit: one device's whole archive history wins, never a mix of two. The losing device's archiving and restoring are dropped, and the days it had archived count as the winning device recorded them.
 - Slips on or before a quit habit's quit day are ignored when counting, so a slip logged offline on one device survives the merge harmlessly after another device moved the quit day past it.
+- Slips on a quit habit's archived days are ignored when counting too, so a slip logged offline on a device where the habit was still active survives the merge harmlessly when another device's archiving wins.
 - A deleted habit stays deleted, even if another device edited it or logged days on it.
 - Signing in on a device with signed-out habits merges them into the account as they are. There is no matching by name.
 
@@ -17,3 +19,5 @@ The server applies these when two devices have changed the same thing offline:
 ## Consequences
 
 We own delta pull, idempotent pushes and tombstones for deletes. TanStack DB 1.0 was still a release candidate when we chose it.
+
+Habits stored before archived periods were kept have none, and no edit time for them. They read as having none, edited when the archived state last was, so the two still change together.

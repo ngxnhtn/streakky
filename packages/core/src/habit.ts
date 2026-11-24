@@ -18,11 +18,24 @@ export type Kind = "build" | "quit";
 
 export type ColorId = "teal" | "red" | "blue" | "ochre" | "rose" | "green";
 
+/**
+ * One stretch of a habit's history spent archived: the day it was archived, and the day it was
+ * restored, or null while it still is (YYYY-MM-DD). Its archived days are the ones strictly
+ * between, so a habit archived and restored on the same day, or the next, has none.
+ */
+export type ArchivedPeriod = { archivedOn: string; restoredOn: string | null };
+
 type HabitBase = {
   id: string;
   name: string;
   color: ColorId;
   goal: number | null;
+  /**
+   * Every time it was archived, oldest first; the last is still open while it's archived. Only a
+   * quit habit counts them (see `archivedDays`): a build habit's archived days are days without
+   * check-ins, like any others.
+   */
+  archivedPeriods: ArchivedPeriod[];
 };
 
 export type BuildHabit = HabitBase & {
@@ -65,32 +78,75 @@ export const HABIT_COLORS: { id: ColorId; name: string }[] = [
 
 /**
  * A habit's logged days that count, oldest first: check-ins up to today for a build habit; slips
- * after the quit day and up to today for a quit habit. Days after today (logged before flying
- * west, say) wait until they come, and a quit day after today counts as today.
+ * after the quit day and up to today for a quit habit, leaving out its archived days. Days after
+ * today (logged before flying west, say) wait until they come, and a quit day after today counts
+ * as today.
  */
 export function loggedDays(h: Habit): string[] {
   const t = todayISO();
   if (h.kind === "build") return h.checkIns.filter((day) => day <= t);
   const quitDay = effectiveQuitDay(h);
-  return h.slips.filter((slip) => slip > quitDay && slip <= t);
+  // a slip only lands on an archived day from another device, whose own archiving lost the merge
+  const archived = new Set(archivedDays(h));
+  return h.slips.filter((slip) => slip > quitDay && slip <= t && !archived.has(slip));
 }
 
 const effectiveQuitDay = (h: QuitHabit) => (h.quitDay < todayISO() ? h.quitDay : todayISO());
+
+/**
+ * A quit habit's archived days, oldest first: from the day after each time it was archived
+ * through the day before it was restored, or through today while it still is. Only days in its
+ * history count, after the quit day and up to today. They're neither clean days nor slips, and
+ * they don't end a streak; the days it was archived and restored on count like any other. A
+ * build habit has none: its archived days are days without check-ins, like any others.
+ */
+export function archivedDays(h: Habit): string[] {
+  if (h.kind === "build" || h.archivedPeriods.length === 0) return [];
+  const t = todayISO();
+  const quitDay = effectiveQuitDay(h);
+  const days = new Set<string>();
+  for (const { archivedOn, restoredOn } of h.archivedPeriods) {
+    const after = archivedOn > quitDay ? archivedOn : quitDay;
+    for (let d = addDays(after, 1); toISO(d) <= t; d = addDays(d, 1)) {
+      const day = toISO(d);
+      if (restoredOn !== null && day >= restoredOn) break;
+      days.add(day);
+    }
+  }
+  return [...days].sort();
+}
+
+/** Whether `day` is one of a quit habit's archived days (see `archivedDays`). */
+const isArchivedDay = (h: QuitHabit, day: string) =>
+  day > effectiveQuitDay(h) &&
+  day <= todayISO() &&
+  h.archivedPeriods.some(
+    (p) => day > p.archivedOn && (p.restoredOn === null || day < p.restoredOn),
+  );
+
+/** The day a habit was archived on, while it still is; null once restored, or if never archived. */
+export const archivedSince = (h: Habit): string | null =>
+  h.archivedPeriods.find((p) => p.restoredOn === null)?.archivedOn ?? null;
 
 /** Every streak, oldest first, from the logged days that count; the last one is the current streak, possibly 0 days. */
 export function streaksOf(h: Habit): Streak[] {
   const t = todayISO();
   if (h.kind === "quit") {
     const bounds = [effectiveQuitDay(h), ...loggedDays(h)];
+    // archived days (none after today) are left out of the streak they fall in, without ending it
+    const archived = archivedDays(h);
+    const archivedBetween = (from: string, to: string) =>
+      archived.filter((day) => day > from && day < to).length;
     // a finished streak holds the clean days between two slips; the slip days themselves are not clean
     const streaks: Streak[] = bounds.slice(0, -1).map((b, i) => ({
       start: b,
       end: bounds[i + 1],
-      days: Math.max(0, daysBetween(b, bounds[i + 1]) - 1),
+      days: Math.max(0, daysBetween(b, bounds[i + 1]) - 1 - archivedBetween(b, bounds[i + 1])),
       current: false,
     }));
     const last = bounds[bounds.length - 1];
-    streaks.push({ start: last, end: t, days: Math.max(0, daysBetween(last, t)), current: true });
+    const days = daysBetween(last, t) - archived.filter((day) => day > last).length;
+    streaks.push({ start: last, end: t, days: Math.max(0, days), current: true });
     return streaks;
   }
   const streaks: Streak[] = [];
@@ -138,25 +194,31 @@ export const canBeQuitDay = (day: string): boolean =>
 export const slipsRemovedByMovingQuitDay = (h: QuitHabit, day: string): string[] =>
   loggedDays(h).filter((slip) => slip <= day);
 
-/** Days that can be edited: none in the future; for quit, none on or before the quit day. */
+/**
+ * Days that can be edited: none in the future; for quit, none on or before the quit day, and no
+ * archived day, which is neither clean nor a slip.
+ */
 export function canToggle(h: Habit, day: string): boolean {
   if (day > todayISO()) return false;
-  return h.kind === "build" || day > h.quitDay;
+  return h.kind === "build" || (day > h.quitDay && !isArchivedDay(h, day));
 }
 
 /**
  * The streak each past day belongs to, for the calendars.
  * build: the check-in days. quit: the clean days after the quit day or each slip, up to the
- * next slip (or today); slip days stay unfilled. Each streak's coloured days equal its count.
+ * next slip (or today); slip days and archived days stay unfilled. Each streak's coloured days
+ * equal its count.
  */
 export function daysByStreak(h: Habit): Map<string, "current" | "past"> {
   const days = new Map<string, "current" | "past">();
+  const archived = new Set(archivedDays(h));
   for (const s of streaksOf(h)) {
     if (s.days === 0) continue;
     const first = h.kind === "quit" ? addDays(s.start, 1) : fromISO(s.start);
     const last = h.kind === "quit" && !s.current ? addDays(s.end, -1) : fromISO(s.end);
     for (let d = first; d <= last; d = addDays(d, 1)) {
-      days.set(toISO(d), s.current ? "current" : "past");
+      const day = toISO(d);
+      if (!archived.has(day)) days.set(day, s.current ? "current" : "past");
     }
   }
   return days;
@@ -184,14 +246,37 @@ export function statusLabel(h: Habit): string {
   return streak.days === 0 ? "Check in today to start" : "Not checked in today";
 }
 
-/** The day the goal is (or was) reached on the current streak. */
+/**
+ * The day the goal is (or was) reached on the current streak, or null with no goal. A quit
+ * habit's archived days don't bring it closer, and while it's archived short of its goal there's
+ * no such day: it can't be reached until the habit is restored.
+ */
 export function goalDate(h: Habit): Date | null {
   if (h.goal === null) return null;
   const streak = currentStreak(h);
-  if (h.kind === "quit") return addDays(streak.start, h.goal);
+  if (h.kind === "quit") return nthCleanDay(h, streak.start, h.goal);
   if (streak.days >= h.goal) return addDays(streak.start, h.goal - 1);
   const left = h.goal - streak.days;
   return addDays(today(), loggedToday(h) ? left : left - 1);
+}
+
+/**
+ * The day of a quit habit's `n`-th clean day after `start` (the quit day or a slip), taking every
+ * day from today on as clean. Archived days are skipped. While the habit is still archived, no day
+ * after today can be clean, so there's none if it takes one.
+ */
+function nthCleanDay(h: QuitHabit, start: string, n: number): Date | null {
+  const t = todayISO();
+  const archived = new Set(archivedDays(h));
+  const stillArchived = archivedSince(h) !== null;
+  let d = fromISO(start);
+  for (let left = n; left > 0;) {
+    d = addDays(d, 1);
+    const day = toISO(d);
+    if (day > t && stillArchived) return null;
+    if (!archived.has(day)) left -= 1;
+  }
+  return d;
 }
 
 /** Whether the current streak has reached the habit's goal. */
@@ -251,6 +336,7 @@ export function sampleHabits(): Habit[] {
       goal: 21,
       quitDay: at(70),
       slips: [at(52), at(45), at(40), at(10)],
+      archivedPeriods: [],
     },
     {
       id: "run",
@@ -259,6 +345,7 @@ export function sampleHabits(): Habit[] {
       color: "green",
       goal: 21,
       checkIns: [...span(55, 46), ...span(40, 20), ...span(14, 1)],
+      archivedPeriods: [],
     },
     {
       id: "read",
@@ -267,6 +354,7 @@ export function sampleHabits(): Habit[] {
       color: "ochre",
       goal: 30,
       checkIns: [...span(30, 12), ...span(7, 0)],
+      archivedPeriods: [],
     },
     {
       id: "smoke",
@@ -276,6 +364,7 @@ export function sampleHabits(): Habit[] {
       goal: 60,
       quitDay: at(140),
       slips: [at(47)],
+      archivedPeriods: [],
     },
   ];
 }

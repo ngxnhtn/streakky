@@ -16,6 +16,7 @@ import {
   PALETTES,
   slipsRemovedByMovingQuitDay,
   todayISO,
+  type ArchivedPeriod,
   type Celebrated,
   type ColorId,
   type Habit,
@@ -33,8 +34,19 @@ export {
   type SyncStatus,
 } from "./account.ts";
 
-/** The habit fields a device can change; each keeps the device time of its last change, for sync. */
-export const EDITABLE_FIELDS = ["name", "color", "goal", "quitDay", "archived", "order"] as const;
+/**
+ * The habit fields a device can change; each keeps the device time of its last change, for sync.
+ * `archived` and `archivedPeriods` only ever change together, with one edit time.
+ */
+export const EDITABLE_FIELDS = [
+  "name",
+  "color",
+  "goal",
+  "quitDay",
+  "archived",
+  "archivedPeriods",
+  "order",
+] as const;
 export type EditableField = (typeof EDITABLE_FIELDS)[number];
 
 /** A habit as the device stores and syncs it. */
@@ -49,12 +61,30 @@ export type HabitRecord = {
   /** YYYY-MM-DD, quit habits only */
   quitDay: string | null;
   archived: boolean;
+  /**
+   * Every time it was archived, oldest first, the last one open (`restoredOn: null`) while it's
+   * archived. Archiving and restoring write it with `archived`, at the same edit time, so when
+   * devices merge, the two come from the same device's edit (ADR-0002). Records stored before it
+   * came have none, and read as having no archived periods.
+   */
+  archivedPeriods?: ArchivedPeriod[];
   /** fractional position, so a reorder changes only one habit */
   order: string;
   /** tombstone: once true, never false again, whatever else changed later (ADR-0002) */
   deleted: boolean;
-  edited: Record<EditableField, number>;
+  /**
+   * The device time of each editable field's last change. Records stored before `archivedPeriods`
+   * came have no time for it: read it as `archived`'s, since the two change together.
+   */
+  edited: Record<Exclude<EditableField, "archivedPeriods">, number> & { archivedPeriods?: number };
 };
+
+/**
+ * A record's archived periods as the device counts them: none on a record stored before they were
+ * kept, and an open one only while the habit is archived, as archiving and restoring leave them.
+ */
+const archivedPeriodsOf = (h: HabitRecord): ArchivedPeriod[] =>
+  (h.archivedPeriods ?? []).filter((p) => p.restoredOn !== null || h.archived);
 
 /**
  * One habit's day: a check-in (build) or a slip (quit) while `logged`. Removing one writes
@@ -109,11 +139,16 @@ export type HabitStore = {
    * The first move that changes the order also dismisses Home's reorder hint on this device.
    */
   moveHabit(habitId: string, after: string | null): Promise<void>;
-  /** Hides a habit from the active habits, keeping its days. Does nothing to a deleted habit. */
+  /**
+   * Hides a habit from the active habits, keeping its days, and starts an archived period today:
+   * a quit habit's count stops after today until it's restored. Does nothing to a habit already
+   * archived, or a deleted one.
+   */
   archiveHabit(habitId: string): Promise<void>;
   /**
-   * Brings an archived habit back to the active habits, in its old place, with all its days.
-   * Does nothing to a deleted habit: nothing undoes a delete.
+   * Brings an archived habit back to the active habits, in its old place, with all its days, and
+   * ends its archived period today: a quit habit's count carries on from where it stopped. Does
+   * nothing to an active habit, or a deleted one: nothing undoes a delete.
    */
   restoreHabit(habitId: string): Promise<void>;
   /**
@@ -140,7 +175,10 @@ export type HabitStore = {
    * does, marks it too: those edits don't celebrate.
    */
   markCelebrated(habit: Habit): void;
-  /** Every habit, archived ones included and deleted ones left out, as one file to keep. */
+  /**
+   * Every habit, archived ones included and deleted ones left out, as one file to keep, with the
+   * times each was archived (export.ts).
+   */
   exportHabits(): ExportFile;
   /** Emails a sign-in code to `email`; a `SignInError` says why not. */
   requestSignInCode(email: string): Promise<void>;
@@ -302,7 +340,13 @@ export async function openHabitStore({
     }
     return records.flatMap((h): Habit[] => {
       const days = (logged.get(h.id) ?? []).sort();
-      const base = { id: h.id, name: h.name, color: h.color, goal: h.goal };
+      const base = {
+        id: h.id,
+        name: h.name,
+        color: h.color,
+        goal: h.goal,
+        archivedPeriods: archivedPeriodsOf(h),
+      };
       if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
       // a quit habit can't be counted without its quit day; the store never writes one without
       return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
@@ -371,7 +415,7 @@ export async function openHabitStore({
       const id = crypto.randomUUID();
       if (input.kind === "quit") {
         // a quit day far enough back reaches the goal at once: a goal set, not reached, today
-        const habit: Habit = { ...input, id, goal, slips: [] };
+        const habit: Habit = { ...input, id, goal, slips: [], archivedPeriods: [] };
         if (goalReached(habit)) markCelebrated(habit);
       }
       const editedAt = Date.now();
@@ -385,6 +429,7 @@ export async function openHabitStore({
         goal,
         quitDay: input.kind === "quit" ? input.quitDay : null,
         archived: false,
+        archivedPeriods: [],
         order: generateKeyBetween(last?.order ?? null, null),
         deleted: false,
         edited: Object.fromEntries(
@@ -475,8 +520,29 @@ export async function openHabitStore({
       if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
       await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
     },
-    archiveHabit: (habitId) => changeHabit(habitId, { archived: true }),
-    restoreHabit: (habitId) => changeHabit(habitId, { archived: false }),
+    // Archiving and restoring always write `archived` and `archivedPeriods` together, so the two
+    // share an edit time and a merge takes both from the same device's edit (ADR-0002).
+    async archiveHabit(habitId) {
+      const record = habitRecords.get(habitId);
+      if (!record || record.archived) return;
+      const opened: ArchivedPeriod = { archivedOn: todayISO(), restoredOn: null };
+      await changeHabit(habitId, {
+        archived: true,
+        archivedPeriods: [...archivedPeriodsOf(record), opened],
+      });
+    },
+    async restoreHabit(habitId) {
+      const record = habitRecords.get(habitId);
+      if (!record?.archived) return;
+      const restoredOn = todayISO();
+      await changeHabit(habitId, {
+        archived: false,
+        // a habit archived before periods were kept has none open, and gets none
+        archivedPeriods: archivedPeriodsOf(record).map((p) =>
+          p.restoredOn === null ? { ...p, restoredOn } : p,
+        ),
+      });
+    },
     async deleteHabit(habitId) {
       if (habitRecords.get(habitId)?.deleted !== false) return;
       // the record stays, so sync can carry the delete; `deleted` has no edit time, since no later

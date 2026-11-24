@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import {
+  archivedDays,
+  archivedSince,
   loggedDays,
   loggedToday,
   statusLabel,
@@ -19,6 +21,7 @@ import {
   daysByStreak,
   streaksOf,
   toISO,
+  type ArchivedPeriod,
   type Habit,
   type QuitHabit,
 } from "./index.ts";
@@ -30,16 +33,21 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
-const build = (checkIns: string[]): Habit => ({
+const build = (checkIns: string[], archivedPeriods: ArchivedPeriod[] = []): Habit => ({
   id: "run",
   name: "Morning run",
   kind: "build",
   color: "green",
   goal: null,
   checkIns,
+  archivedPeriods,
 });
 
-const quit = (quitDay: string, slips: string[] = []): QuitHabit => ({
+const quit = (
+  quitDay: string,
+  slips: string[] = [],
+  archivedPeriods: ArchivedPeriod[] = [],
+): QuitHabit => ({
   id: "smoke",
   name: "No smoking",
   kind: "quit",
@@ -47,7 +55,17 @@ const quit = (quitDay: string, slips: string[] = []): QuitHabit => ({
   goal: null,
   quitDay,
   slips,
+  archivedPeriods,
 });
+
+/** Archived on `archivedOn` (a November day) and restored on `restoredOn`, or still archived. */
+const archivedNov = (archivedOn: number, restoredOn: number | null = null): ArchivedPeriod => ({
+  archivedOn: nov(archivedOn),
+  restoredOn: restoredOn === null ? null : nov(restoredOn),
+});
+const nov = (day: number) => `2026-11-${String(day).padStart(2, "0")}`;
+const novDays = (from: number, to: number) =>
+  Array.from({ length: to - from + 1 }, (_, i) => nov(from + i));
 
 describe("build habits", () => {
   it("counts consecutive check-ins up to today as the current streak", () => {
@@ -429,5 +447,189 @@ describe("a goal's celebration", () => {
       celebrationDue(withGoal(quit("2026-11-01", ["2026-11-20"]), 7), kept),
       celebrationDue(withGoal(quit("2026-11-01", ["2026-11-17"]), 7), kept),
     ]).toEqual([false, true]);
+  });
+});
+
+describe("a quit habit's archived days", () => {
+  it("run from the day after archiving through the day before restoring", () => {
+    const habit = quit("2026-11-01", [], [archivedNov(10, 15)]);
+    expect(archivedDays(habit)).toEqual(novDays(11, 14));
+  });
+
+  it("are left out of the count without ending the streak", () => {
+    const habit = quit("2026-11-01", [], [archivedNov(10, 15)]);
+    // 23 days since the quit day, 4 of them archived
+    expect(streaksOf(habit)).toEqual([
+      { start: "2026-11-01", end: "2026-11-24", days: 19, current: true },
+    ]);
+  });
+
+  it("are left out for every time it was archived", () => {
+    const habit = quit("2026-11-01", [], [archivedNov(5, 8), archivedNov(12, 20)]);
+    expect([archivedDays(habit), currentStreakDays(habit)]).toEqual([
+      [...novDays(6, 7), ...novDays(13, 19)],
+      14,
+    ]);
+  });
+
+  it("are none when it's restored the day it was archived, or the day after", () => {
+    const habit = quit("2026-11-01", [], [archivedNov(10, 10), archivedNov(15, 16)]);
+    expect([archivedDays(habit), currentStreakDays(habit)]).toEqual([[], 23]);
+  });
+
+  it("run through today while it's still archived, holding the count where it stopped", () => {
+    const habit = quit("2026-11-01", [], [archivedNov(20)]);
+    expect([archivedDays(habit), currentStreakDays(habit)]).toEqual([novDays(21, 24), 19]);
+  });
+
+  it("stop the count growing at midnight while it's archived", () => {
+    const habit = quit("2026-11-14", [], [archivedNov(20)]);
+    vi.setSystemTime(new Date(2026, 10, 24, 23, 59));
+    const before = currentStreakDays(habit);
+    vi.setSystemTime(new Date(2026, 10, 25, 0, 1));
+    expect([before, currentStreakDays(habit)]).toEqual([6, 6]);
+  });
+
+  it("let the count carry on from where it stopped once it's restored", () => {
+    const archived = quit("2026-11-01", [], [archivedNov(20)]);
+    vi.setSystemTime(new Date(2026, 10, 27, 12));
+    const restored = quit("2026-11-01", [], [archivedNov(20, 27)]);
+    const onRestoreDay = currentStreakDays(restored);
+    vi.setSystemTime(new Date(2026, 10, 28, 12));
+    // 19 on the archive day; the restore day and the next count again
+    expect([currentStreakDays(archived), onRestoreDay, currentStreakDays(restored)]).toEqual([
+      19, 20, 21,
+    ]);
+  });
+
+  it("count only after the quit day", () => {
+    // the quit day moved into an earlier archived period once it was restored
+    const habit = quit("2026-11-05", [], [archivedNov(1, 10)]);
+    expect([archivedDays(habit), currentStreakDays(habit)]).toEqual([novDays(6, 9), 15]);
+  });
+
+  it("are none when restored on a day before the one it was archived on, as after flying west", () => {
+    expect(archivedDays(quit("2026-11-01", [], [archivedNov(22, 21)]))).toEqual([]);
+  });
+
+  it("leave a slip on the day before archiving as it was", () => {
+    const habit = quit("2026-11-01", ["2026-11-19"], [archivedNov(20, 23)]);
+    // the 20th, 23rd and 24th are clean; the 21st and 22nd archived
+    expect(streaksOf(habit)).toEqual([
+      { start: "2026-11-01", end: "2026-11-19", days: 17, current: false },
+      { start: "2026-11-19", end: "2026-11-24", days: 3, current: true },
+    ]);
+  });
+
+  it("leave a slip on the day it was archived counting, as today's would", () => {
+    const habit = quit("2026-11-01", ["2026-11-20"], [archivedNov(20, 23)]);
+    expect([loggedDays(habit), currentStreakDays(habit)]).toEqual([["2026-11-20"], 2]);
+  });
+
+  it("don't count a slip on an archived day, as one merged in from another device", () => {
+    const habit = quit("2026-11-01", ["2026-11-21"], [archivedNov(20, 23)]);
+    expect([loggedDays(habit), currentStreakDays(habit)]).toEqual([[], 21]);
+  });
+
+  it("are left out of the longest streak", () => {
+    // 18 clean days to a slip on 20 Oct, then 35 days since it, 25 of them archived
+    const habit = quit(
+      "2026-10-01",
+      ["2026-10-20"],
+      [{ archivedOn: "2026-10-25", restoredOn: "2026-11-20" }],
+    );
+    expect([longestStreakDays(habit), streaksOf(habit).map((s) => s.days)]).toEqual([18, [18, 10]]);
+  });
+
+  it("stay unfilled on the calendar, and are listed apart", () => {
+    const habit = quit("2026-11-14", ["2026-11-23"], [archivedNov(17, 21)]);
+    expect([Object.fromEntries(daysByStreak(habit)), archivedDays(habit)]).toEqual([
+      {
+        "2026-11-15": "past",
+        "2026-11-16": "past",
+        "2026-11-17": "past",
+        "2026-11-21": "past",
+        "2026-11-22": "past",
+        "2026-11-24": "current",
+      },
+      novDays(18, 20),
+    ]);
+  });
+
+  it("can't be edited, though the days it was archived and restored on can", () => {
+    const habit = quit("2026-11-14", [], [archivedNov(17, 21)]);
+    expect([17, 18, 20, 21].map((day) => canToggle(habit, nov(day)))).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
+  });
+
+  it("give the day it was archived on while it still is", () => {
+    expect([
+      archivedSince(quit("2026-11-01", [], [archivedNov(5, 8), archivedNov(20)])),
+      archivedSince(quit("2026-11-01", [], [archivedNov(5, 8)])),
+      archivedSince(quit("2026-11-01")),
+    ]).toEqual(["2026-11-20", null, null]);
+  });
+});
+
+describe("a quit habit's goal across archived days", () => {
+  const withGoal = (habit: QuitHabit, goal: number): QuitHabit => ({ ...habit, goal });
+  const goalDay = (habit: Habit) => {
+    const d = goalDate(habit);
+    return d && toISO(d);
+  };
+
+  it("is reached on the day its clean days reach it, archived days left out", () => {
+    // clean on the 11th and 12th, archived the 13th to the 19th, clean again from the 20th
+    const habit = quit("2026-11-10", [], [archivedNov(12, 20)]);
+    expect([
+      goalReached(withGoal(habit, 7)),
+      goalDay(withGoal(habit, 7)),
+      goalDay(withGoal(habit, 14)),
+    ]).toEqual([true, "2026-11-24", "2026-12-01"]);
+  });
+
+  it("can't be reached while the habit is archived, and has no date then", () => {
+    const habit = withGoal(quit("2026-11-10", [], [archivedNov(12)]), 7);
+    vi.setSystemTime(new Date(2026, 11, 10, 12));
+    expect([currentStreakDays(habit), goalReached(habit), goalDay(habit)]).toEqual([
+      2,
+      false,
+      null,
+    ]);
+  });
+
+  it("is worked out from the continuing count once the habit is restored", () => {
+    vi.setSystemTime(new Date(2026, 11, 10, 12));
+    const habit = withGoal(
+      quit("2026-11-10", [], [{ archivedOn: "2026-11-12", restoredOn: "2026-12-10" }]),
+      7,
+    );
+    // the 11th, the 12th and the restore day are clean, with 4 days to go
+    expect([currentStreakDays(habit), goalDay(habit)]).toEqual([3, "2026-12-14"]);
+  });
+
+  it("keeps the day it was reached on before the habit was archived", () => {
+    const habit = withGoal(quit("2026-11-01", [], [archivedNov(20)]), 7);
+    expect([goalReached(habit), goalDay(habit)]).toEqual([true, "2026-11-08"]);
+  });
+
+  it("isn't celebrated for archived days, only once the clean days reach it", () => {
+    const habit = withGoal(quit("2026-11-10", [], [archivedNov(12, 20)]), 7);
+    vi.setSystemTime(new Date(2026, 10, 23, 12));
+    const before = celebrationDue(habit, null);
+    vi.setSystemTime(new Date(2026, 10, 24, 12));
+    expect([before, celebrationDue(habit, null)]).toEqual([false, true]);
+  });
+});
+
+describe("a build habit's archived days", () => {
+  it("are days without check-ins, ending a streak as any would", () => {
+    const checkIns = [...novDays(18, 20), ...novDays(23, 24)];
+    const habit = build(checkIns, [archivedNov(20, 23)]);
+    expect([archivedDays(habit), streaksOf(habit)]).toEqual([[], streaksOf(build(checkIns))]);
   });
 });

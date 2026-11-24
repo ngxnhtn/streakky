@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   addDays,
+  archivedDays,
   canToggle,
   fmtShort,
   fromISO,
@@ -34,6 +35,8 @@ type DayInfo = {
   date: Date;
   inStreak: boolean;
   slip: boolean;
+  /** a quit habit's archived day: neither clean nor a slip */
+  archived: boolean;
   isToday: boolean;
   pending: boolean;
   editable: boolean;
@@ -41,8 +44,9 @@ type DayInfo = {
 
 /**
  * A habit's days. Every check-in or clean day takes the habit colour in full; a slip is an
- * unfilled day with a dot; today, not checked in yet, is a ring. Weeks: columns are weeks, newest
- * on the right, opening on today. Month: a classic grid with streaks drawn as bands.
+ * unfilled day with a dot; a quit habit's archived day is hatched; today, not checked in yet, is a
+ * ring. Weeks: columns are weeks, newest on the right, opening on today. Month: a classic grid
+ * with streaks drawn as bands, and archived days as hatched discs apart from them.
  * "Edit days" turns days into buttons that call onToggleDay. Without onToggleDay the calendar only
  * shows the days, with no "Edit days".
  */
@@ -73,6 +77,8 @@ export function HabitCalendar({
   const todayISO = toISO(t);
   // only the logged days that count: a slip on or before the quit day draws no dot
   const slips = new Set(habit.kind === "quit" ? loggedDays(habit) : []);
+  // a build habit has none: its archived days are days without check-ins
+  const archived = new Set(archivedDays(habit));
   const pending = habit.kind === "build" && !loggedToday(habit);
   const firstDay = fromISO(historyStart(habit));
 
@@ -82,6 +88,7 @@ export function HabitCalendar({
       date,
       inStreak: streakDayMap.has(iso),
       slip: slips.has(iso),
+      archived: archived.has(iso),
       isToday: iso === todayISO,
       pending,
       editable: canToggle(habit, iso),
@@ -141,10 +148,18 @@ export function HabitCalendar({
           {habit.kind === "quit" ? "Clean day" : "Check-in"}
         </li>
         {habit.kind === "quit" ? (
-          <li className="flex items-center gap-2">
-            <i className="mx-1.5 size-[0.3125rem] rounded-full bg-habit" />
-            Slip
-          </li>
+          <>
+            <li className="flex items-center gap-2">
+              <i className="mx-1.5 size-[0.3125rem] rounded-full bg-habit" />
+              Slip
+            </li>
+            {archived.size > 0 && (
+              <li className="flex items-center gap-2">
+                <i className="h-2.5 w-4 rounded-full bg-archived" />
+                Archived day
+              </li>
+            )}
+          </>
         ) : (
           <li className="flex items-center gap-2">
             <i className="mx-0.5 size-3 rounded-full shadow-[inset_0_0_0_1.5px_var(--habit)]" />
@@ -269,7 +284,9 @@ function WeeksGrid({
                       "relative grid size-7 place-items-center rounded-lg text-[0.6875rem] tabular-nums transition-[background-color,box-shadow,transform,translate,scale] duration-120",
                       d.inStreak
                         ? "bg-habit text-habit-foreground"
-                        : "bg-muted text-muted-foreground",
+                        : d.archived
+                          ? "bg-archived text-muted-foreground"
+                          : "bg-muted text-muted-foreground",
                       d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
                       d.isToday &&
                         d.inStreak &&
@@ -388,12 +405,15 @@ function MonthGrid({
                   "text-habit-foreground before:absolute before:inset-x-0 before:inset-y-1 before:bg-habit",
                 d.inStreak && !prev && "before:left-1 before:rounded-l-full",
                 d.inStreak && !next && "before:right-1 before:rounded-r-full",
+                d.archived && "text-muted-foreground",
                 d.slip && cn(slipDot, "after:bottom-0"),
               )}
             >
               <span
                 className={cn(
                   "relative z-10 grid size-[2.125rem] place-items-center rounded-full transition-[box-shadow,transform,translate,scale] duration-120",
+                  // a day apart, not a band: an archived day isn't one of the streak's days
+                  d.archived && "bg-archived",
                   d.isToday && "font-semibold shadow-[inset_0_0_0_1.5px_var(--habit)]",
                   d.isToday && d.inStreak && "bg-habit-foreground text-habit shadow-none",
                 )}
