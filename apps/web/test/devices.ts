@@ -9,6 +9,7 @@ import {
   type HabitStore,
   type HabitStoreOptions,
   type KeyValueStorage,
+  type SessionTokenStorage,
 } from "../src/store/habit-store.ts";
 import { dayCollectionOptions, habitCollectionOptions } from "../src/store/records.ts";
 
@@ -21,12 +22,15 @@ export type DeviceStorage = {
   keyValues: KeyValueStorage;
   /** cookie values by name, as the browser keeps them for the app's origin */
   cookies: Map<string, string>;
+  /** the session token, as the Android app keeps it in secure storage */
+  sessionToken: SessionTokenStorage;
 };
 
 export const createStorage = (): DeviceStorage => ({
   database: new Database(":memory:"),
   keyValues: inMemoryKeyValues(),
   cookies: new Map(),
+  sessionToken: inMemoryToken(),
 });
 
 /**
@@ -91,18 +95,22 @@ export function stallable(connection: Connection) {
  * How a simulated device behaves beyond its storage and network: its clock, and when it syncs by
  * itself. By default it syncs only when it opens, after signing in, and when a test says so.
  */
-export type DeviceOptions = Pick<HabitStoreOptions, "now" | "timing" | "syncTriggers">;
+export type DeviceOptions = Pick<HabitStoreOptions, "now" | "timing" | "syncTriggers"> & {
+  /** the Android app, which keeps its session as a token rather than a cookie */
+  androidApp?: boolean;
+};
 
 /** Opens the real habit store on a simulated device's storage, as the app does on launch. */
 export const openDevice = (
   storage: DeviceStorage,
   connection: Connection = unreachable,
-  { now, timing, syncTriggers }: DeviceOptions = {},
+  { now, timing, syncTriggers, androidApp = false }: DeviceOptions = {},
 ): Promise<HabitStore> =>
   openHabitStore({
     persistence: createNodeSQLitePersistence({ database: storage.database }),
     keyValueStorage: storage.keyValues,
     api: connection(storage),
+    sessionToken: androidApp ? storage.sessionToken : undefined,
     now,
     timing: { syncDelay: Infinity, syncInterval: Infinity, ...timing },
     syncTriggers,
@@ -132,5 +140,13 @@ function inMemoryKeyValues(): KeyValueStorage {
     getItem: (key) => items.get(key) ?? null,
     setItem: (key, value) => void items.set(key, value),
     removeItem: (key) => void items.delete(key),
+  };
+}
+
+function inMemoryToken(): SessionTokenStorage {
+  let token: string | null = null;
+  return {
+    get: () => token,
+    set: (next) => void (token = next),
   };
 }

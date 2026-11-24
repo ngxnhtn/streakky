@@ -13,6 +13,15 @@ export const AUTH_PATH = "/api/auth";
 export const SYNC_PATH = "/api/sync";
 
 /**
+ * The Android app's origin: Capacitor serves its pages from inside the APK at this address, so
+ * every request it makes to the Worker crosses origins. The Worker allows it through CORS.
+ */
+export const ANDROID_APP_ORIGIN = "https://localhost";
+
+/** The header that hands the Android app its session token, in place of a cookie. */
+export const SESSION_TOKEN_HEADER = "set-auth-token";
+
+/**
  * The sign-in codes the Worker emails: how many digits, and how many minutes each works
  * (better-auth's defaults, named so the email and the Sign-in screen can say them).
  */

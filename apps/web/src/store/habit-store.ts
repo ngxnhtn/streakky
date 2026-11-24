@@ -16,7 +16,13 @@ import {
   type Settings,
 } from "@streakky/core";
 import { toExportFile, type ExportFile } from "./export.ts";
-import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
+import {
+  openAccount,
+  withSessionToken,
+  type ApiFetch,
+  type SessionTokenStorage,
+  type SyncStatus,
+} from "./account.ts";
 import {
   celebrationDue as isCelebrationDue,
   forgetCelebrations,
@@ -41,6 +47,7 @@ export {
   SIGN_IN_CODE,
   SignInError,
   type ApiFetch,
+  type SessionTokenStorage,
   type SignInFailure,
   type SyncStatus,
 } from "./account.ts";
@@ -185,6 +192,8 @@ export type HabitStoreOptions = {
   keyValueStorage: KeyValueStorage;
   /** How the store reaches the API Worker, for signing in and sync. */
   api: ApiFetch;
+  /** Where the session token goes, on a device that can't keep the server's cookie. */
+  sessionToken?: SessionTokenStorage;
   /** The device's clock, for edit times. */
   now?: () => number;
   /** When sync runs by itself, and how long signing out waits for it; the defaults suit the app. */
@@ -222,11 +231,14 @@ function checkQuitDay(day: string) {
 export async function openHabitStore({
   persistence,
   keyValueStorage,
-  api,
+  api: platformApi,
+  sessionToken,
   now = Date.now,
   timing,
   syncTriggers,
 }: HabitStoreOptions): Promise<HabitStore> {
+  // on a device that keeps its session as a token, every call carries it
+  const api = sessionToken ? withSessionToken(platformApi, sessionToken) : platformApi;
   const habitRecords = createCollection(habitCollectionOptions(persistence));
   const dayRecords = createCollection(dayCollectionOptions(persistence));
   await Promise.all([habitRecords.preload(), dayRecords.preload()]);
@@ -296,7 +308,7 @@ export async function openHabitStore({
     for (const habit of toHabits(records)) if (goalReached(habit)) markCelebrated(habit);
   };
 
-  const account = openAccount({ api, storage: keyValueStorage, statusChanged });
+  const account = openAccount({ api, storage: keyValueStorage, sessionToken, statusChanged });
   const signedInAs = () => {
     const status = account.status();
     return status.signedIn ? status.email : null;

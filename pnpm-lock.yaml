@@ -246,6 +246,9 @@ catalogs:
     better-sqlite3:
       specifier: ^12.11.1
       version: 12.11.1
+    capacitor-secure-storage-plugin:
+      specifier: ^0.14.2
+      version: 0.14.2
     class-variance-authority:
       specifier: ^0.7.1
       version: 0.7.1
@@ -442,6 +445,9 @@ importers:
       '@tanstack/db-sqlite-persistence-core':
         specifier: 'catalog:'
         version: 1.0.0-rc.1.5(typescript@7.0.2)
+      capacitor-secure-storage-plugin:
+        specifier: 'catalog:'
+        version: 0.14.2(@capacitor/core@8.6.2)
       fractional-indexing:
         specifier: 'catalog:'
         version: 4.0.0
@@ -4191,6 +4197,11 @@ packages:
 
   caniuse-lite@1.0.30001827:
     resolution: {integrity: sha512-YWEDr46gSO81M8w6uPbaIy4++IXsirx2asUqvllNiD4BPf75ibxclUjWEqp8ObCenRv+UM2n5Y8xuRPT8V8FrQ==}
+
+  capacitor-secure-storage-plugin@0.14.2:
+    resolution: {integrity: sha512-8+v5jg9HaizcKqVvz3LDhKrT94zfoE4DhsQ1GK3+Dj4KvWYb7qcwRsC0eQPFBuCUixRBjjofVizRhHyCCNM8lw==}
+    peerDependencies:
+      '@capacitor/core': '>=8.0.0'
 
   chai@6.3.0:
     resolution: {integrity: sha512-XWAtwJ6OHO+tj0EKCs0Y2UamnyOxseZWltU4x2U2wh8g4AigdjwvtUjvLP2tqkA/avxHEtzxNaqGq/YGNwckKg==}
@@ -9768,6 +9779,10 @@ snapshots:
       get-intrinsic: 1.3.0
 
   caniuse-lite@1.0.30001827: {}
+
+  capacitor-secure-storage-plugin@0.14.2(@capacitor/core@8.6.2):
+    dependencies:
+      '@capacitor/core': 8.6.2
 
   chai@6.3.0: {}
 

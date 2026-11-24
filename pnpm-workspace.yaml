@@ -27,6 +27,7 @@ catalog:
   auth: ^1.7.27
   better-auth: ^1.7.27
   better-sqlite3: ^12.11.1
+  capacitor-secure-storage-plugin: ^0.14.2
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
   drizzle-kit: ^0.31.11

@@ -16,3 +16,6 @@ project(':capacitor-preferences').projectDir = new File('../../../node_modules/.
 
 include ':capacitor-share'
 project(':capacitor-share').projectDir = new File('../../../node_modules/.pnpm/@capacitor+share@8.0.3_@capacitor+core@8.6.2/node_modules/@capacitor/share/android')
+
+include ':capacitor-secure-storage-plugin'
+project(':capacitor-secure-storage-plugin').projectDir = new File('../../../node_modules/.pnpm/capacitor-secure-storage-plugin@0.14.2_@capacitor+core@8.6.2/node_modules/capacitor-secure-storage-plugin/android')

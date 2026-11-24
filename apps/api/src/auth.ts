@@ -1,4 +1,4 @@
-import { AUTH_PATH, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
+import { ANDROID_APP_ORIGIN, AUTH_PATH, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { bearer, emailOTP } from "better-auth/plugins";
@@ -58,6 +58,8 @@ export function authOptions(config: AuthConfig) {
     appName: "Streakky",
     baseURL: config.baseURL,
     basePath: AUTH_PATH,
+    // the Android app signs in from its own origin, with a bearer token in place of a cookie
+    trustedOrigins: [ANDROID_APP_ORIGIN],
     secret: config.secret,
     database: config.database,
     session: {

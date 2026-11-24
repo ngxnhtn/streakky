@@ -258,6 +258,11 @@ type DayRecord = {
 - **Android:**
   - The WebView origin is `https://localhost`, so cookies would be third-party. The app uses bearer tokens instead.
   - The API exposes the session token header through CORS, lists `https://localhost` as a trusted origin, and the app keeps the token in secure device storage.
+  - **Token handling:**
+    - Every call the app makes carries the token, and a new one the server hands back (`set-auth-token`) replaces it.
+    - Signing out asks the server to end the session, then forgets the token whether or not the server heard, since nobody else holds it.
+    - The token is also forgotten whenever the server says the session is over.
+    - It lives in `capacitor-secure-storage-plugin`, encrypted with a key the Android Keystore holds.
 - **Rate limiting:** better-auth's rate limiting, keyed on Cloudflare's client IP header: 3 code requests and 4 sign-in tries a minute per IP.
 - **Daily cap per address:** at most 10 code requests and 20 sign-in tries a UTC day for each address, whatever IPs they come from, counted in D1. It keeps guessing a code capped for someone with many IPs; the cost is that they can use up the owner's tries for the day. Requests refused for other reasons, such as an address off the allowlist or a code that isn't for sign-in, don't count. The Worker has done this since ticket 13, and the owner chose to keep it (2026-11-24).
 - Not used: passwords, Google or other social sign-in, magic links, passkeys, anonymous sessions.

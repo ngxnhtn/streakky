@@ -1,15 +1,40 @@
 /**
  * Signing in to the API Worker with an email code, and remembering on the device whether it is
  * signed in, so the app knows while offline. The session itself is the server's cookie, which
- * the browser keeps. Screens reach all of this through the habit store.
+ * the browser keeps, or in the Android app a token the device keeps (`withSessionToken`). Screens
+ * reach all of this through the habit store.
  */
-import { AUTH_PATH, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
+import { AUTH_PATH, SESSION_TOKEN_HEADER, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
 import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
 
 export { SIGN_IN_CODE };
 
 /** Calls the API Worker: `fetch` on the app's own origin in the browser. */
 export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
+
+/**
+ * Where a device that can't keep the server's session cookie keeps its session token instead,
+ * as the Android app does, whose pages come from another origin (spec, "Auth"). Read and written
+ * at once; a platform with slower storage keeps it in memory and writes it through.
+ */
+export type SessionTokenStorage = { get(): string | null; set(token: string | null): void };
+
+/**
+ * Calls the API carrying the device's session token, as a browser carries its cookie, and keeps
+ * the token the server hands back on signing in or renewing the session. It's forgotten on
+ * signing out, and once the server has ended the session (`openAccount`).
+ */
+export function withSessionToken(api: ApiFetch, tokens: SessionTokenStorage): ApiFetch {
+  return async (path, init = {}) => {
+    const headers = new Headers(init.headers);
+    const token = tokens.get();
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+    const response = await api(path, { ...init, headers });
+    const issued = response.headers.get(SESSION_TOKEN_HEADER);
+    if (issued) tokens.set(issued);
+    return response;
+  };
+}
 
 /** Whether this device is signed in, and as whom. */
 export type AccountStatus = { signedIn: false } | { signedIn: true; email: string };
@@ -80,10 +105,13 @@ export type Account = {
 export function openAccount({
   api,
   storage,
+  sessionToken,
   statusChanged,
 }: {
   api: ApiFetch;
   storage: KeyValueStorage;
+  /** the device's session token, on a device that keeps one in place of a cookie */
+  sessionToken?: SessionTokenStorage;
   /** Whether the device is signed in, or as whom, changed. */
   statusChanged: () => void;
 }): Account {
@@ -97,6 +125,8 @@ export function openAccount({
     status = statusOf(next);
     // with full or blocked storage, the change holds until the app is reopened
     writeJSON(storage, ACCOUNT_KEY, next);
+    // signed out, and the server knows: the token is no use any more, as the cookie it clears
+    if (next === null) sessionToken?.set(null);
     statusChanged();
   };
 
@@ -141,8 +171,13 @@ export function openAccount({
       save({ email: user.email });
     },
     async signOut() {
+      const token = sessionToken?.get();
       save({ signingOut: true });
       await endSession();
+      // A token is the device's own copy of the session, unlike a cookie only the server can
+      // clear: once the server has been asked to end it, heard or not, the device forgets it, and
+      // then nobody holds it. Not a newer one, from signing in again meanwhile.
+      if (token && sessionToken?.get() === token) sessionToken.set(null);
     },
     async checkSession() {
       if (stored && "signingOut" in stored) return endSession();

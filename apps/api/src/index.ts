@@ -1,7 +1,14 @@
-import { AUTH_PATH, SYNC_PATH, type PushAnswer } from "@streakky/contract";
+import {
+  ANDROID_APP_ORIGIN,
+  AUTH_PATH,
+  SESSION_TOKEN_HEADER,
+  SYNC_PATH,
+  type PushAnswer,
+} from "@streakky/contract";
 import { lt, sql } from "drizzle-orm";
 import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { createAuth } from "./auth.ts";
 import { authDatabase, openDatabase, type Database } from "./db/database.ts";
 import { signInAttempts } from "./db/schema.ts";
@@ -62,6 +69,20 @@ const sync = new Hono<WorkerEnv>()
  * running it (see `assets` in wrangler.jsonc). It answers /api, and any path with no file.
  */
 const app = new Hono<WorkerEnv>()
+  // The Android app's pages come from another origin (ANDROID_APP_ORIGIN), so its WebView asks before
+  // each request with a bearer token or a JSON body, and only reads what's allowed here: its
+  // session token comes back in a header, since its cookies wouldn't be its own. The web app is
+  // on the Worker's own origin, so this changes nothing for it.
+  .use(
+    "/api/*",
+    cors({
+      origin: ANDROID_APP_ORIGIN,
+      allowMethods: ["GET", "POST"],
+      allowHeaders: ["Content-Type", "Authorization"],
+      exposeHeaders: [SESSION_TOKEN_HEADER],
+      maxAge: 24 * 60 * 60,
+    }),
+  )
   .get("/api/health", async (c) => {
     // healthy once the Worker has reached its D1 database
     await openDatabase(c.env.DB).run(sql`select 1`);

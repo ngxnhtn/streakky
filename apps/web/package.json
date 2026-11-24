@@ -27,6 +27,7 @@
     "@tanstack/capacitor-db-sqlite-persistence": "catalog:",
     "@tanstack/db": "catalog:",
     "@tanstack/db-sqlite-persistence-core": "catalog:",
+    "capacitor-secure-storage-plugin": "catalog:",
     "fractional-indexing": "catalog:",
     "lucide-react": "catalog:",
     "react": "^19.2.0",

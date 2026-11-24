@@ -10,19 +10,28 @@ import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
 import { Preferences } from "@capacitor/preferences";
 import { Share } from "@capacitor/share";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
+import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { createCapacitorSQLitePersistence } from "@tanstack/capacitor-db-sqlite-persistence";
 import type { Platform } from "./platform.ts";
 import type { ExportFile } from "./store/export.ts";
-import { openHabitStore, type HabitStore, type KeyValueStorage } from "./store/habit-store.ts";
+import {
+  openHabitStore,
+  type HabitStore,
+  type KeyValueStorage,
+  type SessionTokenStorage,
+} from "./store/habit-store.ts";
 
 /** The app's pages come from inside the APK, so the API is reached at its own address. */
 const API_ORIGIN = "https://hb.nhutien.com";
 const DATABASE = "streakky";
+const SESSION_TOKEN_KEY = "streakky.session-token";
 
 /**
  * Opens the habit store on the phone's own storage, with what the app needs from Android: its back
  * button and the colour of the system bars' icons. `applySettings` puts the settings on the page
- * once they're read, before the database opens, and says whether the page is dark.
+ * once they're read, before the database opens, and says whether the page is dark. The app's
+ * pages come from another origin than the API's, so its cookies wouldn't be its own: it keeps its
+ * session as a token, in secure storage (spec, "Auth").
  */
 export async function openAndroidApp(
   applySettings: (keyValues: KeyValueStorage) => boolean,
@@ -33,6 +42,7 @@ export async function openAndroidApp(
     persistence: createCapacitorSQLitePersistence({ database: await openDatabase() }),
     keyValueStorage: keyValues,
     api: (path, init) => fetch(new URL(path, API_ORIGIN), init),
+    sessionToken: await loadSessionToken(),
     syncTriggers: whenBack,
   });
   return {
@@ -94,6 +104,32 @@ async function loadPreferences(): Promise<KeyValueStorage> {
     removeItem(key) {
       items.delete(key);
       Preferences.remove({ key }).catch(() => {});
+    },
+  };
+}
+
+/**
+ * The session token, in secure storage, encrypted with a key the Android Keystore holds. It's
+ * read in as the app opens, then each change is written through. A new token the storage refuses
+ * holds until the app is reopened, which then asks for a sign-in again; a removal it refuses
+ * leaves a token the signed-out device no longer uses.
+ */
+async function loadSessionToken(): Promise<SessionTokenStorage> {
+  // the plugin refuses a key it doesn't hold: no session token yet
+  let token = await SecureStoragePlugin.get({ key: SESSION_TOKEN_KEY }).then(
+    ({ value }) => value,
+    () => null,
+  );
+  return {
+    get: () => token,
+    set(next) {
+      if (next === token) return;
+      token = next;
+      const written =
+        next === null
+          ? SecureStoragePlugin.remove({ key: SESSION_TOKEN_KEY })
+          : SecureStoragePlugin.set({ key: SESSION_TOKEN_KEY, value: next });
+      written.catch(() => {});
     },
   };
 }
