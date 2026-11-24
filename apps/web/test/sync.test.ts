@@ -263,6 +263,21 @@ describe("syncing between two signed-in devices", () => {
     ]);
   });
 
+  it("moves a habit between two that the devices added offline after the same one", async () => {
+    const [phone, laptop] = await apartAfter((phone) =>
+      phone.createHabit({ kind: "build", name: "Read", color: "blue" }),
+    );
+    // each adds a habit at the end, just after "Read": both take the same position
+    await phone.createHabit({ kind: "build", name: "Stretch", color: "green" });
+    await laptop.createHabit({ kind: "build", name: "Walk", color: "ochre" });
+    await together(phone, laptop);
+    const [read, first, second] = phone.habits();
+    await phone.moveHabit(read.id, first.id);
+    await syncBoth(phone, laptop);
+    const expected = [first.name, "Read", second.name];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
   it("agrees on one result when the devices' clocks differ, by the times they recorded", async () => {
     const clock = testClock();
     // the laptop's clock runs ten minutes fast

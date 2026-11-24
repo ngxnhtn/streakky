@@ -1,6 +1,6 @@
 import { createCollection } from "@tanstack/db";
 import type { PersistedCollectionPersistence } from "@tanstack/db-sqlite-persistence-core";
-import { generateKeyBetween } from "fractional-indexing";
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import {
   canBeQuitDay,
   canToggle,
@@ -85,8 +85,11 @@ export type HabitStore = {
   toggleDay(habitId: string, day?: string): Promise<void>;
   /**
    * Reorders: puts an active habit just after another active habit (`after`), or first with
-   * null. Only the moved habit's order position changes. Does nothing if either one isn't active.
-   * The first move that changes the order also dismisses Home's reorder hint on this device.
+   * null. Only the moved habit's order position changes, unless `after` shares its position with
+   * other habits, as two devices adding a habit after the same one offline leave them: those get
+   * positions of their own first, in the order they show in. Does nothing if either one isn't
+   * active. The first move that changes the order also dismisses Home's reorder hint on this
+   * device.
    */
   moveHabit(habitId: string, after: string | null): Promise<void>;
   /**
@@ -309,6 +312,34 @@ export async function openHabitStore({
     await saved(tx);
   };
 
+  /** The first position after `position` (any, with null) of a habit other than `habitId`. */
+  const nextPosition = (position: string | null, habitId: string): string | null =>
+    habitRecords.toArray
+      .filter((h) => h.id !== habitId && (position === null || h.order > position))
+      .toSorted(byOrder)[0]?.order ?? null;
+
+  /**
+   * Gives the habits that share `after`'s position positions of their own, in the order they show
+   * in, the first keeping its own, so that `moving` can go between two of them. Two devices adding
+   * a habit after the same one offline give both one position, and nothing fits between equal
+   * positions. Deleted habits keep theirs, as nothing edits a tombstone.
+   */
+  const separateTied = async (after: string, moving: string) => {
+    const position = habitRecords.get(after)?.order;
+    const tied = habitRecords.toArray
+      .filter((h) => h.id !== moving && !h.deleted && h.order === position)
+      .toSorted(byOrder);
+    if (position === undefined || tied.length < 2) return;
+    const positions = generateNKeysBetween(
+      position,
+      nextPosition(position, moving),
+      tied.length - 1,
+    );
+    for (const [i, habit] of tied.slice(1).entries()) {
+      await changeHabit(habit.id, { order: positions[i] });
+    }
+  };
+
   const archivedHabits = () =>
     (archivedSnapshot ??= toHabits(
       habitRecords.toArray.filter((h) => !h.deleted && h.archived).toSorted(byOrder),
@@ -445,16 +476,14 @@ export async function openHabitStore({
       const isShown = (id: string | null) => id === null || shown.some((h) => h.id === id);
       if (at === -1 || after === habitId || !isShown(after)) return;
       if ((shown[at - 1]?.id ?? null) === after) return; // already there
+      // the person has found reordering, so Home's hint about it can go
+      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
+      if (after !== null) await separateTied(after, habitId);
       // Just after `after`, before the next position of any other habit, shown or not: archived
       // and deleted habits keep positions between the shown ones. Strictly between two
       // neighbouring positions, the new one can't equal another habit's.
       const lower = after === null ? null : (habitRecords.get(after)?.order ?? null);
-      const upper =
-        habitRecords.toArray
-          .filter((h) => h.id !== habitId && (lower === null || h.order > lower))
-          .toSorted(byOrder)[0]?.order ?? null;
-      // the person has found reordering, so Home's hint about it can go
-      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
+      const upper = nextPosition(lower, habitId);
       await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
     },
     // Archiving and restoring always write `archived` and `archivedPeriods` together, so the two

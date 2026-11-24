@@ -1,7 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { generateKeyBetween } from "fractional-indexing";
 import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
-import { createStorage, openDevice, storedHabits, type DeviceStorage } from "./devices.ts";
+import {
+  createStorage,
+  openDevice,
+  storedHabits,
+  storeRecords,
+  type DeviceStorage,
+} from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
 beforeEach(() => {
@@ -29,6 +35,22 @@ const move = (device: HabitStore, name: string, after: string | null) =>
 
 /** Habit records by their order position alone. */
 const byPosition = (a: HabitRecord, b: HabitRecord) => (a.order < b.order ? -1 : 1);
+
+/** A build habit at `order` as a sync stores it: ties in position show in the order of their ids. */
+const syncedAt = (id: string, name: string, order: string): HabitRecord => ({
+  id,
+  kind: "build",
+  name,
+  color: "green",
+  goal: null,
+  quitDay: null,
+  archived: false,
+  archivedPeriods: [],
+  order,
+  deleted: false,
+  edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, archivedPeriods: 1, order: 1 },
+  pending: false,
+});
 
 describe("reordering habits on a device", () => {
   it("moves a habit between two others", async () => {
@@ -155,6 +177,30 @@ describe("reordering habits on a device", () => {
       ["Morning run", "Stretch", "Floss", "Read 20 pages"],
     ]);
     expect(new Set(positions).size).toBe(4);
+  });
+
+  it("moves a habit between two that share a position, as devices adding habits offline leave them", async () => {
+    const storage = createStorage();
+    // three devices each added a habit after "Read" offline, and synced
+    await storeRecords(storage, {
+      habits: [
+        syncedAt("read", "Read 20 pages", "a0"),
+        syncedAt("run", "Morning run", "a1"),
+        syncedAt("stretch", "Stretch", "a1"),
+        syncedAt("walk", "Walk", "a1"),
+      ],
+    });
+    const device = await openDevice(storage);
+    const before = namesOf(device);
+    await move(device, "Read 20 pages", "Stretch");
+    const moved = namesOf(device);
+    await device.close();
+    const reopened = await openDevice(storage);
+    expect([before, moved, namesOf(reopened)]).toEqual([
+      ["Read 20 pages", "Morning run", "Stretch", "Walk"],
+      ["Morning run", "Stretch", "Read 20 pages", "Walk"],
+      ["Morning run", "Stretch", "Read 20 pages", "Walk"],
+    ]);
   });
 
   it("ignores a move of or after an archived habit", async () => {
