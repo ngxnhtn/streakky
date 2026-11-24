@@ -13,6 +13,7 @@ import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
 import {
   createStorage,
   openDevice,
+  stallable,
   storeRecords,
   withRecordsLost,
   switchable,
@@ -24,7 +25,7 @@ import { codeSentTo, online, startServer, type Server } from "./server.ts";
 
 // an account of its own for each test, so no test sees another's habits, and each address stays
 // under the Worker's per-address daily limit on sign-in codes
-const accounts = Array.from({ length: 60 }, (_, i) => `person${i + 1}@example.com`);
+const accounts = Array.from({ length: 80 }, (_, i) => `person${i + 1}@example.com`);
 let nextAccount = 0;
 
 let server: Server;
@@ -48,22 +49,35 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-/** A device with its own storage and network address, signed in to `email` on `at`. */
-async function signedInDevice(
-  email: string,
+/** Where a device keeps its data, and the server it reaches, through what. */
+type Place = { storage?: DeviceStorage; at?: Server; via?: Connection };
+
+/** A device with its own storage and network address, signed out, as the app first opens. */
+async function newDevice(
   options?: DeviceOptions,
-  {
-    storage = createStorage(),
-    at = server,
-    via = online(at),
-  }: { storage?: DeviceStorage; at?: Server; via?: Connection } = {},
+  { storage = createStorage(), at = server, via = online(at) }: Place = {},
 ): Promise<Device> {
   const network = switchable(via);
   const store = await openDevice(storage, network.connection, options);
   open.push(store);
-  await store.requestSignInCode(email);
-  await store.signIn(email, codeSentTo(at, email));
   return Object.assign(store, { goOffline: network.goOffline, goOnline: network.goOnline });
+}
+
+/** Signs the device in to `email` with the code `at` emailed; the sync that follows runs on. */
+async function signIn(device: Device, email: string, at = server) {
+  await device.requestSignInCode(email);
+  await device.signIn(email, codeSentTo(at, email));
+}
+
+/** A device with its own storage and network address, signed in to `email` on `at`. */
+async function signedInDevice(
+  email: string,
+  options?: DeviceOptions,
+  place: Place = {},
+): Promise<Device> {
+  const device = await newDevice(options, place);
+  await signIn(device, email, place.at);
+  return device;
 }
 
 /** Two devices, such as a phone and a laptop, signed in to one new account. */
@@ -90,6 +104,13 @@ const shown = (device: HabitStore) =>
     color: h.color,
     days: h.kind === "build" ? h.checkIns : h.slips,
   }));
+
+/** What a person sees of each habit, by name and then colour: two devices may order ties apart. */
+const byName = (device: HabitStore) =>
+  shown(device).toSorted((a, b) => a.name.localeCompare(b.name) || a.color.localeCompare(b.color));
+
+/** Resolves after `ms` of real time: tests fake only the date. */
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const daysAgo = (n: number) => toISO(addDays(todayISO(), -n));
 
@@ -631,6 +652,154 @@ describe("a signed-in device's sync status", () => {
       { signedIn: true, email, pending: 2, lastSynced: signedInAt, failing: true },
       { signedIn: true, email, pending: 0, lastSynced: clock.now(), failing: false },
     ]);
+  });
+});
+
+describe("signing in on a device that has habits of its own", () => {
+  it("adds every one of them to the account with its days, beside one of the same name", async () => {
+    const email = accounts[nextAccount++];
+    const laptop = await signedInDevice(email);
+    await laptop.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await laptop.toggleDay(laptop.habits()[0].id, daysAgo(1));
+    await laptop.sync();
+    // a phone used signed out until now
+    const phone = await newDevice();
+    await phone.createHabit({ kind: "build", name: "Read", color: "green" });
+    await phone.createHabit({ kind: "quit", name: "No sugar", color: "red", quitDay: daysAgo(5) });
+    const [read, noSugar] = phone.habits();
+    await phone.toggleDay(read.id);
+    await phone.toggleDay(noSugar.id, daysAgo(2));
+    await signIn(phone, email);
+    await phone.sync();
+    await laptop.sync();
+    const expected = [
+      { name: "No sugar", color: "red", days: [daysAgo(2)] },
+      { name: "Read", color: "blue", days: [daysAgo(1)] },
+      { name: "Read", color: "green", days: [todayISO()] },
+    ];
+    expect([byName(phone), byName(laptop)]).toEqual([expected, expected]);
+  });
+});
+
+describe("signing out", () => {
+  it("sends the changes still waiting before it signs out, without asking", async () => {
+    const [phone, laptop] = await twoDevices();
+    // test devices sync only when told, so these wait
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.toggleDay(phone.habits()[0].id);
+    const signedOut = await phone.signOut();
+    await laptop.sync();
+    expect([signedOut, shown(laptop)]).toEqual([
+      { signedOut: true },
+      [{ name: "Read", color: "blue", days: [todayISO()] }],
+    ]);
+  });
+
+  it("doesn't wait for a sync stuck on a stalled network, and keeps nothing it was getting", async () => {
+    const email = accounts[nextAccount++];
+    const network = stallable(online(server));
+    const phone = await signedInDevice(email, {}, { via: network.connection });
+    await phone.sync();
+    const laptop = await signedInDevice(email);
+    await laptop.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await laptop.sync();
+    network.stall();
+    const stuck = phone.sync();
+    const signingOut = phone.signOut();
+    const first = await Promise.race([
+      signingOut.then(() => "signed out"),
+      wait(500).then(() => "still waiting"),
+    ]);
+    network.recover();
+    await Promise.all([stuck, signingOut]);
+    expect([first, phone.syncStatus(), names(phone)]).toEqual([
+      "signed out",
+      { signedIn: false },
+      [],
+    ]);
+  });
+
+  it("asks rather than keeps waiting when changes are stuck on a stalled network", async () => {
+    const network = stallable(online(server));
+    const phone = await signedInDevice(
+      accounts[nextAccount++],
+      { timing: { signOutWait: 100 } },
+      { via: network.connection },
+    );
+    await phone.sync();
+    network.stall();
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    const asked = await Promise.race([phone.signOut(), wait(1000).then(() => "still waiting")]);
+    const signedIn = phone.syncStatus().signedIn;
+    network.recover();
+    expect([asked, signedIn]).toEqual([{ signedOut: false, pending: 1 }, true]);
+  });
+
+  it("asks first when changes can't sync, and loses them only when told to", async () => {
+    const [phone, laptop] = await twoDevices();
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.sync();
+    phone.goOffline();
+    await phone.toggleDay(phone.habits()[0].id);
+    const asked = await phone.signOut();
+    const stillSignedIn = [phone.syncStatus().signedIn, shown(phone)];
+    const told = await phone.signOut({ discardPending: true });
+    const afterwards = [phone.syncStatus(), names(phone)];
+    phone.goOnline();
+    await laptop.sync();
+    expect([asked, stillSignedIn, told, afterwards, shown(laptop)]).toEqual([
+      { signedOut: false, pending: 1 },
+      [true, [{ name: "Read", color: "blue", days: [todayISO()] }]],
+      { signedOut: true },
+      [{ signedIn: false }, []],
+      // the check-in never reached the account
+      [{ name: "Read", color: "blue", days: [] }],
+    ]);
+  });
+
+  it("clears the device's habits but keeps its settings, after a restart too", async () => {
+    const storage = createStorage();
+    const phone = await signedInDevice(accounts[nextAccount++], {}, { storage });
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.createHabit({ kind: "quit", name: "No sugar", color: "red", quitDay: daysAgo(5) });
+    await phone.toggleDay(phone.habits()[0].id);
+    await phone.archiveHabit(phone.habits()[1].id);
+    phone.changeSettings({ theme: "dark", weekStart: 0 });
+    await phone.sync();
+    await phone.signOut();
+    const signedOut = [phone.syncStatus(), names(phone), phone.archivedHabits()];
+    await phone.close();
+    const restarted = await newDevice({}, { storage });
+    const { theme, weekStart } = restarted.settings();
+    expect([signedOut, names(restarted), restarted.archivedHabits(), { theme, weekStart }]).toEqual(
+      [[{ signedIn: false }, [], []], [], [], { theme: "dark", weekStart: 0 }],
+    );
+  });
+
+  it("gets the account's habits back on signing in again", async () => {
+    const email = accounts[nextAccount++];
+    const phone = await signedInDevice(email);
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.toggleDay(phone.habits()[0].id);
+    await phone.sync();
+    await phone.signOut();
+    await signIn(phone, email);
+    await phone.sync();
+    expect(shown(phone)).toEqual([{ name: "Read", color: "blue", days: [todayISO()] }]);
+  });
+
+  it("leaves nothing of one account for the next to sign in on the device", async () => {
+    const [mine, theirs] = [accounts[nextAccount++], accounts[nextAccount++]];
+    const phone = await signedInDevice(mine);
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.sync();
+    await phone.signOut();
+    await signIn(phone, theirs);
+    await phone.createHabit({ kind: "build", name: "Stretch", color: "green" });
+    await phone.sync();
+    const theirLaptop = await signedInDevice(theirs);
+    await theirLaptop.sync();
+    expect([names(phone), names(theirLaptop)]).toEqual([["Stretch"], ["Stretch"]]);
   });
 });
 

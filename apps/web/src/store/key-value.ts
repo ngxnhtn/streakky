@@ -1,8 +1,10 @@
 /**
  * Device-local key-value storage, such as the browser's localStorage. Device settings live here,
- * apart from the habit and day records, so they are never synced and they survive sign-out.
+ * apart from the habit and day records, so they are never synced and they survive sign-out. The
+ * account, sync's place in its changes and the goals celebrated live here too; signing out clears
+ * those.
  */
-export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
+export type KeyValueStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
 /**
  * The value kept as JSON under `key`, as `read` makes it out, or `fallback` when there's none,
@@ -32,6 +34,15 @@ export function writeJSON(storage: KeyValueStorage, key: string, value: unknown)
     storage.setItem(key, JSON.stringify(value));
   } catch {
     // full or blocked storage: see above
+  }
+}
+
+/** Removes what's kept under `key`. Blocked storage keeps it, and doesn't fail. */
+export function removeKey(storage: KeyValueStorage, key: string): void {
+  try {
+    storage.removeItem(key);
+  } catch {
+    // blocked storage: nothing can be removed
   }
 }
 

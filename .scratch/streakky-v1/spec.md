@@ -237,7 +237,12 @@ type DayRecord = {
   - The device keeps its version apart from its records. With no records left but a version past the start, it pulls from the beginning too.
 - **When a device syncs:** on app start, on regaining connectivity, on returning to the foreground, shortly after local changes (debounced), and periodically while open.
 - **First sign-in on a device:** every local habit and day record is pushed as it is, then the device pulls. There's no matching by name.
-- **Sign-out:** if the pending-push queue isn't empty, the app warns first. It then wipes the habit and day collections and the stored credentials, but keeps device settings.
+- **Sign-out:**
+  - If the pending-push queue isn't empty, the app first tries a last sync, for up to 5 seconds. If changes still wait, as while offline, it warns, offering to cancel or to sign out anyway and lose them.
+  - It then wipes the habit and day collections, the device's place in the account's changes and the goals it celebrated, and the stored credentials, but keeps device settings.
+  - It wipes before the device counts as signed out. A sign-out cut short leaves the device signed in, with its place forgotten, so its next sync brings the account's habits back.
+  - A sync still running is stopped without waiting for its answers, and nothing it was getting is kept.
+  - **Open for the owner:** when the server ends a session by itself (a year unused), the device counts as signed out but keeps its habits, so nothing that hasn't synced is lost.
 
 ### Auth
 

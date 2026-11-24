@@ -145,16 +145,6 @@ describe("a signed-in device", () => {
     expect(restarted.syncStatus()).toEqual(signedInAs(regular));
   });
 
-  it("keeps its habits when it signs out", async () => {
-    const { device } = await signedIn();
-    await device.createHabit({ kind: "build", name: "Morning run", color: "green" });
-    await device.signOut();
-    expect([device.syncStatus(), device.habits().map((h) => h.name)]).toEqual([
-      { signedIn: false },
-      ["Morning run"],
-    ]);
-  });
-
   it("stays signed out after a restart", async () => {
     const { storage, device } = await signedIn();
     await device.signOut();

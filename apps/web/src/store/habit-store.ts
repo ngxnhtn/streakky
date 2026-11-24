@@ -19,6 +19,7 @@ import { toExportFile, type ExportFile } from "./export.ts";
 import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
 import {
   celebrationDue as isCelebrationDue,
+  forgetCelebrations,
   markCelebrated as keepCelebrated,
   readSettings,
   writeSettings,
@@ -59,6 +60,12 @@ export type NewBuildHabit = NewHabitBase & { kind: "build" };
 /** `quitDay` is today or a past day (YYYY-MM-DD); the first clean day is the day after. */
 export type NewQuitHabit = NewHabitBase & { kind: "quit"; quitDay: string };
 export type NewHabit = NewBuildHabit | NewQuitHabit;
+
+/**
+ * Whether signing out went ahead, or how many changes stopped it: changes still waiting for a
+ * push (`pending`), which signing out would lose.
+ */
+export type SignOutResult = { signedOut: true } | { signedOut: false; pending: number };
 
 /** What Edit habit and the Goal tab change. A habit's kind never changes. */
 export type HabitEdit = { name?: string; color?: ColorId; goal?: number | null };
@@ -145,8 +152,16 @@ export type HabitStore = {
   requestSignInCode(email: string): Promise<void>;
   /** Signs in with the code emailed to `email`; a `SignInError` says why not. */
   signIn(email: string, code: string): Promise<void>;
-  /** Ends this device's session at once, offline too; its habits stay. */
-  signOut(): Promise<void>;
+  /**
+   * Signs out and clears this device's habits, with their days and the goals it celebrated, so
+   * the next person to sign in here starts from an empty app. Its settings stay. Changes still
+   * waiting for a push go first. If some can't, as while offline, it signs out only with
+   * `discardPending`, losing them; otherwise it answers how many wait and stays signed in, so the
+   * screen can ask. Signing out works offline too; the server hears of it once it's back. A
+   * sign-out cut short leaves the device signed in, and its next sync brings the account's habits
+   * back.
+   */
+  signOut(options?: { discardPending?: boolean }): Promise<SignOutResult>;
   /** Asks the server whether this device is still signed in. The store does this when it opens. */
   checkSession(): Promise<void>;
   /**
@@ -172,7 +187,7 @@ export type HabitStoreOptions = {
   api: ApiFetch;
   /** The device's clock, for edit times. */
   now?: () => number;
-  /** When sync runs by itself; the defaults suit the app. */
+  /** When sync runs by itself, and how long signing out waits for it; the defaults suit the app. */
   timing?: Partial<SyncTiming>;
   /**
    * The platform's moments to sync, such as the device coming back online or the app back to the
@@ -255,6 +270,22 @@ export async function openHabitStore({
   };
 
   const markCelebrated = (habit: Habit) => keepCelebrated(keyValueStorage, habit);
+
+  /**
+   * Deletes every habit and day record on the device, and the goals it celebrated, as signing out
+   * does: the next person to sign in here finds none of them.
+   */
+  const clearHabits = async () => {
+    const deleted: Promise<unknown>[] = [];
+    if (habitRecords.size > 0) {
+      deleted.push(habitRecords.delete([...habitRecords.keys()]).when("settled"));
+    }
+    if (dayRecords.size > 0) {
+      deleted.push(dayRecords.delete([...dayRecords.keys()]).when("settled"));
+    }
+    await Promise.all(deleted);
+    forgetCelebrations(keyValueStorage);
+  };
 
   /**
    * A goal set or a quit day moved on another device was set there, not reached here, so it
@@ -551,7 +582,24 @@ export async function openHabitStore({
       await account.signIn(email, code);
       void sync.sync();
     },
-    signOut: account.signOut,
+    async signOut({ discardPending = false } = {}) {
+      if (!signedInAs()) return { signedOut: true };
+      if (!discardPending) {
+        const pending = await sync.lastSync();
+        if (pending > 0) return { signedOut: false, pending };
+      }
+      // Cleared first, then signed out: a sign-out cut short leaves the device signed in, and with
+      // its place in the account's changes forgotten, its next sync brings every habit back.
+      await sync.halt();
+      try {
+        await clearHabits();
+        // the server hears of it when it can, which nothing here waits for
+        void account.signOut();
+      } finally {
+        sync.resume();
+      }
+      return { signedOut: true };
+    },
     checkSession: account.checkSession,
     syncStatus,
     sync: () => sync.sync(),

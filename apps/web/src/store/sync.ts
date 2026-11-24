@@ -20,7 +20,7 @@ import {
   type SyncedHabit,
 } from "@streakky/contract";
 import type { ApiFetch } from "./account.ts";
-import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
+import { isRecord, readJSON, removeKey, writeJSON, type KeyValueStorage } from "./key-value.ts";
 import { dayKey, type DayRecord, type HabitRecord } from "./records.ts";
 
 /** What a sync knows between runs, kept per account so another account starts afresh. */
@@ -28,14 +28,24 @@ type Cursor = { email: string; version: number; lastSynced: number | null };
 
 const CURSOR_KEY = "streakky.sync";
 
+/** When sync runs by itself, and how long signing out waits for it. */
 export type SyncTiming = {
   /** How long after a change on the device it syncs, gathering the changes made meanwhile. */
   syncDelay: number;
   /** How often it syncs while open, for changes made on other devices. */
   syncInterval: number;
+  /**
+   * How long signing out waits for a last sync of the changes still waiting, before asking about
+   * the ones that didn't go, as on a stalled network.
+   */
+  signOutWait: number;
 };
 
-export const DEFAULT_TIMING: SyncTiming = { syncDelay: 2_000, syncInterval: 5 * 60_000 };
+export const DEFAULT_TIMING: SyncTiming = {
+  syncDelay: 2_000,
+  syncInterval: 5 * 60_000,
+  signOutWait: 5_000,
+};
 
 /** A stamp: an edit time and the id of that edit. Later time wins; a tie goes to the higher id. */
 type Stamp = [number, string];
@@ -115,6 +125,13 @@ function mergeDay(local: DayRecord | undefined, remote: SyncedDay): DayRecord {
 
 const isPending = (record: { pending?: boolean }) => record.pending !== false;
 
+/** Waits for `work`, but no longer than `ms`. */
+async function waitAtMost(work: Promise<unknown>, ms: number) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([work, new Promise((resolve) => (timer = setTimeout(resolve, ms)))]);
+  clearTimeout(timer);
+}
+
 export type Sync = {
   /** Pushes and pulls now, or once the sync already running ends. Never throws. */
   sync(): Promise<void>;
@@ -125,6 +142,20 @@ export type Sync = {
    * last sync didn't go through.
    */
   progress(email: string): { pending: number; lastSynced: number | null; failing: boolean };
+  /**
+   * Before signing out: syncs now if changes are waiting, for at most `signOutWait`, and answers
+   * how many still wait, which signing out would lose.
+   */
+  lastSync(): Promise<number>;
+  /**
+   * Halts sync while the device signs out: stops the sync that's out, if any, without waiting for
+   * its answers or keeping anything it was getting, starts no other until `resume`, and forgets
+   * where the device was in its account's changes and when it last synced. A sign-in after starts
+   * afresh, and so does this account's next sync if the sign-out is cut short.
+   */
+  halt(): Promise<void>;
+  /** Lets sync run again once the device has signed out, or a sign-out has failed. */
+  resume(): void;
   close(): Promise<void>;
 };
 
@@ -180,8 +211,13 @@ export function openSync({
   // with full or blocked storage, the next sync pulls again from the last version saved
   const saveCursor = (cursor: Cursor) => writeJSON(storage, CURSOR_KEY, cursor);
 
-  const request = async (path: string, init?: RequestInit): Promise<Response | null> => {
-    const response = await api(path, init).catch(() => null);
+  /** A request of the sync that `signal` belongs to: null if it didn't go through, or was stopped. */
+  const request = async (
+    path: string,
+    signal: AbortSignal,
+    init?: RequestInit,
+  ): Promise<Response | null> => {
+    const response = await api(path, { ...init, signal }).catch(() => null);
     if (response?.status === 401) sessionEnded();
     return response?.ok ? response : null;
   };
@@ -210,7 +246,7 @@ export function openSync({
   };
 
   /** Pushes what's pending, in pushes the Worker takes. False if one didn't go through. */
-  const pushPending = async (): Promise<boolean> => {
+  const pushPending = async (signal: AbortSignal): Promise<boolean> => {
     const habits = habitRecords.toArray.filter(isPending).map(syncedHabit);
     const days = dayRecords.toArray.filter(isPending).map(syncedDay);
     const rows = [...habits.map((habit) => ({ habit })), ...days.map((day) => ({ day }))];
@@ -220,7 +256,7 @@ export function openSync({
         habits: chunk.flatMap((row) => ("habit" in row ? [row.habit] : [])),
         days: chunk.flatMap((row) => ("day" in row ? [row.day] : [])),
       };
-      const response = await request(`${SYNC_PATH}/push`, {
+      const response = await request(`${SYNC_PATH}/push`, signal, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -282,7 +318,7 @@ export function openSync({
     await Promise.all(writes);
   };
 
-  const pullChanges = async (email: string): Promise<boolean> => {
+  const pullChanges = async (email: string, signal: AbortSignal): Promise<boolean> => {
     let cursor = readCursor(email);
     // The cursor lives apart from the records: with none of them left but a cursor past the
     // start, the records were lost and the cursor kept (a browser clearing one store but not the
@@ -293,9 +329,11 @@ export function openSync({
     // across the pull's pages, since a new habit's days can come a page after it
     const setElsewhere = new Set<string>();
     for (;;) {
-      const response = await request(`${SYNC_PATH}/pull?since=${cursor.version}`);
+      const response = await request(`${SYNC_PATH}/pull?since=${cursor.version}`, signal);
       if (!response) return false;
       const pulled = (await response.json()) as Pulled;
+      // stopped while the answer came in: the device signed out, and keeps none of it
+      if (signal.aborted) return false;
       await applyPulled(pulled, setElsewhere);
       // only once the rows are stored, so a sync cut short pulls them again
       cursor = { ...cursor, version: pulled.version };
@@ -306,16 +344,27 @@ export function openSync({
 
   /** Whether the last sync didn't go through: offline, or the server failing. */
   let failing = false;
+  /** Stops the sync that's out, if any; signing out does. */
+  let stopRunning: (() => void) | null = null;
+  /** While the device signs out, no sync starts. */
+  let halted = false;
 
   const run = async () => {
     const email = signedInAs();
-    if (!email) return;
-    const pushed = await pushPending();
-    // pulls even when a push didn't go through, so other devices' changes still arrive
-    const pulled = await pullChanges(email);
-    failing = !(pushed && pulled);
-    if (!failing) saveCursor({ ...readCursor(email), lastSynced: now() });
-    statusChanged();
+    if (!email || halted) return;
+    const stop = new AbortController();
+    stopRunning = () => stop.abort();
+    try {
+      const pushed = await pushPending(stop.signal);
+      // pulls even when a push didn't go through, so other devices' changes still arrive
+      const pulled = await pullChanges(email, stop.signal);
+      if (stop.signal.aborted) return;
+      failing = !(pushed && pulled);
+      if (!failing) saveCursor({ ...readCursor(email), lastSynced: now() });
+      statusChanged();
+    } finally {
+      stopRunning = null;
+    }
   };
 
   let running: Promise<void> | null = null;
@@ -346,13 +395,28 @@ export function openSync({
     : undefined;
   const stopTriggers = triggers?.(() => void sync());
 
+  const pendingCount = () =>
+    habitRecords.toArray.filter(isPending).length + dayRecords.toArray.filter(isPending).length;
+
   return {
     sync,
     changedHere,
     progress(email) {
-      const pending =
-        habitRecords.toArray.filter(isPending).length + dayRecords.toArray.filter(isPending).length;
-      return { pending, lastSynced: readCursor(email).lastSynced, failing };
+      return { pending: pendingCount(), lastSynced: readCursor(email).lastSynced, failing };
+    },
+    async lastSync() {
+      if (signedInAs() && pendingCount() > 0) await waitAtMost(sync(), timing.signOutWait);
+      return pendingCount();
+    },
+    async halt() {
+      halted = true;
+      stopRunning?.();
+      await (queued ?? running);
+      failing = false;
+      removeKey(storage, CURSOR_KEY);
+    },
+    resume() {
+      halted = false;
     },
     async close() {
       clearTimeout(delayed);

@@ -60,6 +60,34 @@ export function switchable(connection: Connection) {
 }
 
 /**
+ * A connection that can stall, as a phone's does on a weak signal: while stalled, requests get no
+ * answer until it recovers, unless the device gives up on one (its abort signal), as a browser's
+ * fetch would let it.
+ */
+export function stallable(connection: Connection) {
+  let recovered: Promise<void> = Promise.resolve();
+  let recover = () => {};
+  const stalling: Connection = (storage) => {
+    const reach = connection(storage);
+    return async (path, init) => {
+      const signal = init?.signal;
+      // as fetch does, a request given up on already never starts
+      signal?.throwIfAborted();
+      await new Promise<void>((resolve, reject) => {
+        void recovered.then(resolve);
+        signal?.addEventListener("abort", () => reject(signal.reason));
+      });
+      return reach(path, init);
+    };
+  };
+  return {
+    connection: stalling,
+    stall: () => void (recovered = new Promise((resolve) => (recover = resolve))),
+    recover: () => recover(),
+  };
+}
+
+/**
  * How a simulated device behaves beyond its storage and network: its clock, and when it syncs by
  * itself. By default it syncs only when it opens, after signing in, and when a test says so.
  */
@@ -103,5 +131,6 @@ function inMemoryKeyValues(): KeyValueStorage {
   return {
     getItem: (key) => items.get(key) ?? null,
     setItem: (key, value) => void items.set(key, value),
+    removeItem: (key) => void items.delete(key),
   };
 }

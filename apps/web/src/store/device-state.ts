@@ -1,6 +1,7 @@
 /**
  * What a device keeps for itself in its key-value storage, beside its habit records: its settings,
- * and the goals it has celebrated. Neither ever syncs, and both stay on sign-out.
+ * and the goals it has celebrated. Neither ever syncs. The settings stay on sign-out, and the
+ * celebrations go with the habits they belong to.
  */
 import {
   celebrated,
@@ -14,7 +15,7 @@ import {
   type Habit,
   type Settings,
 } from "@streakky/core";
-import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
+import { isRecord, readJSON, removeKey, writeJSON, type KeyValueStorage } from "./key-value.ts";
 
 const SETTINGS_KEY = "streakky.settings";
 /** The goals this device has celebrated, by habit id. */
@@ -94,3 +95,7 @@ export function markCelebrated(storage: KeyValueStorage, habit: Habit): void {
   const kept = celebrated(habit, celebrations[habit.id] ?? null);
   if (kept) writeJSON(storage, CELEBRATIONS_KEY, { ...celebrations, [habit.id]: kept });
 }
+
+/** Forgets every celebration kept here, as signing out clears the habits they belong to. */
+export const forgetCelebrations = (storage: KeyValueStorage) =>
+  removeKey(storage, CELEBRATIONS_KEY);
