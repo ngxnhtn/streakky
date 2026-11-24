@@ -5,17 +5,22 @@ import {
   statusLabel,
   canBeQuitDay,
   canToggle,
+  celebrated,
+  celebrationDue,
   counterLabel,
   currentStreak,
   currentStreakDays,
   goalDate,
+  goalReached,
   historyStart,
   longestStreakDays,
   sinceLabel,
+  slipsRemovedByMovingQuitDay,
   daysByStreak,
   streaksOf,
   toISO,
   type Habit,
+  type QuitHabit,
 } from "./index.ts";
 
 // Every test runs on Tuesday 24 November 2026, local time.
@@ -34,7 +39,7 @@ const build = (checkIns: string[]): Habit => ({
   checkIns,
 });
 
-const quit = (quitDay: string, slips: string[] = []): Habit => ({
+const quit = (quitDay: string, slips: string[] = []): QuitHabit => ({
   id: "smoke",
   name: "No smoking",
   kind: "quit",
@@ -303,5 +308,126 @@ describe("status line", () => {
       statusLabel(quit("2026-11-24")),
       statusLabel(quit("2026-11-14")),
     ]).toEqual(["Slip logged today", "Started today", "Since 14 Nov"]);
+  });
+});
+
+describe("moving the quit day", () => {
+  it("reports the slips on or before the new quit day, that day's own slip included", () => {
+    const habit = quit("2026-11-01", ["2026-11-05", "2026-11-10", "2026-11-20"]);
+    expect(slipsRemovedByMovingQuitDay(habit, "2026-11-10")).toEqual(["2026-11-05", "2026-11-10"]);
+  });
+
+  it("reports none when the quit day moves earlier", () => {
+    expect(slipsRemovedByMovingQuitDay(quit("2026-11-10", ["2026-11-15"]), "2026-11-01")).toEqual(
+      [],
+    );
+  });
+
+  it("reports none when no slip falls on or before the new quit day", () => {
+    expect(slipsRemovedByMovingQuitDay(quit("2026-11-01", ["2026-11-20"]), "2026-11-19")).toEqual(
+      [],
+    );
+  });
+
+  it("leaves out slips that don't count already: on or before the quit day, or after today", () => {
+    const habit = quit("2026-11-10", ["2026-11-05", "2026-11-10", "2026-11-12", "2026-11-25"]);
+    expect(slipsRemovedByMovingQuitDay(habit, "2026-11-24")).toEqual(["2026-11-12"]);
+  });
+
+  it("counts from the new quit day once those slips are removed", () => {
+    const habit = quit("2026-11-01", ["2026-11-05", "2026-11-20"]);
+    const removed = slipsRemovedByMovingQuitDay(habit, "2026-11-06");
+    const moved = {
+      ...habit,
+      quitDay: "2026-11-06",
+      slips: habit.slips.filter((s) => !removed.includes(s)),
+    };
+    expect(streaksOf(moved).map((s) => s.days)).toEqual([13, 4]);
+  });
+});
+
+describe("a goal", () => {
+  const withGoal = (habit: Habit, goal: number | null): Habit => ({ ...habit, goal });
+  const days = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => `2026-11-${String(from + i).padStart(2, "0")}`);
+
+  it("is reached once the current streak is as long as it", () => {
+    expect([
+      goalReached(withGoal(build(days(18, 24)), 7)),
+      goalReached(withGoal(build(days(19, 24)), 7)),
+      goalReached(withGoal(build(days(18, 24)), null)),
+    ]).toEqual([true, false, false]);
+  });
+
+  it("carries over to the next streak after a break", () => {
+    // the first streak reached 7 days; the current one, since the 20th, has 5 and needs 2 more
+    const habit = withGoal(build([...days(1, 10), ...days(20, 24)]), 7);
+    const on = goalDate(habit);
+    expect([goalReached(habit), on && toISO(on)]).toEqual([false, "2026-11-26"]);
+  });
+});
+
+describe("a goal's celebration", () => {
+  const withGoal = (habit: Habit, goal: number): Habit => ({ ...habit, goal });
+  const days = (from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => `2026-11-${String(from + i).padStart(2, "0")}`);
+
+  it("is due once the current streak reaches the goal, and not before", () => {
+    expect([
+      celebrationDue(withGoal(build(days(19, 23)), 7), null),
+      celebrationDue(withGoal(build(days(18, 24)), 7), null),
+    ]).toEqual([false, true]);
+  });
+
+  it("plays once for a streak, however long it grows", () => {
+    const reached = withGoal(build(days(17, 23)), 7);
+    const kept = celebrated(reached, null);
+    expect([
+      celebrationDue(reached, kept),
+      celebrationDue(withGoal(build(days(17, 24)), 7), kept),
+    ]).toEqual([false, false]);
+  });
+
+  it("is due again on the next streak after a break", () => {
+    vi.setSystemTime(new Date(2026, 10, 10, 12));
+    const kept = celebrated(withGoal(build(days(1, 10)), 7), null);
+    vi.setSystemTime(new Date(2026, 10, 24, 12));
+    const nextStreak = withGoal(build([...days(1, 10), ...days(18, 24)]), 7);
+    expect(celebrationDue(nextStreak, kept)).toBe(true);
+  });
+
+  it("is due again when the same streak reaches a higher goal", () => {
+    const kept = celebrated(withGoal(build(days(1, 24)), 7), null);
+    expect([
+      celebrationDue(withGoal(build(days(1, 24)), 21), kept),
+      celebrationDue(withGoal(build(days(1, 24)), 30), kept),
+    ]).toEqual([true, false]);
+  });
+
+  it("isn't due again when a missed day before the streak is backfilled", () => {
+    const kept = celebrated(withGoal(build([...days(10, 12), ...days(14, 24)]), 7), null);
+    expect(celebrationDue(withGoal(build(days(10, 24)), 7), kept)).toBe(false);
+  });
+
+  it("remembers the higher goal after the goal is lowered", () => {
+    const at21 = celebrated(withGoal(build(days(1, 24)), 21), null);
+    const at7 = celebrated(withGoal(build(days(1, 24)), 7), at21);
+    expect(celebrationDue(withGoal(build(days(1, 24)), 21), at7)).toBe(false);
+  });
+
+  it("is due for a quit habit on the day its goal is reached", () => {
+    const habit = withGoal(quit("2026-11-17"), 7);
+    vi.setSystemTime(new Date(2026, 10, 23, 23, 59));
+    const before = celebrationDue(habit, null);
+    vi.setSystemTime(new Date(2026, 10, 24, 0, 1));
+    expect([before, celebrationDue(habit, null)]).toEqual([false, true]);
+  });
+
+  it("is due again for a quit habit after a slip, once the next streak reaches the goal", () => {
+    const kept = celebrated(withGoal(quit("2026-11-01"), 7), null);
+    expect([
+      celebrationDue(withGoal(quit("2026-11-01", ["2026-11-20"]), 7), kept),
+      celebrationDue(withGoal(quit("2026-11-01", ["2026-11-17"]), 7), kept),
+    ]).toEqual([false, true]);
   });
 });

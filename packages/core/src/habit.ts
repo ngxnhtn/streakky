@@ -130,6 +130,14 @@ export function historyStart(h: Habit): string {
 export const canBeQuitDay = (day: string): boolean =>
   toISO(fromISO(day)) === day && day <= todayISO();
 
+/**
+ * The slips that moving a quit habit's quit day to `day` would remove: the ones that count now
+ * and fall on or before `day`, since only days after the quit day can be slips. Moving the quit
+ * day earlier removes none.
+ */
+export const slipsRemovedByMovingQuitDay = (h: QuitHabit, day: string): string[] =>
+  loggedDays(h).filter((slip) => slip <= day);
+
 /** Days that can be edited: none in the future; for quit, none on or before the quit day. */
 export function canToggle(h: Habit, day: string): boolean {
   if (day > todayISO()) return false;
@@ -184,6 +192,42 @@ export function goalDate(h: Habit): Date | null {
   if (streak.days >= h.goal) return addDays(streak.start, h.goal - 1);
   const left = h.goal - streak.days;
   return addDays(today(), loggedToday(h) ? left : left - 1);
+}
+
+/** Whether the current streak has reached the habit's goal. */
+export const goalReached = (h: Habit): boolean => h.goal !== null && currentStreakDays(h) >= h.goal;
+
+/**
+ * What a device keeps of the goals it has celebrated for one habit: the highest goal, and the
+ * first day of the current streak when it reached it.
+ */
+export type Celebrated = { goal: number; start: string };
+
+/**
+ * A celebration holds for the streak it was for and for whatever that streak grows into, such as
+ * once a missed day before it is backfilled. A later streak, after a break, has a new start.
+ */
+const sameStreak = (h: Habit, last: Celebrated) => last.start >= currentStreak(h).start;
+
+/**
+ * Whether the current streak has reached its goal and not yet had a celebration, given what the
+ * device kept from the last one. The same goal carries over to the next streak after a break,
+ * and a higher goal on the same streak earns a celebration of its own.
+ */
+export function celebrationDue(h: Habit, last: Celebrated | null): boolean {
+  if (!goalReached(h)) return false;
+  return last === null || !sameStreak(h, last) || last.goal < (h.goal ?? 0);
+}
+
+/**
+ * What the device keeps once the current streak's reached goal has had its celebration, whether
+ * it played or was let pass. Lowering the goal afterwards doesn't forget the higher one.
+ */
+export function celebrated(h: Habit, last: Celebrated | null): Celebrated | null {
+  if (h.goal === null) return last;
+  const { start } = currentStreak(h);
+  if (last && sameStreak(h, last)) return { goal: Math.max(last.goal, h.goal), start };
+  return { goal: h.goal, start };
 }
 
 /** The words under a count: a build habit counts a streak, a quit habit counts free days. */

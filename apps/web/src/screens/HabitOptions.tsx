@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Archive, ArchiveRestore, Trash2 } from "lucide-react";
+import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import {
@@ -12,11 +12,12 @@ import {
 } from "@streakky/ui/components/dialog";
 import { List, ListButton } from "@streakky/ui/components/list";
 import { useHabitStore } from "../store/react.tsx";
+import { EditHabitForm } from "./EditHabit.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
 import { useBackCloses, useInFront, useNav } from "./stack.tsx";
 
-/** The options sheet, or the question it leads to before deleting. */
-export type HabitDialog = "options" | "delete" | null;
+/** The options sheet, or what it leads to: Edit habit, or the question before deleting. */
+export type HabitDialog = "options" | "edit" | "delete" | null;
 
 /** How long the screen has to slide away before the habit leaves the one beneath. */
 const LEAVE_MS = 320;
@@ -24,8 +25,9 @@ const LEAVE_MS = 320;
 const BACK_TIMEOUT_MS = 1000;
 
 /**
- * A habit's options sheet, opened from the app bar on its Habit detail: archive the habit, or
- * restore it once archived, and delete it after asking. Archiving and deleting leave the screen
+ * A habit's options sheet, opened from the app bar on its Habit detail: edit an active habit's
+ * name, colour and quit day, archive the habit, or restore it once archived, and delete it after
+ * asking. Archiving and deleting leave the screen
  * first and change the habit as the screen beneath comes back, so the habit is seen to leave it.
  * Restoring stays, and the screen becomes the active habit's again.
  */
@@ -98,6 +100,13 @@ export function HabitOptions({
         >
           <DialogTitle>{habit.name}</DialogTitle>
           <List className="-mx-1">
+            {/* an archived habit stays as it was until it's restored, as its days do */}
+            {!archived && (
+              <ListButton onClick={() => setDialog("edit")}>
+                Edit habit
+                <Pencil />
+              </ListButton>
+            )}
             {archived ? (
               <ListButton
                 onClick={() => {
@@ -119,6 +128,24 @@ export function HabitOptions({
               <Trash2 />
             </ListButton>
           </List>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={dialog === "edit" && !archived}
+        onOpenChange={(open) => !open && setDialog(null)}
+      >
+        <DialogContent
+          shape="sheet"
+          onOpenAutoFocus={(event) => {
+            // the sheet itself, not the name field, so a phone's keyboard waits until it's wanted
+            event.preventDefault();
+            if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus();
+          }}
+          onCloseAutoFocus={returnFocus}
+        >
+          {/* the content unmounts once the sheet has left, so each open starts from the habit */}
+          <EditHabitForm habit={habit} onDone={() => setDialog(null)} />
         </DialogContent>
       </Dialog>
 
