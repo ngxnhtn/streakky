@@ -1,33 +1,29 @@
 import { useState, type FormEvent } from "react";
-import {
-  HABIT_NAME_MAX_LENGTH,
-  GOALS,
-  HABIT_COLORS,
-  canBeQuitDay,
-  todayISO,
-  type ColorId,
-  type Kind,
-} from "@streakky/core";
+import { HABIT_COLORS, canBeQuitDay, todayISO, type ColorId, type Kind } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@streakky/ui/components/dialog";
-import { Field, FieldSet } from "@streakky/ui/components/field";
+import { FieldSet } from "@streakky/ui/components/field";
 import { HabitColorPicker } from "@streakky/ui/components/habit/color-picker";
-import { Input } from "@streakky/ui/components/input";
+import { GoalPicker } from "@streakky/ui/components/habit/goal";
+import { NameField, QuitDayField } from "@streakky/ui/components/habit/habit-fields";
 import { Segmented } from "@streakky/ui/components/segmented";
-import { ToggleChip, ToggleGroup } from "@streakky/ui/components/toggle-group";
+import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
 import { useHabitStore, useHabits } from "../store/react.tsx";
 import { useBackCloses } from "./stack.tsx";
+import { SaveError, useSave } from "./saving.tsx";
 
-const HINT: Record<Kind, string> = {
-  build: "Check in each day you do it. A missed day ends the streak.",
-  quit: "Counts up every day by itself. Log a slip only if it happens.",
-};
+/**
+ * Once New habit closes, focus goes back to what opened it, or to the New habit tile if that has
+ * gone, as "Add a habit" does once the first habit is there.
+ */
+const backToOpener = (opener: HTMLElement | null) =>
+  opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-slot="new-habit"]');
 
 export function NewHabitDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   useBackCloses(open, onClose);
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent shape="sheet">
+      <DialogContent shape="sheet" returnFocus={backToOpener}>
         <DialogTitle>New habit</DialogTitle>
         {/* the content unmounts once the sheet has left, so each open starts with a fresh form */}
         <NewHabitForm onDone={onClose} />
@@ -46,23 +42,27 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
   // the raw input value: "" while a date is half typed or cleared
   const [quitDay, setQuitDay] = useState(today);
   const [color, setColor] = useState<ColorId>((unused ?? HABIT_COLORS[0]).id);
-  const [goal, setGoal] = useState("none");
+  const [goal, setGoal] = useState<number | null>(null);
   const [nameError, setNameError] = useState("");
   const [quitDayError, setQuitDayError] = useState("");
+  // a double tap on Add habit adds one habit
+  const { saving, error, save } = useSave("The habit wasn't added. Try again.");
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return setNameError("Give the habit a name.");
-    const chosen = { name: trimmed, color, goal: goal === "none" ? null : Number(goal) };
-    if (kind === "build") {
-      await store.createHabit({ kind, ...chosen });
-    } else {
-      const day = quitDay || today;
-      if (!canBeQuitDay(day)) return setQuitDayError("Pick today or a day before it.");
-      await store.createHabit({ kind, ...chosen, quitDay: day });
+    const chosen = { name: trimmed, color, goal };
+    const day = quitDay || today;
+    if (kind === "quit" && !canBeQuitDay(day)) {
+      return setQuitDayError("Pick today or a day before it.");
     }
-    onDone();
+    const added = await save(() =>
+      kind === "build"
+        ? store.createHabit({ kind, ...chosen })
+        : store.createHabit({ kind, ...chosen, quitDay: day }),
+    );
+    if (added) onDone();
   };
 
   return (
@@ -77,42 +77,27 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
             { value: "quit", label: "Quit a habit" },
           ]}
         />
-        <p className="text-[0.8125rem] text-muted-foreground">{HINT[kind]}</p>
+        <p className="text-[0.8125rem] text-muted-foreground">{KIND_COPY[kind].hint}</p>
       </div>
-      <Field label="Name" error={nameError}>
-        {({ id, describedBy, invalid }) => (
-          <Input
-            id={id}
-            value={name}
-            maxLength={HABIT_NAME_MAX_LENGTH}
-            placeholder={kind === "build" ? "Morning run" : "No smoking"}
-            autoComplete="off"
-            aria-invalid={invalid || undefined}
-            aria-describedby={describedBy}
-            onChange={(e) => {
-              setName(e.target.value);
-              if (nameError) setNameError("");
-            }}
-          />
-        )}
-      </Field>
+      <NameField
+        value={name}
+        placeholder={KIND_COPY[kind].namePlaceholder}
+        error={nameError}
+        onChange={(value) => {
+          setName(value);
+          setNameError("");
+        }}
+      />
       {kind === "quit" && (
-        <Field label="Quit on" hint="Leave it empty to start today." error={quitDayError}>
-          {({ id, describedBy, invalid }) => (
-            <Input
-              id={id}
-              type="date"
-              value={quitDay}
-              max={today}
-              aria-invalid={invalid || undefined}
-              aria-describedby={describedBy}
-              onChange={(e) => {
-                setQuitDay(e.target.value);
-                if (quitDayError) setQuitDayError("");
-              }}
-            />
-          )}
-        </Field>
+        <QuitDayField
+          value={quitDay}
+          hint="Leave it empty to start today."
+          error={quitDayError}
+          onChange={(value) => {
+            setQuitDay(value);
+            setQuitDayError("");
+          }}
+        />
       )}
       <FieldSet legend="Colour">
         <HabitColorPicker value={color} onValueChange={setColor} />
@@ -120,17 +105,11 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
       {/* the chosen goal takes the habit's colour, as on the habit's Goal tab */}
       <div data-habit-color={color} className="contents">
         <FieldSet legend="Goal">
-          <ToggleGroup value={goal} onValueChange={setGoal} aria-label="Goal in days">
-            {GOALS.map((days) => (
-              <ToggleChip key={days} value={String(days)}>
-                {days}
-              </ToggleChip>
-            ))}
-            <ToggleChip value="none">None</ToggleChip>
-          </ToggleGroup>
+          <GoalPicker value={goal} onValueChange={setGoal} />
         </FieldSet>
       </div>
-      <Button type="submit" className="w-full">
+      <SaveError>{error}</SaveError>
+      <Button type="submit" className="w-full" disabled={saving}>
         Add habit
       </Button>
     </form>

@@ -5,7 +5,8 @@ import { cn } from "@streakky/ui/lib/utils";
 
 /**
  * One dialog, two shapes: `sheet` rises from the bottom (phones), `center` sits in the middle
- * (wide screens). Escape and the scrim close it; focus returns to what opened it.
+ * (wide screens). Escape and the scrim close it; focus returns to what opened it (see
+ * `DialogContent`).
  */
 function Dialog(props: React.ComponentProps<typeof DialogPrimitive.Root>) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -49,12 +50,36 @@ const shapes: Record<Shape, string> = {
     "top-1/2 left-1/2 w-[min(27.5rem,calc(100%-3rem))] max-h-[calc(100%-6rem)] -translate-x-1/2 -translate-y-1/2 rounded-[1.75rem] p-7 data-open:animate-dialog-in data-closed:animate-dialog-out",
 };
 
+/**
+ * The dialog itself. Focus starts where `initialFocus` says, and goes back to what had focus when
+ * it opened once it has closed: these dialogs open without a DialogTrigger, the only place Radix
+ * would give it back to. Don't autoFocus a control inside as it opens; that hides the opener.
+ */
 function DialogContent({
   className,
   children,
   shape = "center",
+  initialFocus = "first",
+  returnFocus,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { shape?: Shape }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  shape?: Shape;
+  /**
+   * Where focus starts: `"first"`, the first control (Radix's way); `"content"`, the dialog itself,
+   * so a phone's keyboard waits until a field is chosen; or a control's ref, such as the safe
+   * choice of a question, so a second Enter doesn't take the other.
+   */
+  initialFocus?: "first" | "content" | React.RefObject<HTMLElement | null>;
+  /**
+   * Where focus goes once it has closed, given what had focus when it opened: by default that
+   * opener, if it's still in the page. Return null to leave focus be, as when another dialog
+   * takes over.
+   */
+  returnFocus?: (opener: HTMLElement | null) => HTMLElement | null | undefined;
+}) {
+  const opener = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -67,6 +92,22 @@ function DialogContent({
           shapes[shape],
           className,
         )}
+        onOpenAutoFocus={(event) => {
+          const focused = document.activeElement;
+          opener.current = focused instanceof HTMLElement ? focused : null;
+          onOpenAutoFocus?.(event);
+          if (event.defaultPrevented || initialFocus === "first") return;
+          event.preventDefault();
+          const start = initialFocus === "content" ? event.currentTarget : initialFocus.current;
+          if (start instanceof HTMLElement) start.focus();
+        }}
+        onCloseAutoFocus={(event) => {
+          onCloseAutoFocus?.(event);
+          if (event.defaultPrevented) return;
+          event.preventDefault();
+          const next = returnFocus ? returnFocus(opener.current) : opener.current;
+          if (next?.isConnected) next.focus();
+        }}
         {...props}
       >
         {shape === "sheet" && (

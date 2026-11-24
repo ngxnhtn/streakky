@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, type RefObject } from "react";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
@@ -36,11 +36,14 @@ export function HabitOptions({
   archived,
   dialog,
   setDialog,
+  optionsButton,
 }: {
   habit: Habit;
   archived: boolean;
   dialog: HabitDialog;
   setDialog: (dialog: HabitDialog) => void;
+  /** the app bar's button that opens the sheet, where focus goes back to */
+  optionsButton: RefObject<HTMLElement | null>;
 }) {
   const store = useHabitStore();
   const { pop } = useNav();
@@ -48,16 +51,13 @@ export function HabitOptions({
   // one history entry for the sheet and the question after it, so back closes either
   useBackCloses(dialog !== null, () => setDialog(null));
 
-  // with no DialogTrigger, Radix would drop focus on the page; give it back to the options button
-  const opener = useRef<HTMLElement | null>(null);
+  // the sheet, Edit habit and the question all give focus back to the options button, but not
+  // while one leads to the next, nor once the screen is going
   const dialogNow = useRef(dialog);
   dialogNow.current = dialog;
   const leaving = useRef(false);
-  const returnFocus = (event: Event) => {
-    event.preventDefault();
-    // not between the sheet and its question, nor once the screen is going
-    if (dialogNow.current === null && !leaving.current) opener.current?.focus();
-  };
+  const returnFocus = () =>
+    dialogNow.current === null && !leaving.current ? optionsButton.current : null;
   const cancel = useRef<HTMLButtonElement>(null);
 
   /**
@@ -87,14 +87,7 @@ export function HabitOptions({
   return (
     <>
       <Dialog open={dialog === "options"} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent
-          shape="sheet"
-          onOpenAutoFocus={() => {
-            opener.current =
-              document.activeElement instanceof HTMLElement ? document.activeElement : null;
-          }}
-          onCloseAutoFocus={returnFocus}
-        >
+        <DialogContent shape="sheet" returnFocus={returnFocus}>
           <DialogTitle>{habit.name}</DialogTitle>
           <List className="-mx-1">
             {/* an archived habit stays as it was until it's restored, as its days do */}
@@ -132,30 +125,16 @@ export function HabitOptions({
         open={dialog === "edit" && !archived}
         onOpenChange={(open) => !open && setDialog(null)}
       >
-        <DialogContent
-          shape="sheet"
-          onOpenAutoFocus={(event) => {
-            // the sheet itself, not the name field, so a phone's keyboard waits until it's wanted
-            event.preventDefault();
-            if (event.currentTarget instanceof HTMLElement) event.currentTarget.focus();
-          }}
-          onCloseAutoFocus={returnFocus}
-        >
+        {/* starts on the sheet itself, not the name field, so a phone's keyboard waits until it's wanted */}
+        <DialogContent shape="sheet" initialFocus="content" returnFocus={returnFocus}>
           {/* the content unmounts once the sheet has left, so each open starts from the habit */}
           <EditHabitForm habit={habit} onDone={() => setDialog(null)} />
         </DialogContent>
       </Dialog>
 
       <Dialog open={dialog === "delete"} onOpenChange={(open) => !open && setDialog(null)}>
-        <DialogContent
-          shape="sheet"
-          onOpenAutoFocus={(event) => {
-            // start on the safe choice, so a second Enter doesn't delete
-            event.preventDefault();
-            cancel.current?.focus();
-          }}
-          onCloseAutoFocus={returnFocus}
-        >
+        {/* starts on the safe choice, so a second Enter doesn't delete */}
+        <DialogContent shape="sheet" initialFocus={cancel} returnFocus={returnFocus}>
           <DialogTitle>Delete {habit.name}?</DialogTitle>
           <DialogDescription>
             {archived

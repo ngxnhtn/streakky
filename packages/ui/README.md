@@ -82,14 +82,14 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | Component        | What it is                                                                                                                                                  |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `button`         | Pill buttons: `default` `secondary` `outline` `ghost` `ring` `destructive` `outline-destructive` `habit` `link`; sizes `default` `sm` `lg` `icon` `icon-sm` |
-| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `DialogActions`                                                                   |
+| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `initialFocus` and `returnFocus` (back to the opener by default); `DialogActions` |
 | `portal`         | `PortalContainerProvider`: render dialogs inside a given element (a phone frame, a panel)                                                                   |
 | `tabs`           | Radix tabs drawn as a segmented track with a sliding pill (`TabsList index count`)                                                                          |
 | `segmented`      | A single choice of two to four options, sliding pill; options may be icons, values strings or numbers                                                       |
 | `toggle-group`   | `ToggleGroup` + `ToggleChip` (pill chips) + `ToggleGroupItem` (custom faces)                                                                                |
 | `switch`         | Radix switch                                                                                                                                                |
 | `input`, `label` | Text fields                                                                                                                                                 |
-| `field`          | `Field` (label, control, hint, error, wired ids) and `FieldSet`                                                                                             |
+| `field`          | `Field` (label, control, hint, error, wired ids: the control is described by the hint or the error) and `FieldSet`                                          |
 | `list`           | `ListGroup` `List` `ListItem` `ListButton` `ListLabel`: grouped settings rows                                                                               |
 | `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                       |
 | `stat`           | `StatGrid`, `StatTile`                                                                                                                                      |
@@ -109,12 +109,14 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                                    |
 | `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                             |
 | `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                       |
-| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                              |
+| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                               |
+| `habit-fields`  | `NameField`, `QuitDayField`: a habit's name and quit day, with their errors                                                                          |
 | `color-picker`  | `HabitColorPicker`                                                                                                                                   |
 
 Hooks: `@streakky/ui/hooks/use-tween` (`useTween`), `@streakky/ui/hooks/use-media-query`
 (`useMediaQuery`) and `@streakky/ui/hooks/use-reorder`. Helpers: `@streakky/ui/lib/motion`
-(`prefersReducedMotion`) and `@streakky/ui/lib/media` (`matchesMedia`).
+(`prefersReducedMotion`), `@streakky/ui/lib/media` (`matchesMedia`) and `@streakky/ui/lib/kind-copy`
+(`KIND_COPY`, the words that differ between build and quit habits).
 
 ## Add a shadcn component
 

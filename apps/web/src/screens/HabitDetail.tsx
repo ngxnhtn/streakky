@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Menu } from "lucide-react";
 import {
   canToggle,
@@ -49,6 +49,7 @@ export function HabitDetail({ id }: { id: string }) {
   const [view, setView] = useState<CalendarView>("weeks");
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const [dialog, setDialog] = useState<HabitDialog>(null);
+  const optionsButton = useRef<HTMLButtonElement>(null);
   // an archived habit's goal waits, like its days, until it's restored
   const shown = useMemo(() => (active ? [active] : []), [active]);
   const celebration = useCelebration(shown, day);
@@ -75,6 +76,7 @@ export function HabitDetail({ id }: { id: string }) {
             size="icon"
             aria-label="Habit options"
             aria-haspopup="dialog"
+            ref={optionsButton}
             onClick={() => setDialog("options")}
           >
             <Menu strokeWidth={1.75} />
@@ -141,7 +143,13 @@ export function HabitDetail({ id }: { id: string }) {
         </Tabs>
       </ScreenScroll>
       {slipDialog}
-      <HabitOptions habit={habit} archived={archived} dialog={dialog} setDialog={setDialog} />
+      <HabitOptions
+        habit={habit}
+        archived={archived}
+        dialog={dialog}
+        setDialog={setDialog}
+        optionsButton={optionsButton}
+      />
       {celebration}
     </div>
   );

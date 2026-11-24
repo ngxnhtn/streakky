@@ -57,25 +57,11 @@ function LogSlipDialog({
 }) {
   const days = habit ? currentStreakDays(habit) : 0;
   useBackCloses(open && habit !== null, onClose);
-  // with no DialogTrigger, Radix would drop focus on the page; return it to the slip button
-  const opener = useRef<HTMLElement | null>(null);
   const keepCounting = useRef<HTMLButtonElement>(null);
   return (
     <Dialog open={open && habit !== null} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent
-        shape="sheet"
-        onOpenAutoFocus={(e) => {
-          opener.current =
-            document.activeElement instanceof HTMLElement ? document.activeElement : null;
-          // start on the safe choice, so a second Enter doesn't log the slip
-          e.preventDefault();
-          keepCounting.current?.focus();
-        }}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          opener.current?.focus();
-        }}
-      >
+      {/* starts on the safe choice, so a second Enter doesn't log the slip */}
+      <DialogContent shape="sheet" initialFocus={keepCounting}>
         <DialogTitle>Log a slip for {habit?.name}?</DialogTitle>
         <DialogDescription>
           {days > 0
