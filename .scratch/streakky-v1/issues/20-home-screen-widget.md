@@ -84,4 +84,4 @@ The widget is native code (ADR-0001). The app writes a small summary of each hab
   - **Teal only:** the widget uses the teal palette's habit colours, following the system theme rather than the app's palette and theme settings.
   - **Links while a screen slides:** a widget tapped while the app is mid-transition, or a reload of the app's page, may open Home or the launch habit again instead.
   - **Lawnchair's widget list** didn't show Streakky until Lawnchair was restarted after the first install.
-- **For `/domain-modeling`:** "widget summary" isn't in the glossary yet.
+- **Glossary:** "Home-screen widget" and "widget summary" were added on 2026-11-25.

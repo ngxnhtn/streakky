@@ -26,6 +26,10 @@ _Avoid_: Bad habit, negative habit
 The day a person started tracking a quit habit; the first clean day is the day after. Build habits have no equivalent.
 _Avoid_: Start date
 
+**Active habit**:
+A habit that isn't archived: one Home shows and the everyday views count.
+_Avoid_: Current habit, open habit, live habit
+
 **Archived habit**:
 A habit hidden from everyday views, with its history kept so it can be restored. A quit habit stops counting while it's archived, and carries on from where it stopped once restored.
 _Avoid_: Paused habit, hidden habit
@@ -85,3 +89,17 @@ _Avoid_: Milestone, reward
 **Sync**:
 How a signed-in person's habits, check-ins and slips reach their other devices, through the server. A change waits on the device until sync carries it; Settings counts the changes waiting and says when the device last synced.
 _Avoid_: Backup, upload
+
+### Android app
+
+**Daily reminder**:
+A notification at a time the person picks, on each day an active build habit still has no check-in, naming those habits. It is off until turned on, and set on each device.
+_Avoid_: Nudge, alert
+
+**Home-screen widget**:
+A view of one habit's current streak on the phone's home screen, showing the habit the person picked when placing it. It only shows: tapping it opens the habit.
+_Avoid_: Tile, card
+
+**Widget summary**:
+What a home-screen widget knows of a habit: just enough to work out its current streak on any later day without the rest of its history.
+_Avoid_: Snapshot, widget data
