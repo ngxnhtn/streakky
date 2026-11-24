@@ -91,6 +91,14 @@ export function authOptions(config: AuthConfig) {
         const body: unknown = ctx.body;
         if (typeof body !== "object" || body === null || !("email" in body)) return;
         if (!isAllowed(body.email)) throw notAllowed();
+        // refused before it's counted, so a request no app sends can't use up the day's steps
+        if (
+          ctx.path === "/email-otp/send-verification-otp" &&
+          "type" in body &&
+          body.type !== "sign-in"
+        ) {
+          throw new APIError("BAD_REQUEST", { message: "Only sign-in codes are sent." });
+        }
         const limit = DAILY_LIMITS[ctx.path];
         if (limit && config.countAttempt) {
           const count = await config.countAttempt(String(body.email).toLowerCase(), ctx.path);
@@ -100,13 +108,6 @@ export function authOptions(config: AuthConfig) {
               message: "Too many sign-in tries for this address today. Try again tomorrow.",
             });
           }
-        }
-        if (
-          ctx.path === "/email-otp/send-verification-otp" &&
-          "type" in body &&
-          body.type !== "sign-in"
-        ) {
-          throw new APIError("BAD_REQUEST", { message: "Only sign-in codes are sent." });
         }
       }),
     },
