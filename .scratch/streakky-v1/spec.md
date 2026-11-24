@@ -52,7 +52,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 20. As a user, I want to add or remove a slip on any past day after the quit day, so that I can correct my quit history.
 21. As a user, I want future days to be locked, so that I can't log a day that hasn't happened.
 22. As a user, I want a habit to have at most one check-in or slip per day, so that each day is simply done or not done (clean or slipped for quit habits).
-23. As a user, I want days to follow my device's local calendar and change at midnight, so that "today" always means my today, even when I travel.
+23. As a user, I want days to follow the calendar of one time zone and change at its midnight, so that "today" means the same day on all my devices and stays put when I travel. (Changed 2026-11-25: days used to follow the device's own zone as it travelled; see story 90.)
 
 ### Streaks and goals
 
@@ -103,8 +103,9 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 59. As a user, I want to switch the home screen between grid and list layout, so that I can see my habits the way I like.
 60. As a user, I want to choose whether weeks start on Monday or Sunday, so that the calendars match how I think.
 61. As a user, I want settings to stay on each device and not sync, so that my phone and laptop can each be set up differently.
-62. As a user, I want to export my full history, every habit (archived ones included) with every check-in and slip, as one file, so that I have my own backup.
-63. As an Android user, I want the export to open the share sheet, so that I can save it to Files or send it somewhere.
+62. As a user, I want to choose the time zone my days follow, set to my device's zone when I first open the app and kept there until I change it, so that travelling doesn't move my days or my reminder.
+63. As a user, I want to export my full history, every habit (archived ones included) with every check-in and slip, as one file, so that I have my own backup.
+64. As an Android user, I want the export to open the share sheet, so that I can save it to Files or send it somewhere.
 
 ### Layouts
 
@@ -129,6 +130,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 79. As an Android user, I want tapping the widget to open that habit in the app, so that I can act on it quickly.
 80. As an Android user, I want a widget whose habit was archived or deleted to say so, and open the app when tapped, so that it doesn't show stale data.
 81. As an Android user, I want to resize the widget, so that it fits my home screen layout.
+82. As an Android user, I want the widget in the app's palette and theme, so that it looks like the app does on my phone.
 
 ### Owner and operations
 
@@ -160,7 +162,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
     - A habit has archived state and an order position.
     - A quit habit stops counting while it's archived: its archived days, from the day after archiving to the day before restoring, are neither clean days nor slips, and don't end its streak. Build habits count as before.
   - Core also owns two small functions shared with the Android widget: building a habit's **widget summary**, and computing the current-streak number from a summary plus a given today.
-  - The date helpers keep working on local `YYYY-MM-DD` dates with no time zone.
+  - The date helpers work on `YYYY-MM-DD` dates with no time zone. Today, and the moment a day starts, are worked out in the time zone the device's settings name.
 - **UI package (design system only):**
   - It keeps tokens, colour palettes, shadcn components and the Streakky building blocks: ring, calendar, habit card, streaks chart, stats, goal, colour picker, today button.
   - Components move to the new core names. "Longest run" becomes "Longest streak", and the runs chart becomes a streaks chart.
@@ -181,7 +183,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 - **Live queries:** active habits in order, archived habits, one habit with its derived streak data, sync status (signed in or out, pending changes, last synced) and device settings.
 - It's built on TanStack DB collections for habits and days, with optimistic local writes and an offline queue of pending pushes.
 - **Persistence:** SQLite on the device. In the browser that's TanStack DB's OPFS wa-sqlite persistence; on Android it's native SQLite through `@capacitor-community/sqlite`, with TanStack DB's Capacitor persistence.
-- **Device settings** (theme, palette, layout, week start, reminder on/off and time, celebrations, whether the signed-out note was dismissed) live in device-local key-value storage. They're never synced and they survive sign-out.
+- **Device settings** (theme, palette, layout, week start, time zone, reminder on/off and time, celebrations, whether the signed-out note was dismissed) live in device-local key-value storage. They're never synced and they survive sign-out.
 
 ### Synced data shape
 
@@ -302,6 +304,7 @@ type DayRecord = {
   - Future days' reminders name all active build habits, since none can be checked in ahead of time.
   - No reminder is scheduled if there are no active build habits.
   - Notification permission is requested when the reminder is turned on. Exact delivery time isn't guaranteed by Android.
+  - The reminder's time is a time in the chosen time zone, so it stays put when the phone travels.
   - **Inexact by choice:** the notifications don't use Android's exact-alarm permission, whose request the plugin would make by opening a settings screen, so one can come a minute or two late.
   - **Planning:** core's `reminderPlan` plans seven days, today included, and `stillToCheckIn` gives the habits each day names. The reminders live on their own "Daily reminder" channel and carry Streakky's mark.
   - **Shown reminders:** one already shown is removed once nothing is left to check in that day, or once the reminder is off; earlier days' go too.
@@ -310,7 +313,8 @@ type DayRecord = {
 - **Widget:**
   - **Placing:** a configuration screen picks one active habit, and can pick again later. Each widget instance shows one habit. It can be resized down to one cell: below two cells either way it switches to a small layout, its count centred between its name and label in small type, and in either layout the count shrinks to fit.
   - **Data:** after every change, the web app writes each habit's widget summary (name, colour, kind, quit day or last slip and the archived days since it, last check-in and the streak length ending at it, archived or deleted) to shared native storage through the custom plugin, which then refreshes the widgets.
-  - **Midnight:** the widget recomputes its number at render time from the summary and today, and schedules its own refresh within ten minutes after midnight, without waking the phone. It also redraws when the clock or time zone changes.
+  - **Midnight:** the widget recomputes its number at render time from the summary and today, and schedules its own refresh within ten minutes after midnight, without waking the phone. Today and midnight are those of the time zone the app's settings name, which the app writes with the summaries. It also redraws when the clock or the phone's time zone changes.
+  - **Looks:** the widget uses the app's palette and theme settings, which the app writes with the summaries: a theme of light or dark keeps it so, and "system" follows the phone's light or dark mode as it changes.
   - **Before the app writes:** just installed, or after its data is cleared, a widget asks for the app to be opened. One that lost its pick with the app's data asks to be tapped, and tapping it opens the configuration screen.
   - **Tapping:** opens the app on that habit through a deep link.
   - **Display-only:** there are no check-ins from the widget.
@@ -343,7 +347,7 @@ type DayRecord = {
   - slips on or before the quit day being ignored;
   - widget summaries and counting from a summary.
 
-  Day changes are tested across midnight with a controlled clock.
+  Day changes are tested across midnight with a controlled clock, in the chosen time zone as well as the clock's own.
 
 - **Seam 2: devices plus server.** A test harness creates one or more simulated devices, each a real habit store with in-memory persistence. The devices talk to the real API Worker running in the Workers runtime with a local D1. Email sending is replaced by a capture, so tests can read sign-in codes. Devices can be taken offline and back online, and given different clocks. Required scenarios:
   - A signed-out device works fully with no server reachable.
@@ -374,7 +378,7 @@ type DayRecord = {
 - Per-habit reminders, reminders on the web, web push.
 - Check-ins from the widget, widgets showing several habits.
 - Importing data; matching habits by name on merge; a history of goals reached.
-- Syncing settings; a night-owl day boundary; storing time zones.
+- Syncing settings; a night-owl day boundary; a time zone stored with each day or per habit.
 - Languages other than English; date formats other than the current British style.
 - Server rendering, a landing or marketing site, iOS.
 - Deploying the Worker from CI.
