@@ -1,4 +1,4 @@
-import { ChevronLeft, Download } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download } from "lucide-react";
 import type { Layout, Theme } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
@@ -7,15 +7,16 @@ import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
 import { Switch } from "@streakky/ui/components/switch";
 import { saveFile } from "../save-file.ts";
-import { useHabitStore, useSettings } from "../store/react.tsx";
+import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
 import { ScreenScroll, useNav } from "./stack.tsx";
 
 /** This device's settings. Each change applies at once and stays on the device. */
 export function Settings() {
-  const { pop } = useNav();
+  const { pop, push } = useNav();
   const store = useHabitStore();
   const settings = useSettings();
+  const archived = useArchivedHabits();
   return (
     <>
       <AppBar
@@ -89,6 +90,13 @@ export function Settings() {
           </ListGroup>
           <ListGroup title="Data">
             <List>
+              <ListButton onClick={() => push({ name: "archived" })}>
+                Archived habits
+                <span className="flex items-center gap-1.5 font-normal text-muted-foreground tabular-nums">
+                  {archived.length > 0 && archived.length}
+                  <ChevronRight />
+                </span>
+              </ListButton>
               <ListButton onClick={() => void saveFile(store.exportHabits())}>
                 Export as JSON
                 <Download />

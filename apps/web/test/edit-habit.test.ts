@@ -88,6 +88,35 @@ describe("editing a habit on a device", () => {
     await expect(device.editHabit(only(device).id, { name: "  " })).rejects.toThrow();
     expect(only(device).name).toBe("Morning run");
   });
+
+  it("leaves an archived habit as it is until it's restored", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-01"));
+    const { id } = only(device);
+    await device.toggleDay(id, "2026-11-05");
+    await device.archiveHabit(id);
+    await device.editHabit(id, { name: "No cigarettes", color: "blue", goal: 7 });
+    await device.moveQuitDay(id, "2026-11-10");
+    await device.restoreHabit(id);
+    expect(only(device)).toMatchObject({
+      name: "No smoking",
+      color: "red",
+      goal: null,
+      quitDay: "2026-11-01",
+      slips: ["2026-11-05"],
+    });
+  });
+
+  it("does nothing to a deleted habit", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(quit("No smoking", "2026-11-01"));
+    const { id } = only(device);
+    await device.deleteHabit(id);
+    await device.editHabit(id, { name: "No cigarettes", goal: 7 });
+    await device.moveQuitDay(id, "2026-11-10");
+    const { habits } = JSON.parse(device.exportHabits().text);
+    expect([device.habits(), device.archivedHabits(), habits]).toEqual([[], [], []]);
+  });
 });
 
 describe("a habit's goal on a device", () => {

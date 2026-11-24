@@ -14,7 +14,8 @@ export type Route =
   | { name: "home" }
   | { name: "detail"; id: string }
   | { name: "settings" }
-  | { name: "sign-in" };
+  | { name: "sign-in" }
+  | { name: "archived" };
 type Entry = { key: number; route: Route; animate: boolean };
 /** The screens, Home first, and the one sliding out, if any. */
 type Stack = { entries: Entry[]; leaving: number | null };
@@ -33,6 +34,7 @@ const isScreen = (route: unknown): route is Route => {
   return (
     r?.name === "settings" ||
     r?.name === "sign-in" ||
+    r?.name === "archived" ||
     (r?.name === "detail" && typeof r.id === "string")
   );
 };

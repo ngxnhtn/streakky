@@ -16,8 +16,8 @@ import { Input } from "@streakky/ui/components/input";
 import { useHabitStore } from "../store/react.tsx";
 
 /**
- * Edit habit, inside the habit's options sheet: its name, colour and, for a quit habit, its quit
- * day. The kind stays as it was created. If the new quit day would remove slips, the sheet asks
+ * Edit habit, from the habit's options: its name, colour and, for a quit habit, its quit day.
+ * The kind stays as it was created. If the new quit day would remove slips, the sheet asks
  * first, saying how many; going back from there changes nothing.
  */
 export function EditHabitForm({ habit, onDone }: { habit: Habit; onDone: () => void }) {

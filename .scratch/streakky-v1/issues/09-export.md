@@ -9,7 +9,7 @@
 **Status:** done
 
 - [x] Settings has an Export action that downloads one JSON file.
-- [ ] The file contains every active and archived habit with its fields and its check-ins or slips by day, and no deleted habits. Active habits are verified. The export also keeps archived habits and leaves out deleted ones, but neither case can be tested until 07 adds the archive and delete commands.
+- [x] The file contains every active and archived habit with its fields and its check-ins or slips by day, and no deleted habits. Active habits are verified. The export also keeps archived habits and leaves out deleted ones, but neither case can be tested until 07 adds the archive and delete commands.
 - [x] Export works signed-out and offline.
 - [x] A harness test exports from a device with known habits and checks the file matches what the device shows.
 - [x] `vp check` and `vp test` pass.
@@ -77,3 +77,5 @@
   - `ListButton`'s focus ring has its corners clipped by the rounded, `overflow-hidden` `List`. This is the first `ListButton` in the web app. A fix in the UI package would round the first and last buttons' corners to the list's radius. I left it alone because it's outside this ticket.
   - "Export" and "backup" aren't in the glossary. Worth adding if export becomes a term the app uses elsewhere.
   - The store's `toHabits` skips a quit habit with no quit day, so the export would too. The store never writes one, but a record like that arriving from sync wouldn't make it into a backup.
+
+- **Closed by 07 (2026-11-24):** the two `it.todo` export tests are now real tests in `habit-store.test.ts`: archived habits are kept, marked `archived: true` in their place in the order, and deleted habits are left out with their days.
