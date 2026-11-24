@@ -78,3 +78,5 @@ If moving the quit day would remove slips on or before the new day, I'm warned f
   - **Removed slips are removed,** written as `logged: false`, not kept and ignored. A slip logged offline on another device before a moved quit day still survives sync and is ignored, as ADR-0002 says.
   - **"Celebration" isn't in the glossary.** It's in the ticket and the settings (`celebrate`). Worth adding if it stays.
   - **Goal celebrations sits in Appearance.** It could move to a Reminders or Goals group once 19 adds the reminder.
+
+- **Owner decisions (2026-11-24):** a quit day may move to today as well as a past day, as when creating a habit (kept). "Celebration" is now in the glossary. The celebration notice and the update prompt must not overlap; that's fixed in a follow-up.

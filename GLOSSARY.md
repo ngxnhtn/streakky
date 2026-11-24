@@ -67,3 +67,7 @@ _Avoid_: Best streak, longest run, record
 **Goal**:
 An optional target length for a habit's current streak. It is reached when the current streak hits it, and carries over to the next streak after a break.
 _Avoid_: Target, milestone
+
+**Celebration**:
+What a device plays once when a habit's current streak reaches its goal, through a check-in, a slip-free day or the days passing. Setting a goal or moving a quit day never plays one. It can be turned off in Settings.
+_Avoid_: Milestone, reward

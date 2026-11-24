@@ -65,3 +65,5 @@
   - **Archive asks nothing**, since restoring undoes it. Delete asks.
   - **The Archived habits row is in the Data group**, next to Export. A Habits group may suit it better once Settings grows.
   - **The options button uses the playground's `Menu` (three lines) icon,** the same as Home's Settings button. An ellipsis might read better as "options".
+
+- **Owner decisions (2026-11-24):** an archived quit habit stops counting while it's archived (follow-up). When every habit is archived, Home points to Archived habits (follow-up).
