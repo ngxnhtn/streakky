@@ -7,7 +7,6 @@ import {
   fmtLong,
   fromISO,
   loggedToday,
-  sinceLabel,
   statusLabel,
   type Habit,
   type Layout,
@@ -20,6 +19,7 @@ import {
   HabitCollection,
   HabitRow,
   NewHabitTile,
+  type HabitFaceProps,
 } from "@streakky/ui/components/habit/habit-card";
 import { useArchivedHabits, useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
@@ -43,7 +43,28 @@ export function Home() {
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const signedOutNoteShown = useSignedOutNoteShown();
   const celebration = useCelebration(habits, day);
-  const open = (habit: Habit) => push({ name: "detail", id: habit.id });
+  /**
+   * A habit's face, in the grid or the list. Its tick checks a build habit in today with one tap,
+   * and its slip button asks before logging a quit habit's slip; the rest of it opens the habit.
+   */
+  const faceOf = (habit: Habit): HabitFaceProps => {
+    const days = currentStreakDays(habit);
+    return {
+      name: habit.name,
+      days,
+      unit: counterLabel(habit, days),
+      status: statusLabel(habit),
+      kind: habit.kind,
+      color: habit.color,
+      onClick: () => push({ name: "detail", id: habit.id }),
+      today: {
+        logged: loggedToday(habit),
+        locked: !canToggle(habit, day),
+        onToggle: () =>
+          habit.kind === "build" ? void store.toggleDay(habit.id) : toggleSlip(habit),
+      },
+    };
+  };
   // a habit dragged to `to` goes just after the habit that ends up before it there
   const move = (from: number, to: number) => {
     const moved = habits[from];
@@ -90,39 +111,15 @@ export function Home() {
               onShowArchived={() => push({ name: "archived" })}
               onAdd={() => setAdding(true)}
             />
-          ) : layout === "list" ? (
-            <HabitList
-              habits={habits}
-              day={day}
-              onOpen={open}
-              onSlip={toggleSlip}
-              onMove={move}
-              onAdd={() => setAdding(true)}
-            />
           ) : (
             <HabitCollection
-              layout="grid"
+              layout={layout}
               onMove={move}
-              end={<NewHabitTile layout="grid" onClick={() => setAdding(true)} />}
+              end={<NewHabitTile layout={layout} onClick={() => setAdding(true)} />}
             >
               {habits.map((habit) => {
-                const days = currentStreakDays(habit);
-                return (
-                  <HabitCard
-                    key={habit.id}
-                    name={habit.name}
-                    days={days}
-                    label={labelOf(habit, days)}
-                    kind={habit.kind}
-                    color={habit.color}
-                    onClick={() => open(habit)}
-                    checkedIn={loggedToday(habit)}
-                    onCheckIn={() => void store.toggleDay(habit.id)}
-                    slipped={loggedToday(habit)}
-                    slipLocked={!canToggle(habit, day)}
-                    onSlip={() => toggleSlip(habit)}
-                  />
-                );
+                const Face = layout === "grid" ? HabitCard : HabitRow;
+                return <Face key={habit.id} {...faceOf(habit)} />;
               })}
             </HabitCollection>
           )}
@@ -132,64 +129,6 @@ export function Home() {
       {slipDialog}
       {celebration}
     </>
-  );
-}
-
-/**
- * Under the count: what it counts, or, with no streak yet, why: "check in today to start" (build),
- * "started today" or "slip logged today" (quit).
- */
-const labelOf = (habit: Habit, days: number) =>
-  days === 0 ? sinceLabel(habit) : counterLabel(habit, days);
-
-/**
- * The list layout: a row per habit, whose tick checks a build habit in today with one tap and
- * whose slip button asks before logging a quit habit's slip. The rest of the row opens the habit.
- * Rows are dragged into order as the grid's cards are.
- */
-function HabitList({
-  habits,
-  day,
-  onOpen,
-  onSlip,
-  onMove,
-  onAdd,
-}: {
-  habits: Habit[];
-  day: string;
-  onOpen: (habit: Habit) => void;
-  onSlip: (habit: Habit) => void;
-  onMove: (from: number, to: number) => void;
-  onAdd: () => void;
-}) {
-  const store = useHabitStore();
-  return (
-    <HabitCollection
-      layout="list"
-      onMove={onMove}
-      end={<NewHabitTile layout="list" onClick={onAdd} />}
-    >
-      {habits.map((habit) => {
-        const days = currentStreakDays(habit);
-        return (
-          <HabitRow
-            key={habit.id}
-            name={habit.name}
-            days={days}
-            label={counterLabel(habit, days)}
-            status={statusLabel(habit)}
-            kind={habit.kind}
-            color={habit.color}
-            onClick={() => onOpen(habit)}
-            checkedIn={loggedToday(habit)}
-            onCheckIn={() => void store.toggleDay(habit.id)}
-            slipped={loggedToday(habit)}
-            slipLocked={!canToggle(habit, day)}
-            onSlip={() => onSlip(habit)}
-          />
-        );
-      })}
-    </HabitCollection>
   );
 }
 

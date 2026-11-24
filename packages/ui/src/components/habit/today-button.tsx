@@ -11,8 +11,9 @@ const base = [
 ].join(" ");
 
 /**
- * The action under the counter. Build: "Check in today", then "Checked in today · Undo" (a toggle).
- * Quit: "I slipped today" (ask before calling onSlip), then "Undo today's slip".
+ * The action under the counter. Build: "Check in today", then "Checked in today · Undo", one
+ * toggle whose name stays "Check in today" while `aria-pressed` says whether it's done. Quit:
+ * "I slipped today" (ask before calling onSlip), then "Undo today's slip", two actions.
  */
 export function TodayButton({
   kind,
@@ -34,6 +35,7 @@ export function TodayButton({
     return (
       <button
         type="button"
+        aria-label="Check in today"
         aria-pressed={loggedToday}
         onClick={onToggle}
         className={cn(
