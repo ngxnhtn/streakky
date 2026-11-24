@@ -18,7 +18,7 @@ Like every setting, it's kept on each device and isn't synced (story 61). Days s
 
 **Blocked by:** 19 (Daily reminder), 20 (Home-screen widget)
 
-**Status:** in progress: the code is done, waiting to be checked on the owner's phone in another time zone
+**Status:** done
 
 - [x] A device setting holds an IANA time zone. It's set from the device's zone the first time it's read, and kept.
 - [x] Settings shows the zone and lets me pick any other. When it differs from the device's current zone, Settings offers to switch to that one.
@@ -30,12 +30,12 @@ Like every setting, it's kept on each device and isn't synced (story 61). Days s
 - [x] The daily reminder fires at its time in the chosen zone. Changing the zone reschedules it.
 - [x] The app writes the zone with the widget summaries. The widget counts with today in that zone, and its midnight refresh is that zone's midnight. A Kotlin test covers today in a zone other than the phone's.
 - [x] Changing the zone in Settings updates everything above at once.
-- [ ] Verified on the owner's phone, with the phone set to another zone: the app, the reminder and the widget keep the chosen zone's day.
+- [x] Verified on the owner's phone, with the phone set to another zone: the app, the reminder and the widget keep the chosen zone's day.
 - [x] `vp check` and `vp test` pass, and `vp run web#android-test`.
 
 ## Comments
 
-**Code done (2026-11-25); the phone check in another time zone is still to come.**
+**Done (2026-11-25).**
 
 - **Core:** `setTimeZone` sets the zone days follow, the device's own until it's called. `todayISO`, `today` and every rule built on them follow it, as do:
   - `dayOf`, the day a moment falls on there;
@@ -83,3 +83,16 @@ Like every setting, it's kept on each device and isn't synced (story 61). Days s
     - the device-zone test, which now has a fixed expected value;
     - the alias check, moved into core.
   - Kept as they are: a second open tab picks up a zone change on its next settings change or reload, as every setting does (ticket 05); "Last synced" uses the zone's clock, so "Today" and its time agree.
+- **Checked on the owner's Pixel 8** (Android 17):
+  - **Setup:** after the update, the app took the phone's zone as "Asia/Saigon" and passed it to the widgets. Two test habits were added: "Zone check", quit on the 23rd; "Zone build", a build habit for the reminder. The reminder was turned on, and a widget placed for "Zone check".
+  - **Switching the phone to Los Angeles:** on the 24th there, the 25th in Saigon, with `cmd alarm set-timezone`, as the shell may not suggest a zone.
+    - The widgets kept Saigon's day: "Zone check" 2, and the owner's own "nonono" (since the 24th) 1, where Los Angeles's day gives 1 and 0.
+    - The widgets' midnight refresh was set again for Saigon's midnight: 09:00:05 on the phone's new clock.
+    - The app kept Saigon's day, Settings offered Los Angeles, and the reminder stayed at 21:00 Saigon (14:00 UTC).
+  - **"Use this device's zone":** moved everything at once. "nonono" read 0, "started today", and "Zone check" 1. The widgets got the zone, their refresh moved to Los Angeles's midnight, and the reminder to 21:00 there.
+  - **Picking Asia/Saigon from the list:** brought it all back.
+  - **Afterwards:**
+    - the phone went back to Saigon, with automatic time zone on again;
+    - the reminder was turned off;
+    - the test habits were deleted, and their widget, which said "This habit is no longer here", removed;
+    - the owner's settings are olive, system theme, Asia/Saigon, with their "nonono" widget in place.
