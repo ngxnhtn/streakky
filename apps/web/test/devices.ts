@@ -29,6 +29,15 @@ export const createStorage = (): DeviceStorage => ({
   cookies: new Map(),
 });
 
+/**
+ * The same device's storage after its habit database is lost while its key-value storage and
+ * cookies stay, as when a browser clears one but not the others.
+ */
+export const withRecordsLost = (storage: DeviceStorage): DeviceStorage => ({
+  ...storage,
+  database: new Database(":memory:"),
+});
+
 /** How a device reaches the API Worker, given its storage (see `online` in server.ts). */
 export type Connection = (storage: DeviceStorage) => ApiFetch;
 

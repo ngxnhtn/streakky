@@ -168,20 +168,31 @@ export async function push(
 /**
  * Every habit and day record of the account changed after server version `since`, deleted habits
  * included, oldest change first, a page of at most `PULL_LIMIT` rows at a time.
+ *
+ * A `since` beyond the account's latest version is from before the account's data was made anew,
+ * such as the account or the database being recreated: the device saw versions this data never
+ * had, so the pull starts again from the beginning, and the device gets all of it.
  */
 export async function pull(db: Database, userId: string, since: number) {
   const limit = PULL_LIMIT;
-  const [habitRows, dayRows] = await db.batch([
+  const latest = sql`COALESCE((SELECT ${syncVersions.version} FROM ${syncVersions} WHERE ${syncVersions.userId} = ${userId}), 0)`;
+  const after = sql`CASE WHEN ${since} > ${latest} THEN 0 ELSE ${since} END`;
+  // one batch, so the latest version and the rows are read together
+  const [versions, habitRows, dayRows] = await db.batch([
+    db
+      .select({ version: syncVersions.version })
+      .from(syncVersions)
+      .where(eq(syncVersions.userId, userId)),
     db
       .select()
       .from(habits)
-      .where(and(eq(habits.userId, userId), gt(habits.version, since)))
+      .where(and(eq(habits.userId, userId), gt(habits.version, after)))
       .orderBy(asc(habits.version))
       .limit(limit + 1),
     db
       .select()
       .from(dayRecords)
-      .where(and(eq(dayRecords.userId, userId), gt(dayRecords.version, since)))
+      .where(and(eq(dayRecords.userId, userId), gt(dayRecords.version, after)))
       .orderBy(asc(dayRecords.version))
       .limit(limit + 1),
   ]);
@@ -192,10 +203,12 @@ export async function pull(db: Database, userId: string, since: number) {
     ...dayRows.map((row) => ({ version: row.version, day: row })),
   ].sort((a, b) => a.version - b.version);
   const page = changes.slice(0, limit);
+  // where the rows were read from, as `after` put it, for a pull that found none
+  const from = since > (versions[0]?.version ?? 0) ? 0 : since;
   return {
     habits: page.flatMap((c) => ("habit" in c ? [syncedHabit(c.habit)] : [])),
     days: page.flatMap((c) => ("day" in c ? [syncedDay(c.day)] : [])),
-    version: page.at(-1)?.version ?? since,
+    version: page.at(-1)?.version ?? from,
     more: changes.length > limit,
   } satisfies Pulled;
 }

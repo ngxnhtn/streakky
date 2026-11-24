@@ -14,6 +14,7 @@ import {
   createStorage,
   openDevice,
   storeRecords,
+  withRecordsLost,
   switchable,
   type Connection,
   type DeviceOptions,
@@ -47,20 +48,21 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-/** A device with its own storage and network address, signed in to `email`. */
+/** A device with its own storage and network address, signed in to `email` on `at`. */
 async function signedInDevice(
   email: string,
   options?: DeviceOptions,
   {
     storage = createStorage(),
-    via = online(server),
-  }: { storage?: DeviceStorage; via?: Connection } = {},
+    at = server,
+    via = online(at),
+  }: { storage?: DeviceStorage; at?: Server; via?: Connection } = {},
 ): Promise<Device> {
   const network = switchable(via);
   const store = await openDevice(storage, network.connection, options);
   open.push(store);
   await store.requestSignInCode(email);
-  await store.signIn(email, codeSentTo(server, email));
+  await store.signIn(email, codeSentTo(at, email));
   return Object.assign(store, { goOffline: network.goOffline, goOnline: network.goOnline });
 }
 
@@ -414,6 +416,48 @@ describe("syncing between two signed-in devices", () => {
     await mine.sync();
     await theirs.sync();
     expect(names(theirs)).toEqual([]);
+  });
+});
+
+describe("a device whose place in the account's changes no longer fits", () => {
+  it("gets every habit again once its stored habits are lost", async () => {
+    const email = accounts[nextAccount++];
+    const storage = createStorage();
+    const phone = await signedInDevice(email, {}, { storage });
+    const laptop = await signedInDevice(email);
+    await laptop.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await laptop.sync();
+    await phone.sync();
+    await phone.close();
+    const reopened = await openDevice(withRecordsLost(storage), online(server));
+    open.push(reopened);
+    await reopened.sync();
+    expect(names(reopened)).toEqual(["Read"]);
+  });
+
+  it("gets every habit from a server where the account's data started again", async () => {
+    const email = accounts[nextAccount++];
+    const storage = createStorage();
+    const phone = await signedInDevice(email, {}, { storage });
+    for (const name of ["Read", "Stretch", "Walk"]) {
+      await phone.createHabit({ kind: "build", name, color: "blue" });
+    }
+    await phone.sync();
+    await phone.close();
+    // a new server, as when the database is made anew, where another device adds a habit
+    const anew = await startServer({ allowlist: [email] });
+    try {
+      const laptop = await signedInDevice(email, {}, { at: anew });
+      await laptop.createHabit({ kind: "build", name: "Meditate", color: "green" });
+      await laptop.sync();
+      // the phone saw more of the old server's changes than the new one has
+      const moved = await signedInDevice(email, {}, { storage, at: anew });
+      await moved.sync();
+      expect(names(moved)).toContain("Meditate");
+    } finally {
+      await Promise.all(open.splice(0).map((device) => device.close()));
+      await anew.stop();
+    }
   });
 });
 

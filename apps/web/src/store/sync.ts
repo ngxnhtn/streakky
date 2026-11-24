@@ -284,6 +284,12 @@ export function openSync({
 
   const pullChanges = async (email: string): Promise<boolean> => {
     let cursor = readCursor(email);
+    // The cursor lives apart from the records: with none of them left but a cursor past the
+    // start, the records were lost and the cursor kept (a browser clearing one store but not the
+    // other), and only a pull from the beginning brings them back. A pull always leaves a record.
+    if (cursor.version > 0 && habitRecords.size === 0 && dayRecords.size === 0) {
+      cursor = { ...cursor, version: 0 };
+    }
     // across the pull's pages, since a new habit's days can come a page after it
     const setElsewhere = new Set<string>();
     for (;;) {
