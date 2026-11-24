@@ -42,3 +42,7 @@ Settings shows whether I'm synced and when I last synced. This ticket covers hab
   - [ ] devices with different clocks.
 - [ ] Two browsers signed in to the same account show the same habits after syncing, checked by hand.
 - [ ] `vp check` and `vp test` pass.
+
+## Comments
+
+**Note (2026-11-24): Drizzle manages D1.** Add the habit and day-record tables to `apps/api/src/db/schema.ts`, then run `vp run api#db-generate --name sync` for the migration. Query through `openDatabase(env.DB)` (`src/db/database.ts`); use `db.batch([...])` where writes must land together, since D1 has no interactive transactions. If a later change makes drizzle-kit rebuild a table, read the generated SQL before committing: it toggles `PRAGMA foreign_keys`, which D1 doesn't honour inside a migration.

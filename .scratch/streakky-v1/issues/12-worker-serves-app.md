@@ -66,3 +66,5 @@ What I verified:
 8. Commit the `database_id`. It's an identifier, not a secret.
 
 Steps 2 to 7 are unverified, because they need your account. Wrangler sends anonymous usage telemetry by default. To turn it off, run `vp -C apps/api exec wrangler telemetry disable`.
+
+**Follow-up (2026-11-24): Drizzle manages D1.** The owner asked for Drizzle on the backend. This replaces "What exists" above: `0001_initial.sql` is gone. Every table is defined in `apps/api/src/db/schema.ts`, drizzle-kit writes the migrations into the same `migrations/` folder (`0000_initial.sql`, with drizzle-kit's bookkeeping in `migrations/meta/`), and Wrangler still applies them on deploy, in `vp run api#dev` and in `startWorker`. The deploy steps below don't change.

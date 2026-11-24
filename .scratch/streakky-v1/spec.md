@@ -225,7 +225,7 @@ type DayRecord = {
 
 ### Auth
 
-- better-auth runs in the Worker on the D1 binding directly, with no adapter.
+- better-auth runs in the Worker on the D1 binding through its Drizzle adapter.
 - It uses two plugins: **email OTP** (6-digit codes, with better-auth's defaults for expiry and attempts) and **bearer**.
 - **Allowlist:**
   - It's a Worker secret listing allowed emails, starting with the owner's, so the repository never shows them.
@@ -242,7 +242,8 @@ type DayRecord = {
 ### D1
 
 - **Tables:** better-auth's tables, habits and day records. The habit and day-record tables carry the owning account and the server version.
-- **Migrations:** better-auth's schema is generated as SQL migration files and lives alongside our own migrations. D1 migrations are applied as part of deploy.
+- **Drizzle:** Drizzle defines every table and runs every query. better-auth's tables are generated as a Drizzle schema from the auth options and live next to our own.
+- **Migrations:** drizzle-kit generates the SQL migrations from the Drizzle schema. Wrangler applies them to D1 as part of deploy, in local development and in tests.
 
 ### Web layouts and PWA
 
