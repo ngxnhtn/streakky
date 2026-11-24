@@ -1,11 +1,19 @@
 import { useState, type FormEvent } from "react";
-import { HABIT_COLORS, canBeQuitDay, todayISO, type ColorId, type Kind } from "@streakky/core";
+import {
+  GOALS,
+  HABIT_COLORS,
+  canBeQuitDay,
+  todayISO,
+  type ColorId,
+  type Kind,
+} from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@streakky/ui/components/dialog";
 import { Field, FieldSet } from "@streakky/ui/components/field";
 import { HabitColorPicker } from "@streakky/ui/components/habit/color-picker";
 import { Input } from "@streakky/ui/components/input";
 import { Segmented } from "@streakky/ui/components/segmented";
+import { ToggleChip, ToggleGroup } from "@streakky/ui/components/toggle-group";
 import { useHabitStore, useHabits } from "../store/react.tsx";
 import { useBackCloses } from "./stack.tsx";
 
@@ -37,6 +45,7 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
   // the raw input value: "" while a date is half typed or cleared
   const [quitDay, setQuitDay] = useState(today);
   const [color, setColor] = useState<ColorId>((unused ?? HABIT_COLORS[0]).id);
+  const [goal, setGoal] = useState("none");
   const [nameError, setNameError] = useState("");
   const [quitDayError, setQuitDayError] = useState("");
 
@@ -44,12 +53,13 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
     e.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return setNameError("Give the habit a name.");
+    const chosen = { name: trimmed, color, goal: goal === "none" ? null : Number(goal) };
     if (kind === "build") {
-      await store.createHabit({ kind, name: trimmed, color });
+      await store.createHabit({ kind, ...chosen });
     } else {
       const day = quitDay || today;
       if (!canBeQuitDay(day)) return setQuitDayError("Pick today or a day before it.");
-      await store.createHabit({ kind, name: trimmed, color, quitDay: day });
+      await store.createHabit({ kind, ...chosen, quitDay: day });
     }
     onDone();
   };
@@ -105,6 +115,19 @@ function NewHabitForm({ onDone }: { onDone: () => void }) {
       <FieldSet legend="Colour">
         <HabitColorPicker value={color} onValueChange={setColor} />
       </FieldSet>
+      {/* the chosen goal takes the habit's colour, as on the habit's Goal tab */}
+      <div data-habit-color={color} className="contents">
+        <FieldSet legend="Goal">
+          <ToggleGroup value={goal} onValueChange={setGoal} aria-label="Goal in days">
+            {GOALS.map((days) => (
+              <ToggleChip key={days} value={String(days)}>
+                {days}
+              </ToggleChip>
+            ))}
+            <ToggleChip value="none">None</ToggleChip>
+          </ToggleGroup>
+        </FieldSet>
+      </div>
       <Button type="submit" className="w-full">
         Add habit
       </Button>

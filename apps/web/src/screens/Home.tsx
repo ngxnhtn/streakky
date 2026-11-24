@@ -20,6 +20,7 @@ import {
   NewHabitTile,
 } from "@streakky/ui/components/habit/habit-card";
 import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
+import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
 import { ReorderHint } from "./ReorderHint.tsx";
@@ -39,6 +40,7 @@ export function Home() {
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const signedOutNoteShown = useSignedOutNoteShown();
+  const celebration = useCelebration(habits, day);
   const open = (habit: Habit) => push({ name: "detail", id: habit.id });
   // a habit dragged to `to` goes just after the habit that ends up before it there
   const move = (from: number, to: number) => {
@@ -117,6 +119,7 @@ export function Home() {
       </ScreenScroll>
       <NewHabitDialog open={adding} onClose={() => setAdding(false)} />
       {slipDialog}
+      {celebration}
     </>
   );
 }
