@@ -48,24 +48,36 @@ export function useCelebration(habits: Habit[], day: string): ReactNode {
 /**
  * A notice along the bottom with a burst of the habit's colour rising from it. It leaves by itself
  * unless a pointer or focus is on it, never takes focus, and under reduced motion it has no burst.
+ * Dismissed from the keyboard, it gives focus back to where it came from.
  */
 function GoalReached({ habit, onDone }: { habit: Habit; onDone: () => void }) {
   const [held, setHeld] = useState(false);
-  const done = useRef(onDone);
-  done.current = onDone;
+  const notice = useRef<HTMLDivElement>(null);
+  const cameFrom = useRef<HTMLElement | null>(null);
+  const leave = useRef(onDone);
+  leave.current = () => {
+    const from = cameFrom.current;
+    if (notice.current?.contains(document.activeElement) && from?.isConnected) from.focus();
+    onDone();
+  };
   useEffect(() => {
     if (held) return;
-    const timer = window.setTimeout(() => done.current(), SHOWN_MS);
+    const timer = window.setTimeout(() => leave.current(), SHOWN_MS);
     return () => window.clearTimeout(timer);
   }, [held]);
   const burst = useMemo(() => !prefersReducedMotion(), []);
   return (
     <div
+      ref={notice}
       data-habit-color={habit.color}
       className="pointer-events-auto relative w-full max-w-[26rem]"
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)}
+      onFocus={(event) => {
+        setHeld(true);
+        const from = event.relatedTarget;
+        if (from instanceof HTMLElement && !notice.current?.contains(from)) cameFrom.current = from;
+      }}
       onBlur={() => setHeld(false)}
     >
       {burst && <Burst />}
@@ -83,7 +95,12 @@ function GoalReached({ habit, onDone }: { habit: Habit; onDone: () => void }) {
             {habit.name}
           </span>
         </p>
-        <Button variant="ghost" size="icon" aria-label="Dismiss the celebration" onClick={onDone}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Dismiss the celebration"
+          onClick={() => leave.current()}
+        >
           <X strokeWidth={1.75} />
         </Button>
       </div>
