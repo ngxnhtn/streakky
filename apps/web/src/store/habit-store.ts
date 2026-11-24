@@ -7,6 +7,7 @@ import {
   GOALS,
   goalReached,
   HABIT_COLORS,
+  HABIT_NAME_MAX_LENGTH,
   slipsRemovedByMovingQuitDay,
   todayISO,
   type ArchivedPeriod,
@@ -64,11 +65,16 @@ export type HabitEdit = { name?: string; color?: ColorId; goal?: number | null }
 
 /** What the screens use: commands that change habits, and the habits as the core model sees them. */
 export type HabitStore = {
+  /**
+   * Adds a habit after every other. Throws for an empty name or one longer than core's
+   * `HABIT_NAME_MAX_LENGTH`, a colour that isn't one of core's `HABIT_COLORS`, a goal that isn't
+   * one of its `GOALS`, or a quit day that hasn't come.
+   */
   createHabit(input: NewHabit): Promise<void>;
   /**
    * Renames a habit, changes its colour, or sets, changes or removes (null) its goal. Only fields
    * that differ from the habit's change, so a sync keeps another device's edits to the others.
-   * Throws for an empty name or a goal that isn't one of core's `GOALS`. Only on an active habit.
+   * Throws for a name, colour or goal that `createHabit` would refuse. Only on an active habit.
    */
   editHabit(habitId: string, change: HabitEdit): Promise<void>;
   /**
@@ -175,10 +181,28 @@ export type HabitStoreOptions = {
   syncTriggers?: (sync: () => void) => () => void;
 };
 
-const isGoal = (goal: number | null) => goal === null || GOALS.includes(goal);
+/**
+ * Throws for a habit field the store won't write, whether making a habit or editing one: a name
+ * that's empty or longer than core's `HABIT_NAME_MAX_LENGTH`, a colour that isn't one of core's
+ * `HABIT_COLORS`, or a goal that isn't one of its `GOALS` (or none). Fields left out are fine.
+ */
+function checkHabit({ name, color, goal }: HabitEdit) {
+  if (name !== undefined && !name.trim()) throw new Error("A habit's name can't be empty.");
+  if (name !== undefined && name.length > HABIT_NAME_MAX_LENGTH) {
+    throw new Error(`A habit's name can be at most ${HABIT_NAME_MAX_LENGTH} characters.`);
+  }
+  if (color !== undefined && !HABIT_COLORS.some((c) => c.id === color)) {
+    throw new Error(`"${color}" isn't a habit colour.`);
+  }
+  if (goal !== undefined && goal !== null && !GOALS.includes(goal)) {
+    throw new Error(`A goal must be one of ${GOALS.join(", ")} days, not ${goal}.`);
+  }
+}
 
-const goalError = (goal: number | null) =>
-  new Error(`A goal must be one of ${GOALS.join(", ")} days, not ${goal}.`);
+/** Throws for a day that can't be a quit habit's quit day: one that hasn't come, or isn't a day. */
+function checkQuitDay(day: string) {
+  if (!canBeQuitDay(day)) throw new Error(`A quit day must be today or a past day, not "${day}".`);
+}
 
 export async function openHabitStore({
   persistence,
@@ -362,10 +386,8 @@ export async function openHabitStore({
   return {
     async createHabit(input) {
       const { kind, name, color, goal = null } = input;
-      if (input.kind === "quit" && !canBeQuitDay(input.quitDay)) {
-        throw new Error(`A quit day must be today or a past day, not "${input.quitDay}".`);
-      }
-      if (!isGoal(goal)) throw goalError(goal);
+      checkHabit({ name, color, goal });
+      if (input.kind === "quit") checkQuitDay(input.quitDay);
       const id = crypto.randomUUID();
       if (input.kind === "quit") {
         // a quit day far enough back reaches the goal at once: a goal set, not reached, today
@@ -399,11 +421,7 @@ export async function openHabitStore({
       const record = habitRecords.get(habitId);
       const habit = activeHabit(habitId);
       if (!record || !habit) return;
-      if (name !== undefined && !name.trim()) throw new Error("A habit's name can't be empty.");
-      if (color !== undefined && !HABIT_COLORS.some((c) => c.id === color)) {
-        throw new Error(`"${color}" isn't a habit colour.`);
-      }
-      if (goal !== undefined && !isGoal(goal)) throw goalError(goal);
+      checkHabit({ name, color, goal });
       const change: Partial<Pick<HabitRecord, EditableField>> = {};
       if (name !== undefined && name !== record.name) change.name = name;
       if (color !== undefined && color !== record.color) change.color = color;
@@ -420,9 +438,7 @@ export async function openHabitStore({
       const habit = activeHabit(habitId);
       if (!habit) return;
       if (habit.kind !== "quit") throw new Error("Only a quit habit has a quit day.");
-      if (!canBeQuitDay(quitDay)) {
-        throw new Error(`A quit day must be today or a past day, not "${quitDay}".`);
-      }
+      checkQuitDay(quitDay);
       if (quitDay === habit.quitDay) return;
       const removed = slipsRemovedByMovingQuitDay(habit, quitDay);
       const moved: Habit = {
@@ -449,7 +465,7 @@ export async function openHabitStore({
       await saved(tx);
     },
     async toggleDay(habitId, day = todayISO()) {
-      const habit = habits().find((h) => h.id === habitId);
+      const habit = activeHabit(habitId);
       if (!habit || !canToggle(habit, day)) return;
       const key = dayKey({ habitId, day });
       const changeId = crypto.randomUUID();
