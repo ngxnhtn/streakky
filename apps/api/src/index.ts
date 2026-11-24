@@ -20,10 +20,22 @@ const MAX_PUSH_BYTES = 512 * 1024;
  */
 const sync = new Hono<WorkerEnv>()
   .use(async (c, next) => {
-    const session = await authFor(c.req.raw, c.env).api.getSession({ headers: c.req.raw.headers });
-    if (!session) return c.json({ error: "Not signed in" }, 401);
+    const { headers, response: session } = await authFor(c.req.raw, c.env).api.getSession({
+      headers: c.req.raw.headers,
+      returnHeaders: true,
+    });
+    // Once a day of use, checking the session renews it for a year (`updateAge` in auth.ts), and
+    // better-auth sets its cookie again; for a session that has ended, it clears the cookie. The
+    // answer carries those cookies, as /get-session's does: a device syncs more often than it
+    // asks that, and its cookie has to last a year from its last use, not from signing in.
+    const withCookies = (response: Response) => {
+      for (const cookie of headers.getSetCookie()) response.headers.append("Set-Cookie", cookie);
+      return response;
+    };
+    if (!session) return withCookies(c.json({ error: "Not signed in" }, 401));
     c.set("userId", session.user.id);
     await next();
+    withCookies(c.res);
   })
   .get("/pull", async (c) => {
     const since = Number(c.req.query("since") ?? "0");
