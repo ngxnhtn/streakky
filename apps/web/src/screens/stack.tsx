@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
 
 export type Route =

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 
 /** How long a finger rests on an item before it lifts. Any shorter and it would fight scrolling. */
 const HOLD_MS = 400;

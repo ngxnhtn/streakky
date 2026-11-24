@@ -13,17 +13,20 @@ export const segmentPill =
 export const segmentItem =
   "tap-target relative z-10 flex items-center justify-center rounded-full px-2 text-sm font-medium text-foreground transition-colors duration-240 focus-ring data-[state=on]:text-habit-foreground data-[state=active]:text-habit-foreground [&_svg]:size-[1.125rem]";
 
-const sizes = { md: "h-11", sm: "h-10", xs: "h-9 text-[0.8125rem]" } as const;
+const sizes = { md: "h-11", sm: "h-10", xs: "h-9" } as const;
 
-export type SegmentOption<T extends string> = {
+export type SegmentOption<T extends string | number> = {
   value: T;
   label: string;
   /** shown instead of the label, which becomes its accessible name */
   icon?: React.ReactNode;
 };
 
-/** A single choice from two to four options (theme, layout, calendar view, build or quit). */
-export function Segmented<T extends string>({
+/**
+ * A single choice from two to four options (theme, layout, calendar view, build or quit). The
+ * values may be strings or numbers, such as a weekday.
+ */
+export function Segmented<T extends string | number>({
   value,
   onValueChange,
   options,
@@ -45,8 +48,12 @@ export function Segmented<T extends string>({
   return (
     <ToggleGroupPrimitive.Root
       type="single"
-      value={value}
-      onValueChange={(v) => v && onValueChange(v as T)}
+      // Radix keeps string values; each option's own value goes back out
+      value={String(value)}
+      onValueChange={(chosen) => {
+        const option = options.find((o) => String(o.value) === chosen);
+        if (option) onValueChange(option.value);
+      }}
       aria-label={label}
       data-slot="segmented"
       className={cn(segmentTrack, sizes[size], className)}
@@ -56,7 +63,7 @@ export function Segmented<T extends string>({
       {options.map((o) => (
         <ToggleGroupPrimitive.Item
           key={o.value}
-          value={o.value}
+          value={String(o.value)}
           aria-label={o.icon ? o.label : undefined}
           className={cn(segmentItem, size === "xs" && "text-[0.8125rem]")}
         >

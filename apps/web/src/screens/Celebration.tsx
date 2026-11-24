@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { PartyPopper, X } from "lucide-react";
 import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
-import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
 import { ScreenNotice, useScreenNoticesReady } from "../BottomNotices.tsx";
 import { useHabitStore, useSettings } from "../store/react.tsx";

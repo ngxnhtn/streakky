@@ -1,9 +1,9 @@
 import type { ExportFile } from "./store/export.ts";
 
 /**
- * Hands a file to the person, the one place each platform chooses how. The web downloads it. The
- * Android app (ticket 16) opens the share sheet here instead, so the person can save the file to
- * Files or send it somewhere; the screens only call this.
+ * Hands a file to the person, the one place each platform chooses how; the screens only call
+ * this. The web downloads it. The Android app isn't built yet: when it is (ticket 16), it is to
+ * open the share sheet here instead, so the person can save the file to Files or send it somewhere.
  */
 export async function saveFile({ name, type, text }: ExportFile): Promise<void> {
   const url = URL.createObjectURL(new Blob([text], { type }));

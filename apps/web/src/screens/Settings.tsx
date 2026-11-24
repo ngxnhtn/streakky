@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Download } from "lucide-react";
-import type { Layout, Theme } from "@streakky/core";
+import type { Layout, Theme, WeekStart } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
@@ -66,15 +66,13 @@ export function Settings() {
               </ListItem>
               <ListItem stacked>
                 <ListLabel>Week starts on</ListLabel>
-                <Segmented
+                <Segmented<WeekStart>
                   label="Week starts on"
-                  value={String(settings.weekStart)}
-                  onValueChange={(value) =>
-                    store.changeSettings({ weekStart: value === "0" ? 0 : 1 })
-                  }
+                  value={settings.weekStart}
+                  onValueChange={(weekStart) => store.changeSettings({ weekStart })}
                   options={[
-                    { value: "1", label: "Monday" },
-                    { value: "0", label: "Sunday" },
+                    { value: 1, label: "Monday" },
+                    { value: 0, label: "Sunday" },
                   ]}
                 />
               </ListItem>

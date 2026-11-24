@@ -85,7 +85,7 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `DialogActions`                                                                   |
 | `portal`         | `PortalContainerProvider`: render dialogs inside a given element (a phone frame, a panel)                                                                   |
 | `tabs`           | Radix tabs drawn as a segmented track with a sliding pill (`TabsList index count`)                                                                          |
-| `segmented`      | A single choice of two to four options, sliding pill; options may be icons                                                                                  |
+| `segmented`      | A single choice of two to four options, sliding pill; options may be icons, values strings or numbers                                                       |
 | `toggle-group`   | `ToggleGroup` + `ToggleChip` (pill chips) + `ToggleGroupItem` (custom faces)                                                                                |
 | `switch`         | Radix switch                                                                                                                                                |
 | `input`, `label` | Text fields                                                                                                                                                 |
@@ -94,6 +94,8 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                       |
 | `stat`           | `StatGrid`, `StatTile`                                                                                                                                      |
 | `app-bar`        | A phone screen's top bar                                                                                                                                    |
+| `note`           | `Note` and `NoteLink`: one small dismissible note in a pill, its text a button when it leads somewhere                                                      |
+| `empty-state`    | `EmptyState`: what a screen says when it has nothing to show, with an optional action                                                                       |
 | `palette-picker` | The app colour themes as swatches                                                                                                                           |
 
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
@@ -110,7 +112,9 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                              |
 | `color-picker`  | `HabitColorPicker`                                                                                                                                   |
 
-Hooks: `@streakky/ui/hooks/use-tween` (`useTween`, `prefersReducedMotion`).
+Hooks: `@streakky/ui/hooks/use-tween` (`useTween`), `@streakky/ui/hooks/use-media-query`
+(`useMediaQuery`) and `@streakky/ui/hooks/use-reorder`. Helpers: `@streakky/ui/lib/motion`
+(`prefersReducedMotion`) and `@streakky/ui/lib/media` (`matchesMedia`).
 
 ## Add a shadcn component
 

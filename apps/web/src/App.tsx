@@ -1,5 +1,6 @@
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { applyAppearance } from "./appearance.ts";
+import { useLayoutEffect, type ReactNode } from "react";
+import { useMediaQuery } from "@streakky/ui/hooks/use-media-query";
+import { applyAppearance, SYSTEM_DARK } from "./appearance.ts";
 import { BottomNotices } from "./BottomNotices.tsx";
 import { ArchivedHabits } from "./screens/ArchivedHabits.tsx";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
@@ -17,7 +18,7 @@ import { UpdatePrompt } from "./UpdatePrompt.tsx";
 export function App() {
   const { theme, palette } = useSettings();
   // re-applies when the system switches between light and dark
-  const systemDark = useMedia("(prefers-color-scheme: dark)");
+  const systemDark = useMediaQuery(SYSTEM_DARK);
   useLayoutEffect(() => applyAppearance({ theme, palette }), [theme, palette, systemDark]);
 
   return (
@@ -42,15 +43,4 @@ function screenOf(route: Route): ReactNode {
     case "archived":
       return <ArchivedHabits />;
   }
-}
-
-function useMedia(query: string): boolean {
-  const [match, setMatch] = useState(() => window.matchMedia(query).matches);
-  useEffect(() => {
-    const media = window.matchMedia(query);
-    const update = () => setMatch(media.matches);
-    media.addEventListener("change", update);
-    return () => media.removeEventListener("change", update);
-  }, [query]);
-  return match;
 }

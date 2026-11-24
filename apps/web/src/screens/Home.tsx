@@ -14,13 +14,13 @@ import {
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
+import { EmptyState } from "@streakky/ui/components/empty-state";
 import {
   HabitCard,
   HabitCollection,
   HabitRow,
   NewHabitTile,
 } from "@streakky/ui/components/habit/habit-card";
-import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
@@ -200,21 +200,18 @@ export function emptyHome(habits: Habit[], archived: Habit[]): "no habits" | "al
   return archived.length > 0 ? "all archived" : "no habits";
 }
 
-const emptyCard = "max-w-[30rem] rounded-3xl bg-muted px-6 pt-7 pb-6";
-const emptyTitle = "text-xl font-medium tracking-[-0.015em]";
-const emptyText = "mt-1.5 mb-5 text-muted-foreground";
-
 function EmptyHabits({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className={emptyCard}>
-      <p className={emptyTitle}>Nothing counted yet</p>
-      <p className={emptyText}>
-        Add a habit to build, like a morning run, or one to quit, like smoking.
-      </p>
-      <Button className="w-full" onClick={onAdd}>
-        Add a habit
-      </Button>
-    </div>
+    <EmptyState
+      title="Nothing counted yet"
+      action={
+        <Button className="w-full" onClick={onAdd}>
+          Add a habit
+        </Button>
+      }
+    >
+      Add a habit to build, like a morning run, or one to quit, like smoking.
+    </EmptyState>
   );
 }
 
@@ -233,15 +230,17 @@ function AllArchived({
 }) {
   return (
     <>
-      <div className={cn(emptyCard, "mb-5")}>
-        <p className={emptyTitle}>Every habit is archived</p>
-        <p className={emptyText}>
-          Archived habits keep their history. Restore one to track it again, or start a new one.
-        </p>
-        <Button className="w-full" onClick={onShowArchived}>
-          See archived habits
-        </Button>
-      </div>
+      <EmptyState
+        title="Every habit is archived"
+        className="mb-5"
+        action={
+          <Button className="w-full" onClick={onShowArchived}>
+            See archived habits
+          </Button>
+        }
+      >
+        Archived habits keep their history. Restore one to track it again, or start a new one.
+      </EmptyState>
       <HabitCollection layout={layout} end={<NewHabitTile layout={layout} onClick={onAdd} />}>
         {null}
       </HabitCollection>
