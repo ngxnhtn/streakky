@@ -9,6 +9,8 @@ export type KindCopy = {
   hint: string;
   /** New habit: an example name */
   namePlaceholder: string;
+  /** today's tick or slip on a habit's face, named for the habit */
+  todayToggle: (name: string) => string;
   /** the calendar's legend for a day of a streak */
   streakDay: string;
   /** the calendar in Edit days: what a tap does */
@@ -30,6 +32,7 @@ export const KIND_COPY: Record<Kind, KindCopy> = {
   build: {
     hint: "Check in each day you do it. A missed day ends the streak.",
     namePlaceholder: "Morning run",
+    todayToggle: (name) => `Check in ${name} today`,
     streakDay: "Check-in",
     editHint: "Tap a day to check in or undo it.",
     dayLogged: "checked in",
@@ -43,6 +46,7 @@ export const KIND_COPY: Record<Kind, KindCopy> = {
   quit: {
     hint: "Counts up every day by itself. Log a slip only if it happens.",
     namePlaceholder: "No smoking",
+    todayToggle: (name) => `Log a slip for ${name} today`,
     streakDay: "Clean day",
     editHint: "Tap a day to log a slip on it, or tap again to remove it.",
     dayLogged: "slip",

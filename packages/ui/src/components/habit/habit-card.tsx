@@ -2,6 +2,7 @@ import * as React from "react";
 import { Check, Plus, RotateCcw } from "lucide-react";
 import type { ColorId, Kind, Layout } from "@streakky/core";
 import { useReorder, type ReorderState } from "@streakky/ui/hooks/use-reorder";
+import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
 import { cn } from "@streakky/ui/lib/utils";
 
 /** Today's state on a build habit: an empty ring, filled with a tick once checked in. */
@@ -76,7 +77,7 @@ export function TodayToggle({
     <button
       type="button"
       data-slot={kind === "build" ? "check-in-button" : "slip-button"}
-      aria-label={kind === "build" ? `Check in ${name} today` : `Log a slip for ${name} today`}
+      aria-label={KIND_COPY[kind].todayToggle(name)}
       aria-pressed={logged}
       disabled={locked}
       onClick={onToggle}
