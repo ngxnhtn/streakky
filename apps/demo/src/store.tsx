@@ -45,7 +45,8 @@ function reducer(state: State, a: Action): State {
   });
   switch (a.type) {
     case "add": {
-      const base = { id: newId(), name: a.name, color: a.color, goal: a.goal };
+      // the playground has no archive
+      const base = { id: newId(), name: a.name, color: a.color, goal: a.goal, archivedPeriods: [] };
       const habit: Habit =
         a.kind === "quit"
           ? { ...base, kind: "quit", quitDay: a.quitDay, slips: [] }

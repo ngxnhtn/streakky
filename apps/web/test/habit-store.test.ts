@@ -241,6 +241,7 @@ describe("an export from a device", () => {
         color: "green",
         goal: null,
         archived: false,
+        archivedPeriods: [],
         checkIns: ["2026-11-21", "2026-11-23", "2026-11-24"],
       },
       {
@@ -251,6 +252,7 @@ describe("an export from a device", () => {
         goal: null,
         quitDay: "2026-11-14",
         archived: false,
+        archivedPeriods: [],
         slips: ["2026-11-20"],
       },
     ]);
@@ -275,7 +277,7 @@ describe("an export from a device", () => {
     expect([file.name, file.type, JSON.parse(file.text)]).toMatchObject([
       "streakky-2026-11-24.json",
       "application/json",
-      { format: "streakky-export", version: 1 },
+      { format: "streakky-export", version: 2 },
     ]);
   });
 
