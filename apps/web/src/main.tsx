@@ -1,11 +1,13 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "./App.tsx";
+import { setTimeZone } from "@streakky/core";
 import { applyAppearance } from "./appearance.ts";
 import { insideNativeApp, type Platform } from "./platform.ts";
 import { registerServiceWorker } from "./service-worker.ts";
 import { openBrowserHabitStore } from "./store/browser.ts";
 import { readSettings, type HabitStore } from "./store/habit-store.ts";
+import type { KeyValueStorage } from "./store/key-value.ts";
 import { HabitStoreProvider } from "./store/react.tsx";
 import "./fonts.css";
 import "./styles.css";
@@ -14,29 +16,45 @@ const root = createRoot(document.getElementById("root")!);
 const native = insideNativeApp();
 
 /**
- * The habit store on this platform's storage, with what the app takes from the platform. Each
- * puts the device's theme on the page before its database opens, so a dark theme never starts as
- * a light page.
+ * Puts the device's settings to work before its database opens, so a dark theme never starts as a
+ * light page and no day is worked out in the wrong time zone. Says whether the page is dark.
  */
+function applySettings(keyValues: KeyValueStorage): boolean {
+  const settings = readSettings(keyValues);
+  setTimeZone(settings.timeZone);
+  return applyAppearance(settings);
+}
+
+/** The habit store on this platform's storage, with what the app takes from the platform. */
 async function openApp(): Promise<{ store: HabitStore; platform: Platform }> {
   if (native) {
     const { openAndroidApp } = await import("./android.ts");
-    return openAndroidApp((keyValues) => applyAppearance(readSettings(keyValues)));
+    return openAndroidApp(applySettings);
   }
-  applyAppearance(readSettings(window.localStorage));
+  applySettings(window.localStorage);
   registerServiceWorker();
   return { store: await openBrowserHabitStore(), platform: {} };
 }
 
 openApp().then(
-  ({ store, platform }) =>
+  ({ store, platform }) => {
+    // days follow the settings' time zone, which `applySettings` set before the store opened (the
+    // same zone the store keeps on a first open); this listener, added before the screens', sets
+    // it again the moment it changes, so no screen works out a day in the old zone
+    let timeZone = store.settings().timeZone;
+    store.subscribe(() => {
+      if (store.settings().timeZone === timeZone) return;
+      timeZone = store.settings().timeZone;
+      setTimeZone(timeZone);
+    });
     root.render(
       <StrictMode>
         <HabitStoreProvider store={store}>
           <App platform={platform} />
         </HabitStoreProvider>
       </StrictMode>,
-    ),
+    );
+  },
   (error: unknown) => {
     console.error(error);
     root.render(

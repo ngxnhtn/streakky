@@ -78,14 +78,21 @@ describe("device settings", () => {
     // as an older or damaged version of the app might have left them
     storage.keyValues.setItem(
       "streakky.settings",
-      JSON.stringify({ theme: "dark", palette: "violet", layout: 5, weekStart: 0 }),
+      JSON.stringify({
+        theme: "dark",
+        palette: "violet",
+        layout: 5,
+        weekStart: 0,
+        timeZone: "Mars/Olympus_Mons",
+      }),
     );
-    const device = await openDevice(storage);
+    const device = await openDevice(storage, undefined, { deviceTimeZone: () => "Asia/Tokyo" });
     expect(device.settings()).toMatchObject({
       theme: "dark",
       palette: "teal",
       layout: "grid",
       weekStart: 0,
+      timeZone: "Asia/Tokyo",
     });
   });
 
@@ -115,6 +122,18 @@ describe("device settings", () => {
       ["dark"],
       { theme: "dark", palette: "teal", layout: "grid", weekStart: 1 },
     ]);
+  });
+
+  it("start with the device's time zone, and keep it once the device is in another", async () => {
+    const storage = createStorage();
+    const inSaigon = await openDevice(storage, undefined, {
+      deviceTimeZone: () => "Asia/Ho_Chi_Minh",
+    });
+    const zone = inSaigon.settings().timeZone;
+    await inSaigon.close();
+
+    const inParis = await openDevice(storage, undefined, { deviceTimeZone: () => "Europe/Paris" });
+    expect([zone, inParis.settings().timeZone]).toEqual(["Asia/Ho_Chi_Minh", "Asia/Ho_Chi_Minh"]);
   });
 
   it("keep a change made in another tab when this tab changes a different one", async () => {

@@ -103,9 +103,8 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 59. As a user, I want to switch the home screen between grid and list layout, so that I can see my habits the way I like.
 60. As a user, I want to choose whether weeks start on Monday or Sunday, so that the calendars match how I think.
 61. As a user, I want settings to stay on each device and not sync, so that my phone and laptop can each be set up differently.
-62. As a user, I want to choose the time zone my days follow, set to my device's zone when I first open the app and kept there until I change it, so that travelling doesn't move my days or my reminder.
-63. As a user, I want to export my full history, every habit (archived ones included) with every check-in and slip, as one file, so that I have my own backup.
-64. As an Android user, I want the export to open the share sheet, so that I can save it to Files or send it somewhere.
+62. As a user, I want to export my full history, every habit (archived ones included) with every check-in and slip, as one file, so that I have my own backup.
+63. As an Android user, I want the export to open the share sheet, so that I can save it to Files or send it somewhere.
 
 ### Layouts
 
@@ -130,7 +129,6 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 79. As an Android user, I want tapping the widget to open that habit in the app, so that I can act on it quickly.
 80. As an Android user, I want a widget whose habit was archived or deleted to say so, and open the app when tapped, so that it doesn't show stale data.
 81. As an Android user, I want to resize the widget, so that it fits my home screen layout.
-82. As an Android user, I want the widget in the app's palette and theme, so that it looks like the app does on my phone.
 
 ### Owner and operations
 
@@ -141,6 +139,13 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 86. As the owner, I want sign-in codes sent from `hb@nhutien.com`, so that the emails come from my own domain.
 87. As the owner, I want sign-in attempts rate-limited by client IP, so that the email codes can't be brute-forced.
 88. As the owner, I want the design playground to keep building against the renamed domain model, so that I can keep tinkering with designs.
+
+### Added after planning
+
+Numbered on from the list above, so the tickets' references stay as they were.
+
+89. As an Android user, I want the widget in the app's palette and theme, so that it looks like the app does on my phone.
+90. As a user, I want to choose the time zone my days follow, set to my device's zone when I first open the app and kept there until I change it, so that travelling doesn't move my days or my reminder.
 
 ## Implementation Decisions
 

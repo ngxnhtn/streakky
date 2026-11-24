@@ -18,8 +18,8 @@ import { Share } from "@capacitor/share";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { createCapacitorSQLitePersistence } from "@tanstack/capacitor-db-sqlite-persistence";
-import { toISO, type Reminder, type WidgetSummary } from "@streakky/core";
-import type { Platform, Reminders } from "./platform.ts";
+import { todayISO, type Reminder } from "@streakky/core";
+import type { Platform, Reminders, WidgetWrite } from "./platform.ts";
 import type { ExportFile } from "./store/export.ts";
 import {
   openHabitStore,
@@ -27,7 +27,6 @@ import {
   type KeyValueStorage,
   type SessionTokenStorage,
 } from "./store/habit-store.ts";
-import type { WidgetLook } from "./widget-look.ts";
 
 /** The app's pages come from inside the APK, so the API is reached at its own address. */
 const API_ORIGIN = "https://hb.nhutien.com";
@@ -66,7 +65,7 @@ export async function openAndroidApp(
       },
       systemBars: setSystemBars,
       reminders,
-      widgets: { update: (summaries, look) => StreakkyWidgets.update({ summaries, look }) },
+      widgets: { update: (write) => StreakkyWidgets.update(write) },
       habitLinks,
     },
   };
@@ -74,7 +73,7 @@ export async function openAndroidApp(
 
 /** The app's own plugin for the home-screen widgets (android/app/.../widget/WidgetsPlugin.kt). */
 const StreakkyWidgets = registerPlugin<{
-  update(options: { summaries: WidgetSummary[]; look?: WidgetLook }): Promise<void>;
+  update(write: WidgetWrite): Promise<void>;
 }>("StreakkyWidgets");
 
 /**
@@ -131,7 +130,7 @@ async function replaceReminders(plan: Reminder[], stillToday: string[]) {
     await LocalNotifications.cancel({ notifications: notifications.map(({ id }) => ({ id })) });
   }
   // one already shown stays only while it's today's and something is still to check in today
-  const today = reminderId(toISO(new Date()));
+  const today = reminderId(todayISO());
   const shown = (await LocalNotifications.getDeliveredNotifications()).notifications;
   const outOfDate = shown.filter(({ id }) => id !== today || stillToday.length === 0);
   if (outOfDate.length > 0) {

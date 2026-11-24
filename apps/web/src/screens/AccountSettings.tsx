@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ChevronRight, LogOut } from "lucide-react";
-import { fmtDayMonth, plural, toISO, todayISO } from "@streakky/core";
+import { dayOf, fmtDayMonth, fmtTime, plural, todayISO } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import {
   Dialog,
@@ -15,14 +15,14 @@ import { useHabitStore, useSyncStatus } from "../store/react.tsx";
 import { SaveError } from "./saving.tsx";
 import { useBackCloses, useCloseWhenCovered, useNav } from "./stack.tsx";
 
-const timeOfDay = new Intl.DateTimeFormat("en-GB", { timeStyle: "short" });
-
-/** When this device last synced, in words: "Today, 14:32", "23 Nov, 09:10", or "Not yet". */
+/**
+ * When this device last synced, in words, in the time zone days follow: "Today, 14:32",
+ * "23 Nov, 09:10", or "Not yet".
+ */
 function lastSyncedLabel(lastSynced: number | null): string {
   if (lastSynced === null) return "Not yet";
-  const at = new Date(lastSynced);
-  const day = toISO(at) === todayISO() ? "Today" : fmtDayMonth(at);
-  return `${day}, ${timeOfDay.format(at)}`;
+  const day = dayOf(lastSynced);
+  return `${day === todayISO() ? "Today" : fmtDayMonth(day)}, ${fmtTime(lastSynced)}`;
 }
 
 /**

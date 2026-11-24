@@ -1,5 +1,7 @@
 /** Device settings: they belong to one device and never sync. */
 
+import { deviceTimeZone } from "./dates.ts";
+
 export type Theme = "system" | "light" | "dark";
 
 /** Light or dark, or following the device. */
@@ -43,6 +45,11 @@ export type Settings = {
   layout: Layout;
   weekStart: WeekStart;
   /**
+   * The time zone days follow, an IANA name (`isTimeZone`): the device's own when the app first
+   * opens on it, kept there when the device moves to another until it's changed in Settings.
+   */
+  timeZone: string;
+  /**
    * The Android app's daily reminder: on only once notifications are allowed (ticket 19). Named
    * apart from the playground's old `reminder`, which devices kept as on by default.
    */
@@ -61,12 +68,25 @@ export const defaultSettings: Settings = {
   palette: "teal",
   layout: "grid",
   weekStart: 1,
+  timeZone: deviceTimeZone(),
   dailyReminder: false,
   reminderTime: "21:00",
   celebrate: true,
   signedOutNoteDismissed: false,
   reorderHintDismissed: false,
 };
+
+/** Whether `value` names a time zone the device knows, such as "Europe/London". */
+export function isTimeZone(value: unknown): value is string {
+  if (typeof value !== "string" || value === "") return false;
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: value });
+    return true;
+  } catch {
+    // Intl refuses a name it doesn't know, which is the answer here
+    return false;
+  }
+}
 
 /** Whether `value` is a time of day the reminder can be set to: HH:MM, 24-hour. */
 export const isReminderTime = (value: unknown): value is string =>

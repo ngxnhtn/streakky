@@ -95,7 +95,10 @@ export function stallable(connection: Connection) {
  * How a simulated device behaves beyond its storage and network: its clock, and when it syncs by
  * itself. By default it syncs only when it opens, after signing in, and when a test says so.
  */
-export type DeviceOptions = Pick<HabitStoreOptions, "now" | "timing" | "syncTriggers"> & {
+export type DeviceOptions = Pick<
+  HabitStoreOptions,
+  "now" | "deviceTimeZone" | "timing" | "syncTriggers"
+> & {
   /** the Android app, which keeps its session as a token rather than a cookie */
   androidApp?: boolean;
 };
@@ -104,7 +107,7 @@ export type DeviceOptions = Pick<HabitStoreOptions, "now" | "timing" | "syncTrig
 export const openDevice = (
   storage: DeviceStorage,
   connection: Connection = unreachable,
-  { now, timing, syncTriggers, androidApp = false }: DeviceOptions = {},
+  { now, deviceTimeZone, timing, syncTriggers, androidApp = false }: DeviceOptions = {},
 ): Promise<HabitStore> =>
   openHabitStore({
     persistence: createNodeSQLitePersistence({ database: storage.database }),
@@ -112,6 +115,7 @@ export const openDevice = (
     api: connection(storage),
     sessionToken: androidApp ? storage.sessionToken : undefined,
     now,
+    deviceTimeZone,
     timing: { syncDelay: Infinity, syncInterval: Infinity, ...timing },
     syncTriggers,
   });

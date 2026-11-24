@@ -1,4 +1,4 @@
-import { toISO, type ColorId, type Habit } from "@streakky/core";
+import { toISO, todayISO, type ColorId, type Habit } from "@streakky/core";
 
 /**
  * A habit in the export file. Its days are every check-in or slip recorded on it, including any
@@ -44,7 +44,10 @@ export type ExportContent = {
 /** A file to hand to the person: how each platform does that is its own choice (save-file.ts). */
 export type ExportFile = { name: string; type: "application/json"; text: string };
 
-/** The export file of these habits, made now and named with today's date. */
+/**
+ * The export file of these habits, made now and named with today's date in the time zone days
+ * follow. When it was made is the device's own time, with its offset from UTC.
+ */
 export function toExportFile(habits: (Habit & { archived: boolean })[]): ExportFile {
   const now = new Date();
   const content: ExportContent = {
@@ -54,7 +57,7 @@ export function toExportFile(habits: (Habit & { archived: boolean })[]): ExportF
     habits: habits.map(toExportedHabit),
   };
   return {
-    name: `streakky-${toISO(now)}.json`,
+    name: `streakky-${todayISO()}.json`,
     type: "application/json",
     text: `${JSON.stringify(content, null, 2)}\n`,
   };

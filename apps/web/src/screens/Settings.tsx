@@ -18,6 +18,7 @@ import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.ts
 import { AccountSettings } from "./AccountSettings.tsx";
 import { ReminderSettings } from "./Reminder.tsx";
 import { SaveError } from "./saving.tsx";
+import { TimeZoneSettings } from "./TimeZone.tsx";
 import { Screen } from "./screen.tsx";
 import { useNav } from "./stack.tsx";
 
@@ -92,6 +93,7 @@ export function Settings() {
             </ListItem>
           </List>
         </ListGroup>
+        <TimeZoneSettings />
         {reminders && <ReminderSettings reminders={reminders} />}
         <ListGroup title="Data">
           <List>

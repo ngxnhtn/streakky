@@ -1,6 +1,8 @@
 package com.ngxnhtn.streakky.widget
 
 import android.content.Context
+import android.util.Log
+import java.util.TimeZone
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -15,6 +17,7 @@ object WidgetStore {
     private const val PREFERENCES = "streakky.widgets"
     private const val SUMMARIES = "summaries"
     private const val LOOK = "look"
+    private const val TIME_ZONE = "time.zone"
     private const val PREVIEW_LOOK = "preview.look"
     private fun widgetKey(widgetId: Int) = "widget.$widgetId"
 
@@ -34,14 +37,26 @@ object WidgetStore {
     }
 
     /**
-     * Keeps what the app wrote: the summaries, a JSON array, and its look, a JSON object; without a
-     * look, as when the app couldn't measure it, the last one stays.
+     * Keeps what the app wrote: the summaries, a JSON array, its look, a JSON object, and the time
+     * zone days follow; without a look, as when the app couldn't measure it, the last one stays.
      */
-    fun save(context: Context, summaries: String, look: String?) {
+    fun save(context: Context, summaries: String, look: String?, timeZone: String?) {
         preferences(context).edit().apply {
             putString(SUMMARIES, summaries)
             if (look != null) putString(LOOK, look)
+            if (timeZone != null) putString(TIME_ZONE, timeZone)
         }.apply()
+    }
+
+    /**
+     * The time zone days follow, from the app's settings; the phone's own before the app says, or
+     * for a name the phone's time zone data doesn't know, which the app's may (it's updated apart).
+     */
+    fun timeZone(context: Context): TimeZone {
+        val id = preferences(context).getString(TIME_ZONE, null) ?: return TimeZone.getDefault()
+        if (id in TimeZone.getAvailableIDs()) return TimeZone.getTimeZone(id)
+        Log.w("StreakkyWidgets", "The phone doesn't know the time zone $id; the widgets use its own")
+        return TimeZone.getDefault()
     }
 
     /** The app's look as it last wrote it, or the default one before it has. */

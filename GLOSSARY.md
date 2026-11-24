@@ -41,8 +41,12 @@ _Avoid_: Pause, archive span
 ### Days
 
 **Day**:
-A calendar date on the person's device, changing at local midnight. Check-ins and slips belong to days, not to moments in time.
+A calendar date in the device's time zone, changing at midnight there. Check-ins and slips belong to days, not to moments in time.
 _Avoid_: Timestamp, date-time
+
+**Time zone**:
+The zone a device's days follow, one of its settings: the device's own when the app first opens on it, and kept when the device travels until the person changes it.
+_Avoid_: Local time, home zone
 
 **Check-in**:
 A day on which a build habit was done. A habit has at most one check-in per day. The verb is "check in".

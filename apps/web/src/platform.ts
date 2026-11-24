@@ -23,16 +23,25 @@ export type Platform = {
   /** The daily reminder's notifications (ticket 19), in the Android app only. */
   reminders?: Reminders;
   /**
-   * The home-screen widgets (tickets 20 and 21), in the Android app only: takes every active and
-   * archived habit's summary, which the widgets count from, and the app's look, which they're
-   * drawn in, and draws them again. Without a look they keep the last one.
+   * The home-screen widgets (tickets 20 to 22), in the Android app only: takes what they need, and
+   * draws them again.
    */
-  widgets?: { update(summaries: WidgetSummary[], look?: WidgetLook): Promise<void> };
+  widgets?: { update(write: WidgetWrite): Promise<void> };
   /**
    * Habits opened from outside the app, as by tapping a widget: calls `open` with each one's id,
    * the one the app was opened on included, and returns a function that stops.
    */
   habitLinks?: (open: (habitId: string) => void) => () => void;
+};
+
+/** What the home-screen widgets are given each time the app writes to them. */
+export type WidgetWrite = {
+  /** every active and archived habit's summary, which the widgets count from */
+  summaries: WidgetSummary[];
+  /** the colours they're drawn in; left out when they couldn't be measured, keeping the last */
+  look?: WidgetLook;
+  /** the time zone days follow, whose today they count to and whose midnight they refresh at */
+  timeZone: string;
 };
 
 /** Notifications for the daily reminder. */

@@ -51,8 +51,8 @@
   - **Firing:** it fired about a minute late on its channel, with the mark, and tapping it opened Streakky. After the review fixes: the old stored setting left the reminder off, turning it on with notifications already allowed asked nothing, and a reminder already shown was taken away by the check-in.
   - **Cleanup:** the test habit was deleted, and the reminder put back to off at 21:00.
 - **Limits:**
-  - **Time zones:** reminders are set for a moment in time, so after travelling across time zones they fire at the old zone's time until the app is opened.
+  - **Time zones:** reminders are set for a moment in time, so after travelling across time zones they fire at the old zone's time until the app is opened. (Settled by ticket 22: the reminder keeps to the time zone in the settings, which doesn't move with the phone.)
   - **Other devices:** a check-in made there doesn't cancel the phone's reminder until the phone app opens and syncs.
   - **Revoked notifications:** if they're taken back in Android's settings, the reminder turns itself off without explaining why.
-  - **No daylight-saving test:** the times are set with `setHours` on the local date, which keeps them on the hour across a change.
+  - **No daylight-saving test:** the times are set with `setHours` on the local date, which keeps them on the hour across a change. (Since ticket 22 they come from core's `momentOf` in the chosen time zone, tested across a change.)
 - **Glossary:** "Daily reminder" and "active habit" were added on 2026-11-25.

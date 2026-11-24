@@ -1,6 +1,7 @@
 package com.ngxnhtn.streakky.widget
 
 import java.util.Calendar
+import java.util.TimeZone
 import org.json.JSONObject
 
 /**
@@ -59,9 +60,12 @@ fun countFromSummary(summary: WidgetSummary, today: String): Int =
 fun counterLabel(kind: String, days: Int): String =
     if (kind == "quit") (if (days == 1) "day free" else "days free") else "day streak"
 
-/** Today on the phone, YYYY-MM-DD, as the app's own days are: local, changing at midnight. */
-fun today(): String {
-    val now = Calendar.getInstance()
+/**
+ * Today in a time zone, YYYY-MM-DD, as the app's own days are: those of the zone its settings
+ * name (`WidgetStore.timeZone`), changing at its midnight.
+ */
+fun today(zone: TimeZone, at: Long = System.currentTimeMillis()): String {
+    val now = Calendar.getInstance(zone).apply { timeInMillis = at }
     return "%04d-%02d-%02d".format(
         now.get(Calendar.YEAR),
         now.get(Calendar.MONTH) + 1,

@@ -4,6 +4,7 @@ import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import {
   canBeQuitDay,
   canToggle,
+  deviceTimeZone as coreDeviceTimeZone,
   GOALS,
   goalReached,
   HABIT_COLORS,
@@ -27,6 +28,7 @@ import {
   celebrationDue as isCelebrationDue,
   forgetCelebrations,
   markCelebrated as keepCelebrated,
+  openSettings,
   readSettings,
   writeSettings,
 } from "./device-state.ts";
@@ -196,6 +198,8 @@ export type HabitStoreOptions = {
   sessionToken?: SessionTokenStorage;
   /** The device's clock, for edit times. */
   now?: () => number;
+  /** The device's own time zone now, which the settings start from (core's `deviceTimeZone`). */
+  deviceTimeZone?: () => string;
   /** When sync runs by itself, and how long signing out waits for it; the defaults suit the app. */
   timing?: Partial<SyncTiming>;
   /**
@@ -234,6 +238,7 @@ export async function openHabitStore({
   api: platformApi,
   sessionToken,
   now = Date.now,
+  deviceTimeZone = coreDeviceTimeZone,
   timing,
   syncTriggers,
 }: HabitStoreOptions): Promise<HabitStore> {
@@ -242,7 +247,7 @@ export async function openHabitStore({
   const habitRecords = createCollection(habitCollectionOptions(persistence));
   const dayRecords = createCollection(dayCollectionOptions(persistence));
   await Promise.all([habitRecords.preload(), dayRecords.preload()]);
-  let settings = readSettings(keyValueStorage);
+  let settings = openSettings(keyValueStorage, deviceTimeZone());
 
   let snapshot: Habit[] | null = null;
   let archivedSnapshot: Habit[] | null = null;

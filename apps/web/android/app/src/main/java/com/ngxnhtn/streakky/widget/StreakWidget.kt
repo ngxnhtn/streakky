@@ -136,7 +136,7 @@ class StreakWidget : AppWidgetProvider() {
                     )
                 }
                 else -> {
-                    val count = countFromSummary(summary, today())
+                    val count = countFromSummary(summary, today(WidgetStore.timeZone(context)))
                     val label = counterLabel(summary.kind, count)
                     views.setTextViewText(R.id.name, summary.name)
                     views.setViewVisibility(R.id.count, View.VISIBLE)
@@ -228,7 +228,8 @@ class StreakWidget : AppWidgetProvider() {
          * phone: with its screen off then, they're drawn as it comes on, before they can be seen.
          */
         private fun scheduleMidnight(context: Context) {
-            val next = Calendar.getInstance().apply {
+            // the midnight of the zone days follow, which may not be the phone's
+            val next = Calendar.getInstance(WidgetStore.timeZone(context)).apply {
                 add(Calendar.DAY_OF_MONTH, 1)
                 set(Calendar.HOUR_OF_DAY, 0)
                 set(Calendar.MINUTE, 0)

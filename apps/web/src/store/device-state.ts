@@ -8,6 +8,7 @@ import {
   celebrationDue as isCelebrationDue,
   defaultSettings,
   isReminderTime,
+  isTimeZone,
   LAYOUTS,
   PALETTES,
   THEMES,
@@ -33,6 +34,7 @@ const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
   palette: isOneOf(PALETTES),
   layout: isOneOf(LAYOUTS),
   weekStart: isOneOf(WEEK_STARTS),
+  timeZone: isTimeZone,
   dailyReminder: (v) => typeof v === "boolean",
   reminderTime: isReminderTime,
   celebrate: (v) => typeof v === "boolean",
@@ -58,6 +60,21 @@ export const readSettings = (storage: KeyValueStorage, fallback = defaultSetting
     },
     fallback,
   );
+
+/**
+ * The settings as the app opens, the time zone days follow among them: one this device had in
+ * another zone stays, and otherwise it's `deviceTimeZone`, which is kept from now on, so moving to
+ * another zone doesn't move the days (spec, story 90).
+ */
+export function openSettings(storage: KeyValueStorage, deviceTimeZone: string): Settings {
+  const settings = readSettings(storage, { ...defaultSettings, timeZone: deviceTimeZone });
+  const stored = readJSON(storage, SETTINGS_KEY, (s) => (isRecord(s) ? s : undefined), {});
+  // only the zone: settings never changed here keep following the defaults
+  if (!isTimeZone(stored.timeZone)) {
+    writeJSON(storage, SETTINGS_KEY, { ...stored, timeZone: settings.timeZone });
+  }
+  return settings;
+}
 
 /** Keeps the settings; with full or blocked storage, they apply until the app is reopened. */
 export const writeSettings = (storage: KeyValueStorage, settings: Settings) =>

@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { isReminderTime, reminderPlan, stillToCheckIn, toISO } from "@streakky/core";
+import { dayOf, isReminderTime, reminderPlan, stillToCheckIn } from "@streakky/core";
 import { List, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { Switch } from "@streakky/ui/components/switch";
 import { cn } from "@streakky/ui/lib/utils";
@@ -76,13 +76,14 @@ export function ReminderSettings({ reminders }: { reminders: Reminders }) {
 /**
  * Keeps the daily reminder's notifications in step with the habits (`reminderPlan`): scheduled a
  * week ahead whenever the active habits or their check-ins change, the reminder is turned on or
- * off or moved, the app opens and the day changes, and none while it's off. Notifications taken
+ * off or moved, the time zone changes, the app opens and the day changes, and none while it's
+ * off. Notifications taken
  * back in Android's settings turn the reminder off. Renders nothing.
  */
 export function ReminderSchedule({ reminders }: { reminders: Reminders }) {
   const store = useHabitStore();
   const habits = useHabits();
-  const { dailyReminder, reminderTime } = useSettings();
+  const { dailyReminder, reminderTime, timeZone } = useSettings();
   const day = useToday();
   useEffect(() => {
     let current = true;
@@ -97,7 +98,7 @@ export function ReminderSchedule({ reminders }: { reminders: Reminders }) {
         const now = new Date();
         await reminders.schedule(
           dailyReminder ? reminderPlan(habits, reminderTime, now) : [],
-          dailyReminder ? stillToCheckIn(habits, toISO(now)) : [],
+          dailyReminder ? stillToCheckIn(habits, dayOf(now)) : [],
         );
       } catch (error) {
         console.error("The daily reminder couldn't be scheduled:", error);
@@ -107,6 +108,6 @@ export function ReminderSchedule({ reminders }: { reminders: Reminders }) {
       current = false;
       window.clearTimeout(timer);
     };
-  }, [store, reminders, habits, dailyReminder, reminderTime, day]);
+  }, [store, reminders, habits, dailyReminder, reminderTime, timeZone, day]);
   return null;
 }
