@@ -1,17 +1,17 @@
-import { useState } from "react";
-import { Menu, Plus } from "lucide-react";
+import type { ReactNode } from "react";
+import { LayoutGrid, Menu, Plus, Rows2 } from "lucide-react";
 import {
   canToggle,
   counterLabel,
   currentStreakDays,
   fmtLong,
   fromISO,
+  LAYOUTS,
   loggedToday,
   statusLabel,
   type Habit,
   type Layout,
 } from "@streakky/core";
-import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { EmptyState } from "@streakky/ui/components/empty-state";
 import {
@@ -21,25 +21,34 @@ import {
   NewHabitTile,
   type HabitFaceProps,
 } from "@streakky/ui/components/habit/habit-card";
+import { Segmented } from "@streakky/ui/components/segmented";
 import { useArchivedHabits, useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
+import { useDesktop } from "./desktop.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
-import { NewHabitDialog } from "./NewHabitDialog.tsx";
+import { useOpenNewHabit } from "./NewHabitDialog.tsx";
 import { ReorderHint } from "./ReorderHint.tsx";
+import { Screen } from "./screen.tsx";
 import { SignedOutNote, useSignedOutNoteShown } from "./SignedOutNote.tsx";
-import { ScreenScroll, useCloseWhenCovered, useNav } from "./stack.tsx";
+import { useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
+
+/** The desktop's wider cards and rows: the grid's cards taller, the list in two columns. */
+const DESKTOP_COLLECTION = [
+  "data-[layout=grid]:grid-cols-[repeat(auto-fill,minmax(12.5rem,1fr))] data-[layout=grid]:gap-3",
+  "data-[layout=list]:grid-cols-[repeat(auto-fill,minmax(23.75rem,1fr))]",
+  "[&_[data-slot=habit-card]]:h-[11.5rem] data-[layout=grid]:[&_[data-slot=new-habit]]:h-[11.5rem]",
+].join(" ");
 
 export function Home() {
   const store = useHabitStore();
   const habits = useHabits();
   const empty = emptyHome(habits, useArchivedHabits());
   const day = useToday();
-  const [adding, setAdding] = useState(false);
-  // the browser's forward button can cover Home while New habit is open
-  useCloseWhenCovered(adding, () => setAdding(false));
+  const openNewHabit = useOpenNewHabit();
   const { push } = useNav();
   const { layout } = useSettings();
+  const desktop = useDesktop();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const signedOutNoteShown = useSignedOutNoteShown();
   const celebration = useCelebration(habits, day);
@@ -73,7 +82,10 @@ export function Home() {
   };
   return (
     <>
-      <AppBar
+      <Screen
+        eyebrow={fmtLong(fromISO(day))}
+        title="Habits"
+        bigTitle
         left={
           <Button
             variant="ghost"
@@ -85,37 +97,30 @@ export function Home() {
           </Button>
         }
         right={
-          <Button variant="ring" size="icon" aria-label="New habit" onClick={() => setAdding(true)}>
+          <Button variant="ring" size="icon" aria-label="New habit" onClick={openNewHabit}>
             <Plus strokeWidth={1.75} />
           </Button>
         }
-      />
-      <ScreenScroll>
-        <header className="px-5 pt-1 pb-5">
-          <p className="text-sm text-muted-foreground">{fmtLong(fromISO(day))}</p>
-          <h1
-            tabIndex={-1}
-            className="mt-0.5 rounded-lg font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] focus-ring [font-stretch:96%]"
-          >
-            Habits
-          </h1>
-        </header>
+        actions={empty === null && <LayoutSwitch layout={layout} />}
+      >
         {/* one note at a time: keeping the habits safe comes before the reorder hint */}
         {signedOutNoteShown ? <SignedOutNote /> : <ReorderHint />}
         <div className="px-5 pb-5">
           {empty === "no habits" ? (
-            <EmptyHabits onAdd={() => setAdding(true)} />
+            <EmptyHabits onAdd={openNewHabit} />
           ) : empty === "all archived" ? (
             <AllArchived
               layout={layout}
+              className={desktop ? DESKTOP_COLLECTION : undefined}
               onShowArchived={() => push({ name: "archived" })}
-              onAdd={() => setAdding(true)}
+              onAdd={openNewHabit}
             />
           ) : (
             <HabitCollection
               layout={layout}
+              className={desktop ? DESKTOP_COLLECTION : undefined}
               onMove={move}
-              end={<NewHabitTile layout={layout} onClick={() => setAdding(true)} />}
+              end={<NewHabitTile layout={layout} onClick={openNewHabit} />}
             >
               {habits.map((habit) => {
                 const Face = layout === "grid" ? HabitCard : HabitRow;
@@ -124,11 +129,30 @@ export function Home() {
             </HabitCollection>
           )}
         </div>
-      </ScreenScroll>
-      <NewHabitDialog open={adding} onClose={() => setAdding(false)} />
+      </Screen>
       {slipDialog}
       {celebration}
     </>
+  );
+}
+
+const LAYOUT_ICONS: Record<Layout, ReactNode> = {
+  grid: <LayoutGrid strokeWidth={1.75} />,
+  list: <Rows2 strokeWidth={1.75} />,
+};
+
+/** Desktop: Home's grid or list, beside its heading; Settings has the same choice. */
+function LayoutSwitch({ layout }: { layout: Layout }) {
+  const store = useHabitStore();
+  return (
+    <Segmented<Layout>
+      size="xs"
+      label="Home layout"
+      value={layout}
+      onValueChange={(next) => store.changeSettings({ layout: next })}
+      className="mb-0.5 w-[5.75rem] flex-none"
+      options={LAYOUTS.map(({ id, name }) => ({ value: id, label: name, icon: LAYOUT_ICONS[id] }))}
+    />
   );
 }
 
@@ -162,10 +186,12 @@ function EmptyHabits({ onAdd }: { onAdd: () => void }) {
  */
 function AllArchived({
   layout,
+  className,
   onShowArchived,
   onAdd,
 }: {
   layout: Layout;
+  className?: string;
   onShowArchived: () => void;
   onAdd: () => void;
 }) {
@@ -182,7 +208,11 @@ function AllArchived({
       >
         Archived habits keep their history. Restore one to track it again, or start a new one.
       </EmptyState>
-      <HabitCollection layout={layout} end={<NewHabitTile layout={layout} onClick={onAdd} />}>
+      <HabitCollection
+        layout={layout}
+        className={className}
+        end={<NewHabitTile layout={layout} onClick={onAdd} />}
+      >
         {null}
       </HabitCollection>
     </>

@@ -162,7 +162,7 @@ function SignOutDialog({
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       {/* starts on the safe choice, so a second Enter doesn't lose the changes */}
-      <DialogContent shape="sheet" initialFocus={cancel}>
+      <DialogContent initialFocus={cancel}>
         <DialogTitle>Sign out and lose {plural(pending, "change")}?</DialogTitle>
         <DialogDescription>
           {pending === 1 ? "It hasn't" : "They haven't"} synced to your account yet, and signing out

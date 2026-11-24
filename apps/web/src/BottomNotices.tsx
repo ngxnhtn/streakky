@@ -16,7 +16,7 @@ const ScreenNoticesContext = createContext<HTMLElement | null>(null);
  * The notices along the bottom of the window, in one stack so they never cover each other: a
  * screen's own notice, a goal's celebration, above the app's, the update prompt, with a gap
  * between them when both show. Kept above the home indicator, it sits under a dialog's scrim.
- * Its height is kept in `--notices-height` for the screens inside, so ScreenScroll leaves room
+ * Its height is kept in `--notices-height` for the screens inside, so `Screen` leaves room
  * for it at the end of every screen, whatever the width and however many notices show.
  */
 export function BottomNotices({

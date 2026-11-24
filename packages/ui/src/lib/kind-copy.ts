@@ -5,6 +5,8 @@ import type { Kind } from "@streakky/core";
  * `counterLabel`, `sinceLabel` and `statusLabel` hold the ones about counts and today.
  */
 export type KindCopy = {
+  /** the kind, over a habit's name on its desktop page */
+  kindName: string;
   /** New habit: what the kind means, under the choice */
   hint: string;
   /** New habit: an example name */
@@ -30,6 +32,7 @@ export type KindCopy = {
 
 export const KIND_COPY: Record<Kind, KindCopy> = {
   build: {
+    kindName: "Habit to build",
     hint: "Check in each day you do it. A missed day ends the streak.",
     namePlaceholder: "Morning run",
     todayToggle: (name) => `Check in ${name} today`,
@@ -44,6 +47,7 @@ export const KIND_COPY: Record<Kind, KindCopy> = {
     noStreakArchived: "none while archived",
   },
   quit: {
+    kindName: "Habit to quit",
     hint: "Counts up every day by itself. Log a slip only if it happens.",
     namePlaceholder: "No smoking",
     todayToggle: (name) => `Log a slip for ${name} today`,

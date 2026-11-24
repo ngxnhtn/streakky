@@ -11,6 +11,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@streakky/ui/components/button";
 import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
+import { useDesktop } from "./desktop.tsx";
 
 export type Route =
   | { name: "home" }
@@ -34,6 +35,8 @@ export type RouteTable = {
     backLabel: string;
     /** Settings sits behind the menu on the left, so it slides in from the left */
     fromLeft?: boolean;
+    /** the desktop sidebar opens it straight over Home, as one of its pages */
+    sidebarPage?: boolean;
     /** whether a route read back from history carries what the screen needs, beyond its name */
     valid?: (route: Record<string, unknown>) => boolean;
   };
@@ -62,7 +65,8 @@ const sheetOf = (state: unknown) => {
   return typeof dialog === "string" ? dialog : undefined;
 };
 
-const sameRoute = (a: Route, b: Route) =>
+/** Whether two routes show the same screen. */
+export const sameRoute = (a: Route, b: Route) =>
   a.name === b.name && ("id" in a ? a.id : null) === ("id" in b ? b.id : null);
 const sameScreens = (a: Route[], b: Route[]) =>
   a.length === b.length && a.every((route, i) => sameRoute(route, b[i]));
@@ -92,6 +96,11 @@ type Nav = {
   pop: () => void;
   /** changes the route of the screen in front, in its history entry too, without a new entry */
   replace: (route: Route) => void;
+  /**
+   * Shows `route` alone over Home, or Home itself, as a new history entry: the desktop sidebar's
+   * way between its pages. Does nothing if that's what shows already.
+   */
+  go: (route: Route) => void;
 };
 const NavContext = createContext<Nav | null>(null);
 
@@ -122,6 +131,25 @@ export function useCloseWhenCovered(open: boolean, close: () => void) {
   }, [open, inFront]);
 }
 
+const ShownContext = createContext<{ screens: Route[]; frontKey: number }>({
+  screens: [],
+  frontKey: 0,
+});
+
+/**
+ * The screens shown over Home, as the sidebar marks its page from the first, and a key for the
+ * one in front, which changes whenever another comes in front.
+ */
+export const useShownScreens = () => useContext(ShownContext);
+
+const SidebarPageContext = createContext(false);
+
+/**
+ * Whether this screen is one of the desktop sidebar's pages, straight over Home, such as Settings
+ * or a habit: the sidebar is its way back. Archived habits opened from Home isn't one.
+ */
+export const useSidebarPage = () => useContext(SidebarPageContext);
+
 const BelowContext = createContext<Route | null>(null);
 
 /** The screen this one opened over, which its back button goes back to; null on Home. */
@@ -131,18 +159,22 @@ export function useScreenBelow(): Route | null {
 
 const RoutesContext = createContext<RouteTable | null>(null);
 
-/** The app bar's back arrow, named after the screen it goes back to, such as "Back to settings". */
-export function BackButton() {
+/**
+ * The back arrow, named after the screen it goes back to, such as "Back to settings": alone in the
+ * phone's app bar, or with that name beside it (`labelled`) over a desktop page's heading.
+ */
+export function BackButton({ labelled = false }: { labelled?: boolean }) {
   const { pop } = useNav();
   const below = useScreenBelow();
   const routes = useContext(RoutesContext);
-  return (
-    <Button
-      variant="ghost"
-      size="icon"
-      aria-label={below && routes ? routes[below.name].backLabel : "Back"}
-      onClick={pop}
-    >
+  const label = below && routes ? routes[below.name].backLabel : "Back";
+  return labelled ? (
+    <Button variant="ghost" size="sm" className="gap-1 pl-2" onClick={pop}>
+      <ChevronLeft strokeWidth={1.75} />
+      {label}
+    </Button>
+  ) : (
+    <Button variant="ghost" size="icon" aria-label={label} onClick={pop}>
       <ChevronLeft strokeWidth={1.75} />
     </Button>
   );
@@ -164,12 +196,32 @@ const shownOf = ({ entries, leaving }: Stack) => entries.filter((e) => e.key !==
 const DOUBLE_TAP_MS = 400;
 
 /**
- * The phone layout's screens, Home at the bottom. A pushed screen slides in over the one below,
- * and going back slides it out; under reduced motion they swap at once. Every push adds a browser
- * history entry, and the in-app back goes back through history, so both backs do the same.
- * Focus moves to a screen's heading as it comes in front, and back to what opened it as it goes.
+ * The app's screens, Home at the bottom. In the phone layout a pushed screen slides in over the
+ * one below, and going back slides it out; under reduced motion they swap at once. In the desktop
+ * layout the screen in front is the page beside `aside`, the sidebar, and screens swap at once.
+ * The screens beneath stay in the page either way, hidden, so switching layouts as the window is
+ * resized keeps every screen and what was typed into it.
+ *
+ * Every push adds a browser history entry, and the in-app back goes back through history, so both
+ * backs do the same. Focus moves to a screen's heading as it comes in front, and back to what
+ * opened it as it goes.
  */
-export function ScreenStack({ routes }: { routes: RouteTable }) {
+export function ScreenStack({
+  routes,
+  aside,
+  children,
+}: {
+  routes: RouteTable;
+  /** the desktop layout's sidebar, beside the screen in front */
+  aside: ReactNode;
+  /** what lies over every screen, such as a dialog any of them opens */
+  children: ReactNode;
+}) {
+  const desktop = useDesktop();
+  const desktopNow = useRef(desktop);
+  desktopNow.current = desktop;
+  /** Whether screens slide: in the phone layout, unless motion is reduced. */
+  const slides = () => !desktopNow.current && !prefersReducedMotion();
   const [stack, setStack] = useState<Stack>(() => ({
     entries: [HOME, ...screensOf(routes, history.state)].map((route, key) => ({
       key,
@@ -190,11 +242,17 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
 
   // the state of the history entry the app is on, to tell what a popstate left
   const here = useRef<unknown>(history.state);
+  // the screens of each history entry the app has been on this time, by its `at`, to tell whether
+  // going back would show the screen beneath
+  const [entryScreens] = useState(
+    () => new Map([[atOf(history.state), screensOf(routes, history.state)]]),
+  );
   const [historyEntries] = useState<HistoryEntries>(() => ({
     push: (state) => {
       const next: HistoryState = { ...state, at: atOf(here.current) + 1 };
       history.pushState(next, "");
       here.current = next;
+      entryScreens.set(next.at ?? 0, next.screens);
     },
     sheets: new Set(),
   }));
@@ -243,6 +301,7 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
       const left = here.current;
       here.current = event.state;
       const screens = screensOf(routes, event.state);
+      entryScreens.set(atOf(event.state), screens);
       const step = Math.sign(atOf(event.state) - atOf(left));
       // an open sheet's entry going, by the browser's back or the sheet closing itself, closes it
       const leftSheet = sheetOf(left);
@@ -257,7 +316,7 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
         }
       }
       goingBack.current = false;
-      show(screens, !event.hasUAVisualTransition && !prefersReducedMotion());
+      show(screens, !event.hasUAVisualTransition && slides());
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -295,6 +354,14 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
     shownTop.current = topKey;
   });
 
+  /** Changes the screens of the history entry the app is on, without a new one. */
+  const replaceEntry = (screens: Route[]) => {
+    const next: HistoryState = { ...(history.state as HistoryState), screens };
+    history.replaceState(next, "");
+    here.current = next;
+    entryScreens.set(atOf(next), screens);
+  };
+
   const nav: Nav = {
     push: (route) => {
       if (leaving !== null || goingBack.current) return;
@@ -302,13 +369,22 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
       openers.current[screensNow.length] = document.activeElement;
       const screens = [...screensNow, route];
       historyEntries.push({ screens });
-      show(screens, !prefersReducedMotion());
+      show(screens, slides());
     },
     pop: () => {
       if (screensNow.length === 0 || leaving !== null || goingBack.current) return;
-      const backHere = () => show(screensNow.slice(0, -1), !prefersReducedMotion());
+      const beneath = screensNow.slice(0, -1);
+      const backHere = () => show(beneath, slides());
       // Chrome ignores pushState when it's called too often, so a screen can lack its entry
       if (screensOf(routes, history.state).length !== screensNow.length) {
+        backHere();
+        return;
+      }
+      // After moving between the desktop sidebar's pages, the entry before is the page left, not
+      // the screen beneath. Going up then takes this entry's place, rather than going back.
+      const before = entryScreens.get(atOf(here.current) - 1);
+      if (before !== undefined && !sameScreens(before, beneath)) {
+        replaceEntry(beneath);
         backHere();
         return;
       }
@@ -326,17 +402,37 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
       const top = shown[shown.length - 1];
       if (shown.length < 2) return;
       const screens = [...screensNow.slice(0, -1), route];
-      if (screensOf(routes, history.state).length === screensNow.length) {
-        const next: HistoryState = { ...(history.state as HistoryState), screens };
-        history.replaceState(next, "");
-        here.current = next;
-      }
+      if (screensOf(routes, history.state).length === screensNow.length) replaceEntry(screens);
       setStack((s) => ({
         ...s,
         entries: s.entries.map((e) => (e.key === top.key ? { ...e, route } : e)),
       }));
     },
+    go: (route) => {
+      const screens = route.name === "home" ? [] : [route];
+      if (leaving !== null || goingBack.current || sameScreens(screens, screensNow)) return;
+      // focus goes to the new page's heading, not back to the sidebar
+      openers.current = [];
+      historyEntries.push({ screens });
+      show(screens, false);
+    },
   };
+
+  // Screens don't slide on the desktop: one sliding as the window is resized past the phone
+  // layout goes at once, and one that slid in doesn't slide in again on the way back.
+  useEffect(() => {
+    if (!desktop) return;
+    setStack((s) =>
+      s.leaving === null && s.entries.every((e) => !e.animate)
+        ? s
+        : {
+            entries: s.entries
+              .filter((e) => e.key !== s.leaving)
+              .map((e) => (e.animate ? { ...e, animate: false } : e)),
+            leaving: null,
+          },
+    );
+  }, [desktop]);
 
   const topFromLeft = routes[entries[entries.length - 1].route.name].fromLeft === true;
 
@@ -344,69 +440,80 @@ export function ScreenStack({ routes }: { routes: RouteTable }) {
     <NavContext.Provider value={nav}>
       <RoutesContext.Provider value={routes}>
         <HistoryContext.Provider value={historyEntries}>
-          <div ref={sections} className="relative min-h-0 flex-1">
-            {entries.map((entry, i) => {
-              const isLeaving = entry.key === leaving;
-              const fromLeft = routes[entry.route.name].fromLeft === true;
-              return (
-                <section
-                  key={entry.key}
-                  inert={i !== visibleTop}
-                  onAnimationEnd={(event) => {
-                    if (event.target !== event.currentTarget) return;
-                    if (isLeaving) {
-                      setStack((s) => ({
-                        entries: s.entries.filter((other) => other.key !== entry.key),
-                        leaving: s.leaving === entry.key ? null : s.leaving,
-                      }));
-                    } else if (entry.animate) {
-                      setStack((s) => ({
-                        ...s,
-                        entries: s.entries.map((other) =>
-                          other.key === entry.key ? { ...other, animate: false } : other,
-                        ),
-                      }));
-                    }
-                  }}
-                  className={cn(
-                    "absolute inset-0 flex flex-col bg-background transition-[transform,background-color,translate,scale] duration-340 ease-enter",
-                    i < visibleTop && (topFromLeft ? "translate-x-[22%]" : "-translate-x-[22%]"),
-                    entry.animate && (fromLeft ? "animate-push-in-left" : "animate-push-in"),
-                    isLeaving && (fromLeft ? "animate-push-out-left" : "animate-push-out"),
-                    (entry.animate || isLeaving) && "shadow-[0_0_2.5rem_rgb(0_0_0/0.12)]",
-                  )}
-                >
-                  <InFrontContext.Provider value={i === visibleTop}>
-                    <BelowContext.Provider value={entries[i - 1]?.route ?? null}>
-                      {screenOf(routes, entry.route)}
-                    </BelowContext.Provider>
-                  </InFrontContext.Provider>
-                </section>
-              );
-            })}
-          </div>
+          <ShownContext.Provider value={{ screens: screensNow, frontKey: topKey }}>
+            {/* The same elements in both layouts, the sidebar's place held while it's away, so
+                switching keeps every screen as it is. The sidebar comes first, as it's drawn. */}
+            <div
+              className={cn(
+                desktop
+                  ? "grid min-h-0 flex-1 grid-cols-[17rem_minmax(0,1fr)] max-[56.25rem]:grid-cols-[14rem_minmax(0,1fr)]"
+                  : "contents",
+              )}
+            >
+              {desktop ? (
+                <aside className="flex min-h-0 flex-col overflow-y-auto border-r border-border">
+                  {aside}
+                </aside>
+              ) : null}
+              <div ref={sections} className="relative min-h-0 flex-1">
+                {entries.map((entry, i) => {
+                  const isLeaving = entry.key === leaving;
+                  const fromLeft = routes[entry.route.name].fromLeft === true;
+                  return (
+                    <section
+                      key={entry.key}
+                      inert={i !== visibleTop}
+                      onAnimationEnd={(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (isLeaving) {
+                          setStack((s) => ({
+                            entries: s.entries.filter((other) => other.key !== entry.key),
+                            leaving: s.leaving === entry.key ? null : s.leaving,
+                          }));
+                        } else if (entry.animate) {
+                          setStack((s) => ({
+                            ...s,
+                            entries: s.entries.map((other) =>
+                              other.key === entry.key ? { ...other, animate: false } : other,
+                            ),
+                          }));
+                        }
+                      }}
+                      className={cn(
+                        "absolute inset-0 flex flex-col bg-background",
+                        desktop
+                          ? i !== visibleTop && "hidden"
+                          : [
+                              "transition-[transform,background-color,translate,scale] duration-340 ease-enter",
+                              i < visibleTop &&
+                                (topFromLeft ? "translate-x-[22%]" : "-translate-x-[22%]"),
+                              entry.animate &&
+                                (fromLeft ? "animate-push-in-left" : "animate-push-in"),
+                              isLeaving &&
+                                (fromLeft ? "animate-push-out-left" : "animate-push-out"),
+                              (entry.animate || isLeaving) && "shadow-[0_0_2.5rem_rgb(0_0_0/0.12)]",
+                            ],
+                      )}
+                    >
+                      <InFrontContext.Provider value={i === visibleTop}>
+                        <SidebarPageContext.Provider
+                          value={i === 1 && routes[entry.route.name].sidebarPage === true}
+                        >
+                          <BelowContext.Provider value={entries[i - 1]?.route ?? null}>
+                            {screenOf(routes, entry.route)}
+                          </BelowContext.Provider>
+                        </SidebarPageContext.Provider>
+                      </InFrontContext.Provider>
+                    </section>
+                  );
+                })}
+              </div>
+              {children}
+            </div>
+          </ShownContext.Provider>
         </HistoryContext.Provider>
       </RoutesContext.Provider>
     </NavContext.Provider>
-  );
-}
-
-/**
- * A screen's scrolling body under its app bar. Its end leaves room for the home indicator, and
- * more while BottomNotices shows notices taller than that, so scrolled to the end nothing is
- * left under them.
- */
-export function ScreenScroll({ children }: { children: ReactNode }) {
-  return (
-    <main
-      className={cn(
-        "min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
-        // the notices' height, their offset from the bottom and a gap above them
-        "pb-[max(4.5rem,calc(var(--notices-height,0rem)_+_max(0.5rem,env(safe-area-inset-bottom))_+_0.5rem))]",
-      )}
-    >
-      {children}
-    </main>
   );
 }
 

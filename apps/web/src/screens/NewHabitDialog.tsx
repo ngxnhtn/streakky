@@ -1,4 +1,11 @@
-import { useState, type FormEvent } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import { HABIT_COLORS, canBeQuitDay, todayISO, type ColorId, type Kind } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
 import { Dialog, DialogContent, DialogTitle } from "@streakky/ui/components/dialog";
@@ -9,7 +16,7 @@ import { NameField, QuitDayField } from "@streakky/ui/components/habit/habit-fie
 import { Segmented } from "@streakky/ui/components/segmented";
 import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
 import { useHabitStore, useHabits } from "../store/react.tsx";
-import { useBackCloses } from "./stack.tsx";
+import { useBackCloses, useShownScreens } from "./stack.tsx";
 import { SaveError, useSave } from "./saving.tsx";
 
 /**
@@ -19,11 +26,48 @@ import { SaveError, useSave } from "./saving.tsx";
 const backToOpener = (opener: HTMLElement | null) =>
   opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-slot="new-habit"]');
 
-export function NewHabitDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+const NewHabitContext = createContext<{ open: boolean; setOpen: (open: boolean) => void } | null>(
+  null,
+);
+
+/**
+ * Whether New habit is open, above the screens, so Home and the desktop sidebar both open it and
+ * what's typed into it stays as the window is resized across the layouts.
+ */
+export function NewHabitProvider({ children }: { children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return <NewHabitContext.Provider value={{ open, setOpen }}>{children}</NewHabitContext.Provider>;
+}
+
+function useNewHabitContext() {
+  const context = useContext(NewHabitContext);
+  if (!context) throw new Error("New habit outside NewHabitProvider");
+  return context;
+}
+
+/** Opens New habit. */
+export function useOpenNewHabit(): () => void {
+  const { setOpen } = useNewHabitContext();
+  return () => setOpen(true);
+}
+
+/**
+ * New habit, over whichever screen opened it. It closes when another screen comes in front, as
+ * when the browser's forward button goes on to one. It lies over every screen rather than in
+ * one, so it watches the screen in front itself instead of `useCloseWhenCovered`.
+ */
+export function NewHabit() {
+  const { open, setOpen } = useNewHabitContext();
+  const { frontKey } = useShownScreens();
+  useEffect(() => setOpen(false), [frontKey, setOpen]);
+  return <NewHabitDialog open={open} onClose={() => setOpen(false)} />;
+}
+
+function NewHabitDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   useBackCloses(open, onClose);
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent shape="sheet" returnFocus={backToOpener}>
+      <DialogContent returnFocus={backToOpener}>
         <DialogTitle>New habit</DialogTitle>
         {/* the content unmounts once the sheet has left, so each open starts with a fresh form */}
         <NewHabitForm onDone={onClose} />

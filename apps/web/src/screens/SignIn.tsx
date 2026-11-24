@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
-import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { Field } from "@streakky/ui/components/field";
 import { Input } from "@streakky/ui/components/input";
 import { SIGN_IN_CODE, SignInError, type SignInFailure } from "../store/habit-store.ts";
 import { useHabitStore, useSyncStatus } from "../store/react.tsx";
-import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
+import { Screen } from "./screen.tsx";
+import { useNav } from "./stack.tsx";
 
 const { length: CODE_LENGTH, minutes: CODE_MINUTES } = SIGN_IN_CODE;
 /** "6-digit", kept on one line. */
@@ -49,24 +49,22 @@ export function SignIn({ email }: { email: string | null }) {
     if (mounted.current) pop();
   };
   return (
-    <>
-      <AppBar left={<BackButton />} />
-      <ScreenScroll>
-        <div className="px-5">
-          {signedInWhenOpened && status.signedIn ? (
-            <SignedIn email={status.email} onDone={pop} />
-          ) : email === null ? (
-            <EmailStep onSent={(address) => replace({ name: "sign-in", email: address })} />
-          ) : (
-            <CodeStep
-              email={email}
-              onSignedIn={signedIn}
-              onChangeEmail={() => replace({ name: "sign-in" })}
-            />
-          )}
-        </div>
-      </ScreenScroll>
-    </>
+    // each step has its own heading
+    <Screen>
+      <div className="px-5">
+        {signedInWhenOpened && status.signedIn ? (
+          <SignedIn email={status.email} onDone={pop} />
+        ) : email === null ? (
+          <EmailStep onSent={(address) => replace({ name: "sign-in", email: address })} />
+        ) : (
+          <CodeStep
+            email={email}
+            onSignedIn={signedIn}
+            onChangeEmail={() => replace({ name: "sign-in" })}
+          />
+        )}
+      </div>
+    </Screen>
   );
 }
 

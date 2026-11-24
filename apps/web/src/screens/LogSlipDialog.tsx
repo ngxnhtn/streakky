@@ -61,7 +61,7 @@ function LogSlipDialog({
   return (
     <Dialog open={open && habit !== null} onOpenChange={(isOpen) => !isOpen && onClose()}>
       {/* starts on the safe choice, so a second Enter doesn't log the slip */}
-      <DialogContent shape="sheet" initialFocus={keepCounting}>
+      <DialogContent initialFocus={keepCounting}>
         <DialogTitle>Log a slip for {habit?.name}?</DialogTitle>
         <DialogDescription>
           {days > 0

@@ -43,6 +43,16 @@ function DialogOverlay({
 
 type Shape = "sheet" | "center";
 
+const DialogShapeContext = React.createContext<Shape>("center");
+
+/**
+ * The shape of every dialog inside that doesn't name its own, such as sheets in an app's phone
+ * layout and centred dialogs in its desktop layout. Without one, dialogs are centred.
+ */
+function DialogShapeProvider({ shape, children }: { shape: Shape; children: React.ReactNode }) {
+  return <DialogShapeContext.Provider value={shape}>{children}</DialogShapeContext.Provider>;
+}
+
 const shapes: Record<Shape, string> = {
   sheet:
     "inset-x-2 bottom-2 max-h-[calc(100%-4rem)] rounded-[2rem] px-5 pt-2.5 pb-6 data-open:animate-sheet-in data-closed:animate-sheet-out",
@@ -58,13 +68,14 @@ const shapes: Record<Shape, string> = {
 function DialogContent({
   className,
   children,
-  shape = "center",
+  shape: ownShape,
   initialFocus = "first",
   returnFocus,
   onOpenAutoFocus,
   onCloseAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  /** its own shape; otherwise the `DialogShapeProvider`'s around it, or centred */
   shape?: Shape;
   /**
    * Where focus starts: `"first"`, the first control (Radix's way); `"content"`, the dialog itself,
@@ -79,6 +90,8 @@ function DialogContent({
    */
   returnFocus?: (opener: HTMLElement | null) => HTMLElement | null | undefined;
 }) {
+  const providedShape = React.useContext(DialogShapeContext);
+  const shape = ownShape ?? providedShape;
   const opener = React.useRef<HTMLElement | null>(null);
   return (
     <DialogPortal>
@@ -155,6 +168,7 @@ export {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogShapeProvider,
   DialogOverlay,
   DialogPortal,
   DialogTitle,

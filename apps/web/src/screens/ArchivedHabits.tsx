@@ -1,14 +1,14 @@
 import { useEffect, useRef } from "react";
 import { ArchiveRestore } from "lucide-react";
 import { archivedSince, fmtShort, longestStreakDays, plural, type Habit } from "@streakky/core";
-import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
 import { EmptyState } from "@streakky/ui/components/empty-state";
 import { List } from "@streakky/ui/components/list";
 import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore } from "../store/react.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
-import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
+import { Screen } from "./screen.tsx";
+import { useNav } from "./stack.tsx";
 
 /**
  * Archived habits, reached from Settings, or from Home when every habit is archived: hidden from
@@ -31,38 +31,36 @@ export function ArchivedHabits() {
   }, [habits.length]);
 
   return (
-    <>
-      <AppBar left={<BackButton />} title="Archived habits" />
-      <ScreenScroll>
-        <div className="px-5 pt-2">
-          {habits.length === 0 ? (
-            <EmptyState ref={none} tabIndex={-1} title="Nothing archived" className="focus-ring">
-              Archive a habit from its options when you stop tracking it. It leaves Home and waits
-              here, history and all, until you restore it.
-            </EmptyState>
-          ) : (
-            <>
-              <p className="mx-1 mb-4 text-sm text-muted-foreground">
-                Hidden from Home, with every check-in and slip kept. A quit habit stops counting
-                until it's restored.
-              </p>
-              <List aria-label="Archived habits">
-                {habits.map((habit) => (
-                  <ArchivedRow
-                    key={habit.id}
-                    habit={habit}
-                    onOpen={() => push({ name: "detail", id: habit.id })}
-                    onRestore={() =>
-                      void keepFocus(() => store.restoreHabit(habit.id), neighbourOfFocus())
-                    }
-                  />
-                ))}
-              </List>
-            </>
-          )}
-        </div>
-      </ScreenScroll>
-    </>
+    <Screen title="Archived habits">
+      {/* as wide as reads well on the desktop */}
+      <div className="max-w-[35rem] px-5 pt-2">
+        {habits.length === 0 ? (
+          <EmptyState ref={none} tabIndex={-1} title="Nothing archived" className="focus-ring">
+            Archive a habit from its options when you stop tracking it. It leaves Home and waits
+            here, history and all, until you restore it.
+          </EmptyState>
+        ) : (
+          <>
+            <p className="mx-1 mb-4 text-sm text-muted-foreground">
+              Hidden from Home, with every check-in and slip kept. A quit habit stops counting until
+              it's restored.
+            </p>
+            <List aria-label="Archived habits">
+              {habits.map((habit) => (
+                <ArchivedRow
+                  key={habit.id}
+                  habit={habit}
+                  onOpen={() => push({ name: "detail", id: habit.id })}
+                  onRestore={() =>
+                    void keepFocus(() => store.restoreHabit(habit.id), neighbourOfFocus())
+                  }
+                />
+              ))}
+            </List>
+          </>
+        )}
+      </div>
+    </Screen>
   );
 }
 

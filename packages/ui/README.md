@@ -80,24 +80,24 @@ width, so on a phone narrower than about 22rem (a 320px one) they're a little un
 
 `@streakky/ui/components/…`
 
-| Component        | What it is                                                                                                                                                  |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `button`         | Pill buttons: `default` `secondary` `outline` `ghost` `ring` `destructive` `outline-destructive` `habit` `link`; sizes `default` `sm` `lg` `icon` `icon-sm` |
-| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `initialFocus` and `returnFocus` (back to the opener by default); `DialogActions` |
-| `portal`         | `PortalContainerProvider`: render dialogs inside a given element (a phone frame, a panel)                                                                   |
-| `tabs`           | Radix tabs drawn as a segmented track with a sliding pill (`TabsList index count`)                                                                          |
-| `segmented`      | A single choice of two to four options, sliding pill; options may be icons, values strings or numbers                                                       |
-| `toggle-group`   | `ToggleGroup` + `ToggleChip` (pill chips) + `ToggleGroupItem` (custom faces)                                                                                |
-| `switch`         | Radix switch                                                                                                                                                |
-| `input`, `label` | Text fields                                                                                                                                                 |
-| `field`          | `Field` (label, control, hint, error, wired ids: the control is described by the hint or the error) and `FieldSet`                                          |
-| `list`           | `ListGroup` `List` `ListItem` `ListButton` `ListLabel`: grouped settings rows                                                                               |
-| `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                       |
-| `stat`           | `StatGrid`, `StatTile`                                                                                                                                      |
-| `app-bar`        | A phone screen's top bar; its title is the screen's `h1`, which takes focus when the screen opens                                                           |
-| `note`           | `Note` and `NoteLink`: one small dismissible note in a pill, its text a button when it leads somewhere                                                      |
-| `empty-state`    | `EmptyState`: what a screen says when it has nothing to show, with an optional action                                                                       |
-| `palette-picker` | The app colour themes as swatches                                                                                                                           |
+| Component        | What it is                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `button`         | Pill buttons: `default` `secondary` `outline` `ghost` `ring` `destructive` `outline-destructive` `habit` `link`; sizes `default` `sm` `lg` `icon` `icon-sm`        |
+| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`, or the `DialogShapeProvider`'s around it; `initialFocus`, `returnFocus`; `DialogActions` |
+| `portal`         | `PortalContainerProvider`: render dialogs inside a given element (a phone frame, a panel)                                                                          |
+| `tabs`           | Radix tabs drawn as a segmented track with a sliding pill (`TabsList index count`)                                                                                 |
+| `segmented`      | A single choice of two to four options, sliding pill; options may be icons, values strings or numbers                                                              |
+| `toggle-group`   | `ToggleGroup` + `ToggleChip` (pill chips) + `ToggleGroupItem` (custom faces)                                                                                       |
+| `switch`         | Radix switch                                                                                                                                                       |
+| `input`, `label` | Text fields                                                                                                                                                        |
+| `field`          | `Field` (label, control, hint, error, wired ids: the control is described by the hint or the error) and `FieldSet`                                                 |
+| `list`           | `ListGroup` `List` `ListItem` `ListButton` `ListLabel`: grouped settings rows                                                                                      |
+| `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                              |
+| `stat`           | `StatGrid`, `StatTile`                                                                                                                                             |
+| `app-bar`        | A phone screen's top bar; its title is the screen's `h1`, which takes focus when the screen opens                                                                  |
+| `note`           | `Note` and `NoteLink`: one small dismissible note in a pill, its text a button when it leads somewhere                                                             |
+| `empty-state`    | `EmptyState`: what a screen says when it has nothing to show, with an optional action                                                                              |
+| `palette-picker` | The app colour themes as swatches                                                                                                                                  |
 
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
 `@streakky/core` and callbacks, and keep no app state.

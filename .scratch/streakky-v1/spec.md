@@ -271,6 +271,11 @@ type DayRecord = {
 ### Web layouts and PWA
 
 - One build chooses the phone layout or the desktop layout by screen width.
+  - The desktop layout starts at 48rem wide, as long as the window is at least 30rem tall, so a phone turned on its side keeps the phone layout. The Android app always uses the phone layout.
+  - It switches live as the window is resized. It keeps the screen showing and anything typed into a form or dialog.
+  - **Desktop:** a sidebar has New habit, All habits, each active habit with its count and today's tick, and Settings. Beside it, the page shows the screen in front.
+  - **Habit page:** a habit's page sets its ring, calendar, stats and goal side by side as cards, with its options as buttons by the heading. Dialogs are centred, where the phone has sheets.
+  - **Sidebar history:** each sidebar page is a browser history entry, so the browser's back goes to the page before. Leaving a page in the app, as archiving or deleting does, goes up to the screen beneath it instead, replacing the page's entry.
 - The service worker caches the app shell so the app opens offline after the first visit. The manifest makes it installable.
 - On load, the app requests persistent browser storage.
 - While signed out on the web, the dismissible "only in this browser" note appears once per device.
