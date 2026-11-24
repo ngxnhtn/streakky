@@ -19,8 +19,8 @@
     "run_worker_first": ["/api/*"],
   },
   "vars": {
-    // the sender of sign-in codes; Resend must have hb.nhutien.com verified
-    "SIGN_IN_EMAIL_FROM": "Streakky <sign-in@hb.nhutien.com>",
+    // the sender of sign-in codes; Resend must have nhutien.com verified
+    "SIGN_IN_EMAIL_FROM": "Streakky <hb@nhutien.com>",
     // "resend" sends codes through Resend; local development passes "log" (see vite.config.ts),
     // which writes them to the Worker's log instead
     "EMAIL_DELIVERY": "resend",
@@ -33,9 +33,8 @@
     {
       "binding": "DB",
       "database_name": "streakky",
-      // placeholder until the first deploy: replace it with the id that `wrangler d1 create
-      // streakky` prints (local dev and tests run on a local D1 and work with the placeholder)
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      // the database `wrangler d1 create streakky` made; local dev and tests use a local D1
+      "database_id": "87b67c0c-94ba-4c74-9c2b-e332e66e62b5",
       "migrations_dir": "migrations",
     },
   ],

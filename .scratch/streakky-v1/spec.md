@@ -136,7 +136,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 83. As the owner, I want to deploy the Worker, web app and database migrations with one command from my Mac, so that releasing is quick.
 84. As the owner, I want pushing a version tag to build, sign and publish the Android APK to a GitHub Release, so that I don't need the Android SDK just to ship.
 85. As the owner, I want everything to run within Cloudflare's free tiers and Resend's free tier, so that Streakky costs me nothing to run.
-86. As the owner, I want sign-in codes sent from an address on `hb.nhutien.com`, so that the emails come from my own domain.
+86. As the owner, I want sign-in codes sent from `hb@nhutien.com`, so that the emails come from my own domain.
 87. As the owner, I want sign-in attempts rate-limited by client IP, so that the email codes can't be brute-forced.
 88. As the owner, I want the design playground to keep building against the renamed domain model, so that I can keep tinkering with designs.
 
@@ -231,7 +231,7 @@ type DayRecord = {
   - It's a Worker secret listing allowed emails, starting with the owner's, so the repository never shows them.
   - Requests for other addresses are refused before any email is sent, and the app shows that the address can't sign in.
   - New accounts are only ever created for allowlisted addresses.
-- **Email:** codes are sent through Resend, from an address on `hb.nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.
+- **Email:** codes are sent through Resend, from `hb@nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.
 - **Web:** uses same-origin session cookies.
 - **Android:**
   - The WebView origin is `https://localhost`, so cookies would be third-party. The app uses bearer tokens instead.

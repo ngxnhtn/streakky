@@ -124,3 +124,5 @@ Steps 1–7 are unverified: they need your accounts. Nothing here has contacted 
 - `vp run api#db-generate` runs both: it rewrites the auth schema, then drizzle-kit writes any migration that's needed. After changing the auth options or upgrading better-auth, run it and commit what it writes. Keep `auth` and `better-auth` on the same version (both are `^1.7.27` in the catalog).
 - Column names are now snake_case (`email_verified`, `user_id`) and dates are integer milliseconds. Nothing was deployed, so `0000_initial.sql` is a fresh baseline.
 - Checked: `vp test` (103 passed, 2 todo), `vp check`, a no-op second `db-generate`, `wrangler d1 migrations apply --local` on an empty database (only `0000_initial.sql`, `meta/` ignored), and `wrangler deploy --dry-run`: 376 KiB gzipped, from 336 KiB.
+
+**Owner decision (2026-11-24): codes come from `hb@nhutien.com`.** `SIGN_IN_EMAIL_FROM` is now `Streakky <hb@nhutien.com>`, which replaces `sign-in@hb.nhutien.com` everywhere above. Resend verifies the root domain `nhutien.com` instead of `hb.nhutien.com`: its records sit on `send.nhutien.com` and `resend._domainkey.nhutien.com`, and the API key is limited to `nhutien.com`.
