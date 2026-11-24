@@ -3,7 +3,9 @@ const FOCUSABLE = 'button:not(:disabled), [href], input, [tabindex]:not([tabinde
 /**
  * Where focus should go if the focused control's list item goes away, say the card of a habit
  * just archived: the same kind of control (by `data-slot`) in the item after it, or the one
- * before. Read before the change, while the item is still there.
+ * before. With neither left, as when the last habit's card goes, it's the note the screen in
+ * front shows for being empty, if it can take focus. Read before the change, while the item is
+ * still there.
  */
 export function neighbourOfFocus(): () => Element | null {
   const focused = document.activeElement;
@@ -18,7 +20,7 @@ export function neighbourOfFocus(): () => Element | null {
         neighbour.querySelector(FOCUSABLE);
       if (target) return target;
     }
-    return null;
+    return document.querySelector('section:not([inert]) [data-slot="empty-state"][tabindex]');
   };
 }
 

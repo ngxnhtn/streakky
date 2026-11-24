@@ -67,6 +67,6 @@
 - **Local dev database:** its sync tables came from a draft of `0001_sync.sql` (`name_change` columns), so pushes failed locally with 500s. I dropped them and applied the committed migration again. The live database got the committed file at this deploy, so it was never affected.
 - **Limits, not fixed:**
   - **Internal copies:** TanStack DB's persistence keeps its own copies of deleted rows inside the device's SQLite file: tombstones, and its replay log of up to 1,000 transactions or 24 hours. The app and the next person never see them, but the wipe doesn't erase them from storage. Its local-only collections have no public truncate.
-  - **A session the server ends by itself** (a year unused): the device counts as signed out but keeps its habits, so nothing unsynced is lost. A different account signing in there afterwards would still see them. This is the owner's call.
+  - **A session the server ends by itself** (a year unused): the device counts as signed out but keeps its habits, so nothing unsynced is lost. A different account signing in there afterwards would still see them. **Owner decision (2026-11-25): left as it is.**
   - **Two windows signing out offline:** a second window of the app stays signed in until it next hears from the server. If one window signs out offline, the cookie outlives the sign-out until the server hears of it. Until then the other window can still sync and pull the habits back.
   - **The cookie** goes only once the server hears of the sign-out, as since ticket 13.

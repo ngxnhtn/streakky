@@ -153,3 +153,13 @@ As the owner decided: while a quit habit is archived, its days are neither clean
   - **An archived day can't be edited after restoring,** even to log a slip you remember, since it's neither clean nor a slip. Moving the quit day still works across it.
   - **Restored the next day leaves no archived days,** as the rule says: archived Monday, restored Tuesday, and both count.
   - **For 20 (widget):** a restored quit habit's count is the days since the last slip minus its archived days. The widget summary needs the archived days since the last slip, as the spec now says.
+
+**Fixed (2026-11-25): focus when the last habit goes.** This settles the "Found, not fixed" note above, and the earlier "Focus after a restore" note.
+
+- **Archiving the last habit:** when the card that had focus goes and no card is left beside it, `neighbourOfFocus()` now falls back to the empty-state note of the screen in front, if it can take focus. Home's "Every habit is archived" note now can (`tabIndex={-1}`, with the focus ring), as Archived habits' "Nothing archived" already could. A screen reader reads the note, and Tab goes on to "See archived habits".
+- **Restoring:** going back to Home after restoring, when the "See archived habits" button that opened the screen is gone, already put focus on Home's heading. The stack does this whenever a screen's opener has gone.
+- **Checked by keyboard in headless Chrome:**
+  - Archiving the only habit left focus on the note, and Tab went to its button.
+  - Restoring it left focus on "Nothing archived".
+  - Going back to Home put focus on its heading.
+  - Without the fix, the first check failed with focus on the page.

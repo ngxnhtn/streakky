@@ -197,9 +197,11 @@ function AllArchived({
 }) {
   return (
     <>
+      {/* takes focus when the last habit's card goes from under it, as by archiving it */}
       <EmptyState
         title="Every habit is archived"
-        className="mb-5"
+        tabIndex={-1}
+        className="mb-5 focus-ring"
         action={
           <Button className="w-full" onClick={onShowArchived}>
             See archived habits
