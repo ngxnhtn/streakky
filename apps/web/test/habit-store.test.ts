@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import {
   defaultSettings,
   currentStreakDays,
+  HABIT_NAME_MAX_LENGTH,
   loggedToday,
   streaksOf,
   type Habit,
 } from "@streakky/core";
+import type { NewHabit } from "../src/store/habit-store.ts";
 import { createStorage, openDevice } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
@@ -24,6 +26,16 @@ describe("a device on its own", () => {
     expect(device.habits()).toMatchObject([
       { kind: "build", name: "Morning run", color: "green", goal: null, checkIns: [] },
     ]);
+  });
+
+  it("won't make a habit with an empty name, a name too long, or a colour that isn't one", async () => {
+    const device = await openDevice(createStorage());
+    const tooLong = "a".repeat(HABIT_NAME_MAX_LENGTH + 1);
+    for (const habit of [build(" "), build(tooLong), { ...build("Run"), color: "purple" }]) {
+      await expect(device.createHabit(habit as NewHabit)).rejects.toThrow();
+    }
+    await device.createHabit(build("a".repeat(HABIT_NAME_MAX_LENGTH)));
+    expect(device.habits().map((h) => h.name.length)).toEqual([HABIT_NAME_MAX_LENGTH]);
   });
 
   it("lists new habits after the existing ones", async () => {

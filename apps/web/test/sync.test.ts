@@ -8,12 +8,13 @@ import {
   it,
   vi,
 } from "vite-plus/test";
-import { addDays, streaksOf, toISO, todayISO, type Habit } from "@streakky/core";
-import type { HabitStore } from "../src/store/habit-store.ts";
+import { addDays, streaksOf, toISO, todayISO, type ColorId, type Habit } from "@streakky/core";
+import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
 import {
   createStorage,
   openDevice,
   storeRecords,
+  withRecordsLost,
   switchable,
   type Connection,
   type DeviceOptions,
@@ -47,20 +48,21 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-/** A device with its own storage and network address, signed in to `email`. */
+/** A device with its own storage and network address, signed in to `email` on `at`. */
 async function signedInDevice(
   email: string,
   options?: DeviceOptions,
   {
     storage = createStorage(),
-    via = online(server),
-  }: { storage?: DeviceStorage; via?: Connection } = {},
+    at = server,
+    via = online(at),
+  }: { storage?: DeviceStorage; at?: Server; via?: Connection } = {},
 ): Promise<Device> {
   const network = switchable(via);
   const store = await openDevice(storage, network.connection, options);
   open.push(store);
   await store.requestSignInCode(email);
-  await store.signIn(email, codeSentTo(server, email));
+  await store.signIn(email, codeSentTo(at, email));
   return Object.assign(store, { goOffline: network.goOffline, goOnline: network.goOnline });
 }
 
@@ -90,6 +92,21 @@ const shown = (device: HabitStore) =>
   }));
 
 const daysAgo = (n: number) => toISO(addDays(todayISO(), -n));
+
+/** A build habit as a version of the app from before sync stored it: no change ids, nothing synced. */
+const storedBeforeSync = (fields: Partial<HabitRecord> = {}): HabitRecord => ({
+  id: crypto.randomUUID(),
+  kind: "build",
+  name: "Read",
+  color: "blue",
+  goal: null,
+  quitDay: null,
+  archived: false,
+  order: "a0",
+  deleted: false,
+  edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
+  ...fields,
+});
 
 /** A clock the test moves on, which devices read for their edit times. */
 function testClock() {
@@ -246,6 +263,62 @@ describe("syncing between two signed-in devices", () => {
     ]);
   });
 
+  it("keeps the other device's rename and moves when one device moves a habit later", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        for (const name of ["Read", "Stretch", "Walk", "Meditate"]) {
+          await phone.createHabit({ kind: "build", name, color: "blue" });
+        }
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const [read, , walk, meditate] = phone.habits();
+    await laptop.editHabit(meditate.id, { name: "Meditate daily" });
+    await laptop.moveHabit(read.id, walk.id);
+    // later, on the phone, which hasn't seen those
+    clock.tick();
+    await phone.moveHabit(meditate.id, null);
+    await together(phone, laptop);
+    const expected = ["Meditate daily", "Stretch", "Walk", "Read"];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
+  it("changes nothing when a habit is dropped where it already was", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        for (const name of ["Read", "Stretch", "Walk"]) {
+          await phone.createHabit({ kind: "build", name, color: "blue" });
+        }
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const [read, stretch, walk] = phone.habits();
+    await laptop.moveHabit(stretch.id, walk.id);
+    // later, on the phone, which hasn't seen that move
+    clock.tick();
+    await phone.moveHabit(stretch.id, read.id);
+    await together(phone, laptop);
+    const expected = ["Read", "Walk", "Stretch"];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
+  it("moves a habit between two that the devices added offline after the same one", async () => {
+    const [phone, laptop] = await apartAfter((phone) =>
+      phone.createHabit({ kind: "build", name: "Read", color: "blue" }),
+    );
+    // each adds a habit at the end, just after "Read": both take the same position
+    await phone.createHabit({ kind: "build", name: "Stretch", color: "green" });
+    await laptop.createHabit({ kind: "build", name: "Walk", color: "ochre" });
+    await together(phone, laptop);
+    const [read, first, second] = phone.habits();
+    await phone.moveHabit(read.id, first.id);
+    await syncBoth(phone, laptop);
+    const expected = [first.name, "Read", second.name];
+    expect([names(phone), names(laptop)]).toEqual([expected, expected]);
+  });
+
   it("agrees on one result when the devices' clocks differ, by the times they recorded", async () => {
     const clock = testClock();
     // the laptop's clock runs ten minutes fast
@@ -285,33 +358,71 @@ describe("syncing between two signed-in devices", () => {
     expect([names(laptop), archived(laptop)]).toEqual([names(phone), archived(phone)]);
   });
 
+  it("lets archiving an archived habit, or restoring an active one, undo nothing elsewhere", async () => {
+    const clock = testClock();
+    const [phone, laptop] = await apartAfter(
+      async (phone) => {
+        await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+        await phone.createHabit({ kind: "build", name: "Stretch", color: "green" });
+        await phone.archiveHabit(phone.habits()[1].id);
+      },
+      [{ now: clock.now }, { now: clock.now }],
+    );
+    const read = phone.habits()[0];
+    const stretch = phone.archivedHabits()[0];
+    await laptop.archiveHabit(read.id);
+    await laptop.restoreHabit(stretch.id);
+    // later, on the phone, which hasn't seen those: each is already as asked there
+    clock.tick();
+    await phone.restoreHabit(read.id);
+    await phone.archiveHabit(stretch.id);
+    await together(phone, laptop);
+    const sides = (device: Device) => [names(device), device.archivedHabits().map((h) => h.name)];
+    expect([sides(phone), sides(laptop)]).toEqual([
+      [["Stretch"], ["Read"]],
+      [["Stretch"], ["Read"]],
+    ]);
+  });
+
   it("doesn't let a push sent again undo a later edit from the other device", async () => {
     const clock = testClock();
     const email = accounts[nextAccount++];
-    // the phone's first push reaches the server, but its answer is lost on the way back
+    // The phone's first push reaches the server, but the network drops before the answer comes
+    // back, and stays down for the rest of that sync: the phone hears nothing of what the server
+    // stored, so everything it pushed still waits, and its next sync sends the same push again.
     let lose = true;
-    const losesFirstPush: Connection = (storage) => {
+    let dropNetwork = () => {};
+    const losesFirstPushAnswer: Connection = (storage) => {
       const reach = online(server)(storage);
       return async (path, init) => {
         const response = await reach(path, init);
-        if (path === "/api/sync/push" && lose) {
+        if (path.endsWith("/push") && lose) {
           lose = false;
+          dropNetwork();
           throw new TypeError("fetch failed");
         }
         return response;
       };
     };
-    const phone = await signedInDevice(email, { now: clock.now }, { via: losesFirstPush });
+    const phone = await signedInDevice(email, { now: clock.now }, { via: losesFirstPushAnswer });
     const laptop = await signedInDevice(email, { now: clock.now });
+    dropNetwork = () => phone.goOffline();
     await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.toggleDay(phone.habits()[0].id, daysAgo(1));
     await phone.sync();
+    const waiting = phone.syncStatus();
     await laptop.sync();
+    // later, the laptop renames the habit and takes the check-in back
     clock.tick();
-    await laptop.editHabit(laptop.habits()[0].id, { name: "Read a chapter" });
+    const id = laptop.habits()[0].id;
+    await laptop.editHabit(id, { name: "Read a chapter" });
+    await laptop.toggleDay(id, daysAgo(1));
     await laptop.sync();
-    // the phone still holds its first push as pending, and sends it again
+    phone.goOnline();
     await syncBoth(phone, laptop);
-    expect([names(phone), names(laptop)]).toEqual([["Read a chapter"], ["Read a chapter"]]);
+    const expected = [{ name: "Read a chapter", color: "blue", days: [] }];
+    expect(waiting).toMatchObject({ pending: 2, failing: true });
+    expect([shown(phone), shown(laptop)]).toEqual([expected, expected]);
   });
 
   it("syncs a long history, more than one push or pull carries", async () => {
@@ -321,20 +432,7 @@ describe("syncing between two signed-in devices", () => {
     const days = Array.from({ length: 1200 }, (_, i) => daysAgo(i + 1));
     // years of check-ins, kept from before this device synced
     await storeRecords(storage, {
-      habits: [
-        {
-          id,
-          kind: "build",
-          name: "Read",
-          color: "blue",
-          goal: null,
-          quitDay: null,
-          archived: false,
-          order: "a0",
-          deleted: false,
-          edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
-        },
-      ],
+      habits: [storedBeforeSync({ id, name: "Read" })],
       days: days.map((day) => ({ habitId: id, day, logged: true, edited: 1 })),
     });
     const phone = await signedInDevice(email, {}, { storage });
@@ -347,35 +445,62 @@ describe("syncing between two signed-in devices", () => {
     expect([checkIns(phone), checkIns(laptop)]).toEqual([1200, 1200]);
   });
 
-  it("keeps syncing the rest when the server can't read one record", async () => {
+  // records no version of the app writes, which the server refuses to store
+  it.each<[string, Partial<HabitRecord>]>([
+    ["a colour the server can't take", { color: "Not a colour" as ColorId }],
+    ["a quit habit with no quit day", { kind: "quit", quitDay: null }],
+    ["a build habit with a quit day", { kind: "build", quitDay: daysAgo(10) }],
+  ])("keeps syncing the rest when the server can't read one record: %s", async (_, odd) => {
     const email = accounts[nextAccount++];
     const storage = createStorage();
-    // a record no version of the app writes: a colour the server can't take
-    await storeRecords(storage, {
-      habits: [
-        {
-          id: "unreadable",
-          kind: "build",
-          name: "Odd one",
-          color: "Not a colour" as "blue",
-          goal: null,
-          quitDay: null,
-          archived: false,
-          order: "a0",
-          deleted: false,
-          edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
-        },
-      ],
-    });
+    await storeRecords(storage, { habits: [storedBeforeSync({ name: "Odd one", ...odd })] });
     const phone = await signedInDevice(email, {}, { storage });
     const laptop = await signedInDevice(email);
     await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
     await laptop.createHabit({ kind: "build", name: "Stretch", color: "green" });
     await syncBoth(phone, laptop);
     expect(names(laptop).toSorted()).toEqual(["Read", "Stretch"]);
-    expect(names(phone).toSorted()).toEqual(["Odd one", "Read", "Stretch"]);
+    expect(names(phone)).toEqual(expect.arrayContaining(["Read", "Stretch"]));
     // the one record stays waiting on the phone; the rest went through
     expect(phone.syncStatus()).toMatchObject({ pending: 1, failing: false });
+  });
+
+  it("doesn't celebrate a goal another device set, or reached by moving a quit day", async () => {
+    const [phone, laptop] = await twoDevices();
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.createHabit({
+      kind: "quit",
+      name: "No sugar",
+      color: "red",
+      quitDay: daysAgo(3),
+      goal: 7,
+    });
+    const [read, noSugar] = phone.habits();
+    for (let n = 6; n >= 0; n--) await phone.toggleDay(read.id, daysAgo(n));
+    await syncBoth(phone, laptop);
+    // the phone sets a goal that the 7-day streak already reaches, and moves a quit day back far
+    // enough to reach the goal
+    await phone.editHabit(read.id, { goal: 7 });
+    await phone.moveQuitDay(noSugar.id, daysAgo(10));
+    await syncBoth(phone, laptop);
+    const due = (device: Device) => device.habits().map((habit) => device.celebrationDue(habit));
+    expect([due(phone), due(laptop)]).toEqual([
+      [false, false],
+      [false, false],
+    ]);
+  });
+
+  it("doesn't celebrate a habit that arrives from another device with its goal reached", async () => {
+    const [phone, laptop] = await twoDevices();
+    await phone.createHabit({
+      kind: "quit",
+      name: "No sugar",
+      color: "red",
+      quitDay: daysAgo(20),
+      goal: 14,
+    });
+    await syncBoth(phone, laptop);
+    expect(laptop.habits().map((habit) => laptop.celebrationDue(habit))).toEqual([false]);
   });
 
   it("never shows one account's habits to another", async () => {
@@ -385,6 +510,48 @@ describe("syncing between two signed-in devices", () => {
     await mine.sync();
     await theirs.sync();
     expect(names(theirs)).toEqual([]);
+  });
+});
+
+describe("a device whose place in the account's changes no longer fits", () => {
+  it("gets every habit again once its stored habits are lost", async () => {
+    const email = accounts[nextAccount++];
+    const storage = createStorage();
+    const phone = await signedInDevice(email, {}, { storage });
+    const laptop = await signedInDevice(email);
+    await laptop.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await laptop.sync();
+    await phone.sync();
+    await phone.close();
+    const reopened = await openDevice(withRecordsLost(storage), online(server));
+    open.push(reopened);
+    await reopened.sync();
+    expect(names(reopened)).toEqual(["Read"]);
+  });
+
+  it("gets every habit from a server where the account's data started again", async () => {
+    const email = accounts[nextAccount++];
+    const storage = createStorage();
+    const phone = await signedInDevice(email, {}, { storage });
+    for (const name of ["Read", "Stretch", "Walk"]) {
+      await phone.createHabit({ kind: "build", name, color: "blue" });
+    }
+    await phone.sync();
+    await phone.close();
+    // a new server, as when the database is made anew, where another device adds a habit
+    const anew = await startServer({ allowlist: [email] });
+    try {
+      const laptop = await signedInDevice(email, {}, { at: anew });
+      await laptop.createHabit({ kind: "build", name: "Meditate", color: "green" });
+      await laptop.sync();
+      // the phone saw more of the old server's changes than the new one has
+      const moved = await signedInDevice(email, {}, { storage, at: anew });
+      await moved.sync();
+      expect(names(moved)).toContain("Meditate");
+    } finally {
+      await Promise.all(open.splice(0).map((device) => device.close()));
+      await anew.stop();
+    }
   });
 });
 

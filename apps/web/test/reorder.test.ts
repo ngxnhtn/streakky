@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { generateKeyBetween } from "fractional-indexing";
 import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
-import { createStorage, openDevice, storedHabits, type DeviceStorage } from "./devices.ts";
+import { createStorage, openDevice, storeRecords, type DeviceStorage } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time.
 beforeEach(() => {
@@ -27,8 +26,21 @@ const idOf = (device: HabitStore, name: string) =>
 const move = (device: HabitStore, name: string, after: string | null) =>
   device.moveHabit(idOf(device, name), after === null ? null : idOf(device, after));
 
-/** Habit records by their order position alone. */
-const byPosition = (a: HabitRecord, b: HabitRecord) => (a.order < b.order ? -1 : 1);
+/** A build habit at `order` as a sync stores it: ties in position show in the order of their ids. */
+const syncedAt = (id: string, name: string, order: string): HabitRecord => ({
+  id,
+  kind: "build",
+  name,
+  color: "green",
+  goal: null,
+  quitDay: null,
+  archived: false,
+  archivedPeriods: [],
+  order,
+  deleted: false,
+  edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, archivedPeriods: 1, order: 1 },
+  pending: false,
+});
 
 describe("reordering habits on a device", () => {
   it("moves a habit between two others", async () => {
@@ -58,41 +70,6 @@ describe("reordering habits on a device", () => {
     expect(namesOf(after)).toEqual(["Read 20 pages", "Stretch", "Morning run"]);
   });
 
-  it("changes only the moved habit's order, with the time of the move", async () => {
-    const storage = createStorage();
-    const device = await deviceWith(storage, "Morning run", "Read 20 pages", "Stretch");
-    const before = await storedHabits(storage);
-    vi.setSystemTime(new Date(2026, 10, 24, 18));
-    await move(device, "Stretch", "Morning run");
-    await device.close();
-
-    const moved = before.find((h) => h.name === "Stretch")!;
-    const after = await storedHabits(storage);
-    const movedAfter = after.find((h) => h.id === moved.id)!;
-    expect(after.filter((h) => h !== movedAfter)).toEqual(
-      expect.arrayContaining(before.filter((h) => h !== moved)),
-    );
-    // what the person's records hold, leaving out sync's own bookkeeping on the device
-    const fields = ({ changeIds: _changeIds, pending: _pending, ...record }: HabitRecord) => record;
-    expect(fields(movedAfter)).toEqual({
-      ...fields(moved),
-      order: expect.not.stringMatching(`^${moved.order}$`),
-      edited: { ...moved.edited, order: new Date(2026, 10, 24, 18).getTime() },
-    });
-  });
-
-  it("leaves a habit dropped where it already was untouched", async () => {
-    const storage = createStorage();
-    const device = await deviceWith(storage, "Morning run", "Read 20 pages", "Stretch");
-    const before = await storedHabits(storage);
-    vi.setSystemTime(new Date(2026, 10, 24, 18));
-    await move(device, "Read 20 pages", "Morning run");
-    await move(device, "Morning run", null);
-    await device.close();
-
-    expect(await storedHabits(storage)).toEqual(expect.arrayContaining(before));
-  });
-
   it("ignores a move next to itself, or of or after a habit that isn't there", async () => {
     const device = await deviceWith(createStorage(), "Morning run", "Read 20 pages", "Stretch");
     await move(device, "Stretch", "Stretch");
@@ -108,10 +85,9 @@ describe("reordering habits on a device", () => {
     expect(namesOf(device)).toEqual(["Stretch", "Morning run", "Read 20 pages", "Drink water"]);
   });
 
-  it("keeps a valid, stable order after many moves between the same neighbours", async () => {
+  it("keeps the order right through many moves between the same neighbours, and after", async () => {
     const storage = createStorage();
     const device = await deviceWith(storage, "Morning run", "Read 20 pages", "Stretch", "Meditate");
-    const first = (await storedHabits(storage)).find((h) => h.name === "Morning run");
     // the last habit goes between the first two, again and again, so every new position is
     // squeezed in just after the first habit's
     const expected = ["Morning run", "Read 20 pages", "Stretch", "Meditate"];
@@ -124,37 +100,65 @@ describe("reordering habits on a device", () => {
     }
     await device.close();
 
-    const stored = (await storedHabits(storage)).toSorted(byPosition);
-    const keys = stored.map((h) => h.order);
     const reopened = await openDevice(storage);
-    expect(wrongMoves).toEqual([]);
-    expect([stored.map((h) => h.name), namesOf(reopened)]).toEqual([expected, expected]);
-    expect(stored[0]).toEqual(first);
-    expect(new Set(keys).size).toBe(keys.length);
-    // each is still a key the next move can place a habit before or after
-    expect(() => keys.forEach((key) => generateKeyBetween(null, key))).not.toThrow();
-    expect(() => keys.forEach((key) => generateKeyBetween(key, null))).not.toThrow();
+    const afterRestart = namesOf(reopened);
+    // every habit can still go anywhere: to the top, to the end, and between two squeezed ones
+    await move(reopened, "Meditate", null);
+    await move(reopened, "Morning run", "Stretch");
+    await move(reopened, "Stretch", "Meditate");
+    expect([wrongMoves, afterRestart, namesOf(reopened)]).toEqual([
+      [],
+      ["Morning run", "Read 20 pages", "Stretch", "Meditate"],
+      ["Meditate", "Stretch", "Read 20 pages", "Morning run"],
+    ]);
   });
 
   it("places a moved habit after its shown neighbour without taking an archived habit's position", async () => {
     const storage = createStorage();
-    const device = await deviceWith(storage, "Morning run", "Floss", "Read 20 pages", "Stretch");
+    // ids that would show "Floss" before "Stretch" if the two shared a position
+    await storeRecords(storage, {
+      habits: [
+        syncedAt("run", "Morning run", "a0"),
+        syncedAt("floss", "Floss", "a1"),
+        syncedAt("read", "Read 20 pages", "a2"),
+        syncedAt("stretch", "Stretch", "a3"),
+      ],
+    });
+    const device = await openDevice(storage);
     // archived, "Floss" keeps its position between the first two shown, which is where the
     // midpoint of their positions falls
-    const floss = idOf(device, "Floss");
-    await device.archiveHabit(floss);
+    await device.archiveHabit("floss");
     await move(device, "Stretch", "Morning run");
     const shown = namesOf(device);
-    await device.restoreHabit(floss);
-    const restored = namesOf(device);
-    await device.close();
-
-    const positions = (await storedHabits(storage)).map((h) => h.order);
-    expect([shown, restored]).toEqual([
+    await device.restoreHabit("floss");
+    expect([shown, namesOf(device)]).toEqual([
       ["Morning run", "Stretch", "Read 20 pages"],
       ["Morning run", "Stretch", "Floss", "Read 20 pages"],
     ]);
-    expect(new Set(positions).size).toBe(4);
+  });
+
+  it("moves a habit between two that share a position, as devices adding habits offline leave them", async () => {
+    const storage = createStorage();
+    // three devices each added a habit after "Read" offline, and synced
+    await storeRecords(storage, {
+      habits: [
+        syncedAt("read", "Read 20 pages", "a0"),
+        syncedAt("run", "Morning run", "a1"),
+        syncedAt("stretch", "Stretch", "a1"),
+        syncedAt("walk", "Walk", "a1"),
+      ],
+    });
+    const device = await openDevice(storage);
+    const before = namesOf(device);
+    await move(device, "Read 20 pages", "Stretch");
+    const moved = namesOf(device);
+    await device.close();
+    const reopened = await openDevice(storage);
+    expect([before, moved, namesOf(reopened)]).toEqual([
+      ["Read 20 pages", "Morning run", "Stretch", "Walk"],
+      ["Morning run", "Stretch", "Read 20 pages", "Walk"],
+      ["Morning run", "Stretch", "Read 20 pages", "Walk"],
+    ]);
   });
 
   it("ignores a move of or after an archived habit", async () => {

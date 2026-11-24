@@ -3,65 +3,28 @@
  * changed, and pulls every row changed since the server version it last saw. The server applies
  * ADR-0002's merge rules as it stores a push.
  */
+import {
+  EDITABLE_FIELDS,
+  PUSH_LIMIT,
+  type EditableField,
+  type Pulled,
+  type Pushed,
+  type Refused,
+  type SyncedDay,
+  type SyncedHabit,
+} from "@streakky/contract";
 import { and, asc, eq, getTableColumns, getTableName, gt, sql, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Database } from "./db/database.ts";
-import { dayRecords, habits, syncVersions, type ArchivedPeriod } from "./db/schema.ts";
+import { dayRecords, habits, syncVersions } from "./db/schema.ts";
 
-/** The habit fields a device edits, each with its own edit time and change id. */
-const FIELDS = [
-  "name",
-  "color",
-  "goal",
-  "quitDay",
-  "archived",
-  "archivedPeriods",
-  "order",
-] as const;
-type Field = (typeof FIELDS)[number];
-
-/** A habit as devices send and receive it. */
-export type SyncedHabit = {
-  id: string;
-  kind: "build" | "quit";
-  name: string;
-  color: string;
-  goal: number | null;
-  quitDay: string | null;
-  archived: boolean;
-  archivedPeriods: ArchivedPeriod[];
-  order: string;
-  deleted: boolean;
-  edited: Record<Field, number>;
-  changeIds: Record<Field, string>;
-};
-
-/** A day record as devices send and receive it. */
-export type SyncedDay = {
-  habitId: string;
-  day: string;
-  logged: boolean;
-  edited: number;
-  changeId: string;
-};
-
-export type Pushed = { habits: SyncedHabit[]; days: SyncedDay[] };
-export type Pulled = Pushed & {
-  /** the server version to pull from next time */
-  version: number;
-  /** more rows wait past `version`: pull again */
-  more: boolean;
-};
-
-/** The most rows one push may carry; devices send larger changes in several pushes. */
-const PUSH_LIMIT = 200;
 /** The most rows one pull returns. */
 const PULL_LIMIT = 500;
 
 type HabitRow = typeof habits.$inferSelect;
 
 /** Where a habit row keeps each field's value, edit time and change id. */
-const FIELD_KEYS: Record<Field, [keyof HabitRow, keyof HabitRow, keyof HabitRow]> = {
+const FIELD_KEYS: Record<EditableField, [keyof HabitRow, keyof HabitRow, keyof HabitRow]> = {
   name: ["name", "nameEdited", "nameChangeId"],
   color: ["color", "colorEdited", "colorChangeId"],
   goal: ["goal", "goalEdited", "goalChangeId"],
@@ -73,26 +36,26 @@ const FIELD_KEYS: Record<Field, [keyof HabitRow, keyof HabitRow, keyof HabitRow]
 const habitColumn = getTableColumns(habits);
 /** Each field's value, edit-time and change-id columns. */
 const FIELD_COLUMNS = Object.fromEntries(
-  FIELDS.map((field) => [field, FIELD_KEYS[field].map((key) => habitColumn[key])]),
-) as unknown as Record<Field, [SQLiteColumn, SQLiteColumn, SQLiteColumn]>;
+  EDITABLE_FIELDS.map((field) => [field, FIELD_KEYS[field].map((key) => habitColumn[key])]),
+) as unknown as Record<EditableField, [SQLiteColumn, SQLiteColumn, SQLiteColumn]>;
 
 const columnName = (column: SQLiteColumn) => sql`${sql.identifier(column.name)}`;
 /** The stored row's column, inside an upsert. */
 const stored = (column: SQLiteColumn) =>
   sql`${sql.identifier(getTableName(column.table))}.${columnName(column)}`;
-/** The pushed row's column, inside an upsert. */
-const pushed = (column: SQLiteColumn) => sql`excluded.${columnName(column)}`;
+/** The incoming row's column, the one the push carried, inside an upsert. */
+const incoming = (column: SQLiteColumn) => sql`excluded.${columnName(column)}`;
 
 /**
  * Whether the pushed edit is later than the stored one: by edit time, then by change id, so two
  * devices that edited at the same moment still agree on one winner.
  */
 const later = (edited: SQLiteColumn, changeId: SQLiteColumn) =>
-  sql`(${pushed(edited)}, ${pushed(changeId)}) > (${stored(edited)}, ${stored(changeId)})`;
+  sql`(${incoming(edited)}, ${incoming(changeId)}) > (${stored(edited)}, ${stored(changeId)})`;
 
 /** The pushed value of `column` where `wins`, the stored one otherwise. */
 const takeIf = (wins: SQL, column: SQLiteColumn) =>
-  sql`CASE WHEN ${wins} THEN ${pushed(column)} ELSE ${stored(column)} END`;
+  sql`CASE WHEN ${wins} THEN ${incoming(column)} ELSE ${stored(column)} END`;
 
 /**
  * The rows of a push, read from one JSON parameter (flat objects keyed by column name), in the
@@ -139,12 +102,14 @@ export async function push(
       set: { version: sql`${syncVersions.version} + ${count}` },
     });
 
-  const fieldWins = FIELDS.map((field) => later(FIELD_COLUMNS[field][1], FIELD_COLUMNS[field][2]));
+  const fieldWins = EDITABLE_FIELDS.map((field) =>
+    later(FIELD_COLUMNS[field][1], FIELD_COLUMNS[field][2]),
+  );
   const habitRows = pushedHabits.map((habit) => ({
     [habits.id.name]: habit.id,
     [habits.kind.name]: habit.kind,
     ...Object.fromEntries(
-      FIELDS.flatMap((field) => {
+      EDITABLE_FIELDS.flatMap((field) => {
         const [value, edited, changeId] = FIELD_COLUMNS[field];
         return [
           [value.name, habit[field]],
@@ -156,7 +121,7 @@ export async function push(
     [habits.deleted.name]: habit.deleted,
   }));
   const habitsChanged = sql.join(
-    [...fieldWins, sql`${pushed(habits.deleted)} > ${stored(habits.deleted)}`],
+    [...fieldWins, sql`${incoming(habits.deleted)} > ${stored(habits.deleted)}`],
     sql` OR `,
   );
   const upsertHabits = db
@@ -166,12 +131,12 @@ export async function push(
       target: [habits.userId, habits.id],
       set: {
         ...Object.fromEntries(
-          FIELDS.flatMap((field, i) =>
+          EDITABLE_FIELDS.flatMap((field, i) =>
             FIELD_KEYS[field].map((key) => [key, takeIf(fieldWins[i], habitColumn[key])]),
           ),
         ),
-        deleted: sql`MAX(${stored(habits.deleted)}, ${pushed(habits.deleted)})`,
-        version: sql`CASE WHEN ${habitsChanged} THEN ${pushed(habits.version)} ELSE ${stored(habits.version)} END`,
+        deleted: sql`MAX(${stored(habits.deleted)}, ${incoming(habits.deleted)})`,
+        version: sql`CASE WHEN ${habitsChanged} THEN ${incoming(habits.version)} ELSE ${stored(habits.version)} END`,
       },
     });
 
@@ -203,20 +168,31 @@ export async function push(
 /**
  * Every habit and day record of the account changed after server version `since`, deleted habits
  * included, oldest change first, a page of at most `PULL_LIMIT` rows at a time.
+ *
+ * A `since` beyond the account's latest version is from before the account's data was made anew,
+ * such as the account or the database being recreated: the device saw versions this data never
+ * had, so the pull starts again from the beginning, and the device gets all of it.
  */
 export async function pull(db: Database, userId: string, since: number) {
   const limit = PULL_LIMIT;
-  const [habitRows, dayRows] = await db.batch([
+  const latest = sql`COALESCE((SELECT ${syncVersions.version} FROM ${syncVersions} WHERE ${syncVersions.userId} = ${userId}), 0)`;
+  const after = sql`CASE WHEN ${since} > ${latest} THEN 0 ELSE ${since} END`;
+  // one batch, so the latest version and the rows are read together
+  const [versions, habitRows, dayRows] = await db.batch([
+    db
+      .select({ version: syncVersions.version })
+      .from(syncVersions)
+      .where(eq(syncVersions.userId, userId)),
     db
       .select()
       .from(habits)
-      .where(and(eq(habits.userId, userId), gt(habits.version, since)))
+      .where(and(eq(habits.userId, userId), gt(habits.version, after)))
       .orderBy(asc(habits.version))
       .limit(limit + 1),
     db
       .select()
       .from(dayRecords)
-      .where(and(eq(dayRecords.userId, userId), gt(dayRecords.version, since)))
+      .where(and(eq(dayRecords.userId, userId), gt(dayRecords.version, after)))
       .orderBy(asc(dayRecords.version))
       .limit(limit + 1),
   ]);
@@ -227,18 +203,20 @@ export async function pull(db: Database, userId: string, since: number) {
     ...dayRows.map((row) => ({ version: row.version, day: row })),
   ].sort((a, b) => a.version - b.version);
   const page = changes.slice(0, limit);
+  // where the rows were read from, as `after` put it, for a pull that found none
+  const from = since > (versions[0]?.version ?? 0) ? 0 : since;
   return {
     habits: page.flatMap((c) => ("habit" in c ? [syncedHabit(c.habit)] : [])),
     days: page.flatMap((c) => ("day" in c ? [syncedDay(c.day)] : [])),
-    version: page.at(-1)?.version ?? since,
+    version: page.at(-1)?.version ?? from,
     more: changes.length > limit,
   } satisfies Pulled;
 }
 
 function syncedHabit(row: HabitRow): SyncedHabit {
-  const edited = {} as Record<Field, number>;
-  const changeIds = {} as Record<Field, string>;
-  for (const field of FIELDS) {
+  const edited = {} as Record<EditableField, number>;
+  const changeIds = {} as Record<EditableField, string>;
+  for (const field of EDITABLE_FIELDS) {
     const [, editedKey, changeIdKey] = FIELD_KEYS[field];
     edited[field] = row[editedKey] as number;
     changeIds[field] = row[changeIdKey] as string;
@@ -286,7 +264,7 @@ const isArchivedPeriod = (value: unknown) =>
   (value.restoredOn === null || matches(DAY, value.restoredOn));
 
 /** What each field may hold: far more than the app writes, to keep out only what no device sends. */
-const VALID_VALUE: Record<Field, (value: unknown) => boolean> = {
+const VALID_VALUE: Record<EditableField, (value: unknown) => boolean> = {
   name: (v) => typeof v === "string" && v.length > 0 && v.length <= 1000,
   color: (v) => matches(/^[a-z-]{1,32}$/, v),
   goal: (v) => v === null || (Number.isSafeInteger(v) && (v as number) > 0),
@@ -303,12 +281,14 @@ const isHabit = (value: unknown): value is SyncedHabit =>
   typeof value.deleted === "boolean" &&
   isObject(value.edited) &&
   isObject(value.changeIds) &&
-  FIELDS.every(
+  EDITABLE_FIELDS.every(
     (field) =>
       VALID_VALUE[field](value[field]) &&
       isTime((value.edited as Record<string, unknown>)[field]) &&
       matches(CHANGE_ID, (value.changeIds as Record<string, unknown>)[field]),
-  );
+  ) &&
+  // a quit habit can't be counted without its quit day, and a build habit has none
+  (value.kind === "quit") === (value.quitDay !== null);
 
 const isDay = (value: unknown): value is SyncedDay =>
   isObject(value) &&
@@ -317,9 +297,6 @@ const isDay = (value: unknown): value is SyncedDay =>
   typeof value.logged === "boolean" &&
   isTime(value.edited) &&
   matches(CHANGE_ID, value.changeId);
-
-/** Where in a push the rows the server couldn't read were: their places in each list. */
-export type Refused = { habits: number[]; days: number[] };
 
 /**
  * The rows of a push the server can store, and where the ones it can't were, or why it takes none

@@ -1,0 +1,16 @@
+{
+  "name": "@streakky/contract",
+  "version": "0.0.0",
+  "private": true,
+  "description": "What the API Worker and the web app agree on over HTTP: sync's rows and limits, and sign-in's paths, code and errors.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@streakky/core": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "catalog:"
+  }
+}

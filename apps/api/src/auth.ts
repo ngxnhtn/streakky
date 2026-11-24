@@ -1,12 +1,7 @@
+import { AUTH_PATH, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { bearer, emailOTP } from "better-auth/plugins";
-
-/** Where the Worker serves better-auth. */
-export const AUTH_PATH = "/api/auth";
-
-/** How long a sign-in code works: better-auth's default, named so the email can say it. */
-export const CODE_MINUTES = 5;
 
 /** A sign-in code on its way to an allowlisted address. */
 export type SignInCode = { to: string; code: string };
@@ -37,14 +32,11 @@ export const DAILY_LIMITS: Record<string, number> = {
   "/sign-in/email-otp": 20,
 };
 
-/** The code a refused address gets after using up today's sign-in steps. */
-export const TOO_MANY_TODAY = "TOO_MANY_SIGN_IN_ATTEMPTS_TODAY";
-
-/** The code a refused address gets, which the app tells apart from other failures. */
-export const NOT_ALLOWED = "EMAIL_NOT_ALLOWED";
-
 const notAllowed = () =>
-  new APIError("FORBIDDEN", { code: NOT_ALLOWED, message: "This email address can't sign in." });
+  new APIError("FORBIDDEN", {
+    code: SIGN_IN_ERRORS.notAllowed,
+    message: "This email address can't sign in.",
+  });
 
 /**
  * Sign-in for Streakky (ADR-0003): a 6-digit code by email, only for allowlisted addresses, and
@@ -75,7 +67,8 @@ export function authOptions(config: AuthConfig) {
     },
     plugins: [
       emailOTP({
-        expiresIn: CODE_MINUTES * 60,
+        otpLength: SIGN_IN_CODE.length,
+        expiresIn: SIGN_IN_CODE.minutes * 60,
         storeOTP: "hashed",
         sendVerificationOTP: ({ email, otp }) => config.sendCode({ to: email, code: otp }),
       }),
@@ -98,22 +91,23 @@ export function authOptions(config: AuthConfig) {
         const body: unknown = ctx.body;
         if (typeof body !== "object" || body === null || !("email" in body)) return;
         if (!isAllowed(body.email)) throw notAllowed();
-        const limit = DAILY_LIMITS[ctx.path];
-        if (limit && config.countAttempt) {
-          const count = await config.countAttempt(String(body.email).toLowerCase(), ctx.path);
-          if (count > limit) {
-            throw new APIError("TOO_MANY_REQUESTS", {
-              code: TOO_MANY_TODAY,
-              message: "Too many sign-in tries for this address today. Try again tomorrow.",
-            });
-          }
-        }
+        // refused before it's counted, so a request no app sends can't use up the day's steps
         if (
           ctx.path === "/email-otp/send-verification-otp" &&
           "type" in body &&
           body.type !== "sign-in"
         ) {
           throw new APIError("BAD_REQUEST", { message: "Only sign-in codes are sent." });
+        }
+        const limit = DAILY_LIMITS[ctx.path];
+        if (limit && config.countAttempt) {
+          const count = await config.countAttempt(String(body.email).toLowerCase(), ctx.path);
+          if (count > limit) {
+            throw new APIError("TOO_MANY_REQUESTS", {
+              code: SIGN_IN_ERRORS.limitToday,
+              message: "Too many sign-in tries for this address today. Try again tomorrow.",
+            });
+          }
         }
       }),
     },

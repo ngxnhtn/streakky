@@ -84,3 +84,13 @@ Settings shows whether I'm synced and when I last synced. This ticket covers hab
 **For 17:** the bearer push skips the origin check; CORS for `https://localhost` and `trustedOrigins` are still to do.
 
 **Code review (standards and spec, by sub-agents).** Fixed: a record the server couldn't read stopped all sync on that device (now skipped and kept waiting); the origin check would have refused the Android app's bearer requests; no sign of a failed sync in Settings; the sync tests used the real date; the reorder test checked sync's bookkeeping fields; column names for change ids; a duplicated day key; unused exports. Left: the "signed out never syncs" test watches the network calls, since that's what the criterion is about; the push and pull row types are written out on both sides of HTTP, as the sign-in calls are; goals reached on another device still celebrate once here, as ticket 06 allows ("on this device").
+
+**Follow-up (2026-11-24): whole-codebase code review, data and server side.** Notes for later tickets:
+
+- **Where things are now.** The wire shapes, the editable fields, `PUSH_LIMIT`, the push answer, the auth and sync paths and sign-in's code and error codes live in `packages/contract` (`@streakky/contract`), which the Worker and the web app both import. In the web store, `records.ts` holds the record types, `dayKey`, `byOrder` and the collection options; `device-state.ts` the settings and celebrations; `key-value.ts` the key-value storage type and its JSON read and write. `habit-store.ts` re-exports every name it had.
+- **Celebrations.** A pull tells the store which habits got their goal or quit day from the server, or are new on the device; their reached goals are kept as celebrated before anything shows them. Check-ins and slip-free days from another device may still celebrate here once.
+- **Cursor.** A pull with a version beyond the account's latest starts from 0, and so does a device with no records but a saved version.
+- **Push.** A quit habit without a quit day, or a build habit with one, is refused.
+- **Session.** The sync routes forward the cookie better-auth sets when it renews a session (once a day of use), so a device that mostly syncs stays signed in a year from its last use.
+- **Reorder.** Moving a habit just after one that shares its position with others first gives those positions of their own.
+- **Harness.** `withRecordsLost(storage)` is a device that lost its habit database but kept its key-value storage and cookies; `signedInDevice(email, options, { at })` signs in on another server. `storedHabits` is gone: tests check what devices show.

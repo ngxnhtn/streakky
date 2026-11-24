@@ -5,12 +5,13 @@ const owner = "owner@example.com";
 // addresses of their own, so one test's attempts don't count against another's
 const someone = "someone@example.com";
 const other = "other@example.com";
+const refusedFirst = "refused-first@example.com";
 
 let worker: RunningWorker;
 beforeAll(async () => {
   worker = await startWorker(
     { "index.html": "<!doctype html>" },
-    { allowlist: [owner, someone, other] },
+    { allowlist: [owner, someone, other, refusedFirst] },
   );
 });
 afterAll(() => worker?.stop());
@@ -66,6 +67,22 @@ describe("guessing a sign-in code from many addresses", () => {
       statuses.push(res.status);
     }
     expect([statuses.slice(0, 10).every((s) => s === 200), statuses[10]]).toEqual([true, 429]);
+  });
+
+  it("doesn't count a refused request for another kind of code against the day's ten", async () => {
+    const statuses: number[] = [];
+    for (const type of [...Array(10).fill("email-verification"), ...Array(10).fill("sign-in")]) {
+      const res = await post(
+        "/api/auth/email-otp/send-verification-otp",
+        { email: refusedFirst, type },
+        anotherIp(),
+      );
+      statuses.push(res.status);
+    }
+    expect([statuses.slice(0, 10), statuses.slice(10)]).toEqual([
+      Array(10).fill(400),
+      Array(10).fill(200),
+    ]);
   });
 
   it("stops sign-in tries for an address after twenty in a day, whatever IP tries", async () => {

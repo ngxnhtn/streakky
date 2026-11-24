@@ -19,16 +19,17 @@ export function fromISO(s: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** A day given either way: as a date, or as YYYY-MM-DD. */
+const asDate = (d: Date | string): Date => (typeof d === "string" ? fromISO(d) : d);
+
 export function addDays(d: Date | string, n: number): Date {
-  const out = typeof d === "string" ? fromISO(d) : new Date(d);
+  const out = new Date(asDate(d));
   out.setDate(out.getDate() + n);
   return out;
 }
 
 export function daysBetween(a: Date | string, b: Date | string): number {
-  const x = typeof a === "string" ? fromISO(a) : a;
-  const y = typeof b === "string" ? fromISO(b) : b;
-  return Math.round((y.getTime() - x.getTime()) / DAY);
+  return Math.round((asDate(b).getTime() - asDate(a).getTime()) / DAY);
 }
 
 export const todayISO = () => toISO(today());
@@ -45,10 +46,8 @@ const longDate = new Intl.DateTimeFormat("en-GB", {
 });
 const dayMonth = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" });
 
-export const fmtShort = (d: Date | string) =>
-  shortDate.format(typeof d === "string" ? fromISO(d) : d).replace(",", "");
+export const fmtShort = (d: Date | string) => shortDate.format(asDate(d)).replace(",", "");
 export const fmtLong = (d: Date) => longDate.format(d).replace(",", "");
-export const fmtDayMonth = (d: Date | string) =>
-  dayMonth.format(typeof d === "string" ? fromISO(d) : d);
+export const fmtDayMonth = (d: Date | string) => dayMonth.format(asDate(d));
 
 export const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;

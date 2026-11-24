@@ -1,30 +1,39 @@
 import { createCollection } from "@tanstack/db";
-import {
-  persistedCollectionOptions,
-  type PersistedCollectionPersistence,
-} from "@tanstack/db-sqlite-persistence-core";
-import { generateKeyBetween } from "fractional-indexing";
+import type { PersistedCollectionPersistence } from "@tanstack/db-sqlite-persistence-core";
+import { generateKeyBetween, generateNKeysBetween } from "fractional-indexing";
 import {
   canBeQuitDay,
   canToggle,
-  celebrated,
-  celebrationDue as isCelebrationDue,
-  defaultSettings,
   GOALS,
   goalReached,
   HABIT_COLORS,
-  PALETTES,
+  HABIT_NAME_MAX_LENGTH,
   slipsRemovedByMovingQuitDay,
   todayISO,
   type ArchivedPeriod,
-  type Celebrated,
   type ColorId,
   type Habit,
-  type Kind,
   type Settings,
 } from "@streakky/core";
 import { toExportFile, type ExportFile } from "./export.ts";
 import { openAccount, type ApiFetch, type SyncStatus } from "./account.ts";
+import {
+  celebrationDue as isCelebrationDue,
+  markCelebrated as keepCelebrated,
+  readSettings,
+  writeSettings,
+} from "./device-state.ts";
+import type { KeyValueStorage } from "./key-value.ts";
+import {
+  archivedPeriodsOf,
+  byOrder,
+  dayCollectionOptions,
+  dayKey,
+  EDITABLE_FIELDS,
+  habitCollectionOptions,
+  type EditableField,
+  type HabitRecord,
+} from "./records.ts";
 import { DEFAULT_TIMING, openSync, type SyncTiming } from "./sync.ts";
 
 export {
@@ -34,86 +43,15 @@ export {
   type SignInFailure,
   type SyncStatus,
 } from "./account.ts";
-
-/**
- * The habit fields a device can change; each keeps the device time of its last change, for sync.
- * `archived` and `archivedPeriods` only ever change together, with one edit time.
- */
-export const EDITABLE_FIELDS = [
-  "name",
-  "color",
-  "goal",
-  "quitDay",
-  "archived",
-  "archivedPeriods",
-  "order",
-] as const;
-export type EditableField = (typeof EDITABLE_FIELDS)[number];
-
-/** A habit as the device stores and syncs it. */
-export type HabitRecord = {
-  /** generated on the device */
-  id: string;
-  /** fixed at creation */
-  kind: Kind;
-  name: string;
-  color: ColorId;
-  goal: number | null;
-  /** YYYY-MM-DD, quit habits only */
-  quitDay: string | null;
-  archived: boolean;
-  /**
-   * Every time it was archived, oldest first, the last one open (`restoredOn: null`) while it's
-   * archived. Archiving and restoring write it with `archived`, at the same edit time, so when
-   * devices merge, the two come from the same device's edit (ADR-0002). Records stored before it
-   * came have none, and read as having no archived periods.
-   */
-  archivedPeriods?: ArchivedPeriod[];
-  /** fractional position, so a reorder changes only one habit */
-  order: string;
-  /** tombstone: once true, never false again, whatever else changed later (ADR-0002) */
-  deleted: boolean;
-  /**
-   * The device time of each editable field's last change. Records stored before `archivedPeriods`
-   * came have no time for it: read it as `archived`'s, since the two change together.
-   */
-  edited: Record<Exclude<EditableField, "archivedPeriods">, number> & { archivedPeriods?: number };
-  /**
-   * The id of each editable field's last change, which breaks a tie in edit time when devices
-   * merge. Records stored before sync have none, and count as the lowest.
-   */
-  changeIds?: Partial<Record<EditableField, string>>;
-  /** Device-local: whether a change waits for a push. Records stored before sync do. */
-  pending?: boolean;
-};
-
-/**
- * A record's archived periods as the device counts them: none on a record stored before they were
- * kept, and an open one only while the habit is archived, as archiving and restoring leave them.
- */
-const archivedPeriodsOf = (h: HabitRecord): ArchivedPeriod[] =>
-  (h.archivedPeriods ?? []).filter((p) => p.restoredOn !== null || h.archived);
-
-/**
- * One habit's day: a check-in (build) or a slip (quit) while `logged`. Removing one writes
- * `logged: false` instead of deleting the record, so the later edit can win when devices sync.
- * A habit and a day together identify the record.
- */
-export type DayRecord = {
-  habitId: string;
-  /** YYYY-MM-DD */
-  day: string;
-  logged: boolean;
-  /** device time of the last change */
-  edited: number;
-  /** the id of the last change, which breaks a tie in edit time; none before sync */
-  changeId?: string;
-  /** Device-local: whether a change waits for a push. Records stored before sync do. */
-  pending?: boolean;
-};
-
-/** A day record's key: its habit and its day. */
-export const dayKey = ({ habitId, day }: { habitId: string; day: string }) => `${habitId}/${day}`;
+export { readSettings } from "./device-state.ts";
+export type { KeyValueStorage } from "./key-value.ts";
+export {
+  dayKey,
+  EDITABLE_FIELDS,
+  type DayRecord,
+  type EditableField,
+  type HabitRecord,
+} from "./records.ts";
 
 /** `goal` is one of core's `GOALS`, or none when null or left out. */
 type NewHabitBase = { name: string; color: ColorId; goal?: number | null };
@@ -127,11 +65,16 @@ export type HabitEdit = { name?: string; color?: ColorId; goal?: number | null }
 
 /** What the screens use: commands that change habits, and the habits as the core model sees them. */
 export type HabitStore = {
+  /**
+   * Adds a habit after every other. Throws for an empty name or one longer than core's
+   * `HABIT_NAME_MAX_LENGTH`, a colour that isn't one of core's `HABIT_COLORS`, a goal that isn't
+   * one of its `GOALS`, or a quit day that hasn't come.
+   */
   createHabit(input: NewHabit): Promise<void>;
   /**
    * Renames a habit, changes its colour, or sets, changes or removes (null) its goal. Only fields
    * that differ from the habit's change, so a sync keeps another device's edits to the others.
-   * Throws for an empty name or a goal that isn't one of core's `GOALS`. Only on an active habit.
+   * Throws for a name, colour or goal that `createHabit` would refuse. Only on an active habit.
    */
   editHabit(habitId: string, change: HabitEdit): Promise<void>;
   /**
@@ -148,8 +91,11 @@ export type HabitStore = {
   toggleDay(habitId: string, day?: string): Promise<void>;
   /**
    * Reorders: puts an active habit just after another active habit (`after`), or first with
-   * null. Only the moved habit's order position changes. Does nothing if either one isn't active.
-   * The first move that changes the order also dismisses Home's reorder hint on this device.
+   * null. Only the moved habit's order position changes, unless `after` shares its position with
+   * other habits, as two devices adding a habit after the same one offline leave them: those get
+   * positions of their own first, in the order they show in. Does nothing if either one isn't
+   * active. The first move that changes the order also dismisses Home's reorder hint on this
+   * device.
    */
   moveHabit(habitId: string, after: string | null): Promise<void>;
   /**
@@ -185,7 +131,9 @@ export type HabitStore = {
   /**
    * Keeps on this device that the habit's current streak has had its celebration for its goal,
    * so it plays once. Setting a goal the streak already reaches, or moving the quit day so that it
-   * does, marks it too: those edits don't celebrate.
+   * does, marks it too, here and on the devices it syncs to: those edits don't celebrate. So does
+   * a habit reaching a device by sync with its goal already reached. Check-ins and slip-free days
+   * from another device may still celebrate here once.
    */
   markCelebrated(habit: Habit): void;
   /**
@@ -217,12 +165,6 @@ export type HabitStore = {
   close(): Promise<void>;
 };
 
-/**
- * Device-local key-value storage, such as the browser's localStorage. Device settings live here,
- * apart from the habit and day records, so they are never synced and they survive sign-out.
- */
-export type KeyValueStorage = Pick<Storage, "getItem" | "setItem">;
-
 export type HabitStoreOptions = {
   persistence: PersistedCollectionPersistence;
   keyValueStorage: KeyValueStorage;
@@ -239,85 +181,28 @@ export type HabitStoreOptions = {
   syncTriggers?: (sync: () => void) => () => void;
 };
 
-const SETTINGS_KEY = "streakky.settings";
-/** The goals this device has celebrated, by habit id: device-local, like the settings. */
-const CELEBRATIONS_KEY = "streakky.celebrations";
-
-/** What each setting may hold; anything else in storage is ignored. */
-const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
-  theme: (v) => v === "system" || v === "light" || v === "dark",
-  palette: (v) => PALETTES.some((p) => p.id === v),
-  layout: (v) => v === "grid" || v === "list",
-  weekStart: (v) => v === 0 || v === 1,
-  reminder: (v) => typeof v === "boolean",
-  reminderTime: (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
-  celebrate: (v) => typeof v === "boolean",
-  signedOutNoteDismissed: (v) => typeof v === "boolean",
-  reorderHintDismissed: (v) => typeof v === "boolean",
-};
-
 /**
- * The stored settings this version recognises, over `fallback` (the defaults when opening), so
- * settings added later start at their default and damaged values are dropped. Unreadable or
- * blocked storage gives `fallback` rather than failing.
+ * Throws for a habit field the store won't write, whether making a habit or editing one: a name
+ * that's empty or longer than core's `HABIT_NAME_MAX_LENGTH`, a colour that isn't one of core's
+ * `HABIT_COLORS`, or a goal that isn't one of its `GOALS` (or none). Fields left out are fine.
  */
-export function readSettings(storage: KeyValueStorage, fallback = defaultSettings): Settings {
-  try {
-    const stored: unknown = JSON.parse(storage.getItem(SETTINGS_KEY) ?? "{}");
-    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return fallback;
-    const valid = Object.entries(stored).filter(
-      ([key, value]) => key in SETTING_VALUES && SETTING_VALUES[key as keyof Settings](value),
-    );
-    return { ...fallback, ...Object.fromEntries(valid) };
-  } catch {
-    return fallback;
+function checkHabit({ name, color, goal }: HabitEdit) {
+  if (name !== undefined && !name.trim()) throw new Error("A habit's name can't be empty.");
+  if (name !== undefined && name.length > HABIT_NAME_MAX_LENGTH) {
+    throw new Error(`A habit's name can be at most ${HABIT_NAME_MAX_LENGTH} characters.`);
+  }
+  if (color !== undefined && !HABIT_COLORS.some((c) => c.id === color)) {
+    throw new Error(`"${color}" isn't a habit colour.`);
+  }
+  if (goal !== undefined && goal !== null && !GOALS.includes(goal)) {
+    throw new Error(`A goal must be one of ${GOALS.join(", ")} days, not ${goal}.`);
   }
 }
 
-function writeSettings(storage: KeyValueStorage, settings: Settings) {
-  try {
-    storage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-  } catch {
-    // full or blocked storage: the change still applies until the app is reopened
-  }
+/** Throws for a day that can't be a quit habit's quit day: one that hasn't come, or isn't a day. */
+function checkQuitDay(day: string) {
+  if (!canBeQuitDay(day)) throw new Error(`A quit day must be today or a past day, not "${day}".`);
 }
-
-type Celebrations = Record<string, Celebrated>;
-
-/** The celebrations kept on this device; unreadable or damaged entries are dropped. */
-function readCelebrations(storage: KeyValueStorage): Celebrations {
-  try {
-    const stored: unknown = JSON.parse(storage.getItem(CELEBRATIONS_KEY) ?? "{}");
-    if (typeof stored !== "object" || stored === null || Array.isArray(stored)) return {};
-    return Object.fromEntries(
-      Object.entries(stored as Record<string, Partial<Celebrated> | null>).filter(
-        ([, kept]) => typeof kept?.goal === "number" && typeof kept.start === "string",
-      ),
-    ) as Celebrations;
-  } catch {
-    return {};
-  }
-}
-
-function writeCelebrations(storage: KeyValueStorage, celebrations: Celebrations) {
-  try {
-    storage.setItem(CELEBRATIONS_KEY, JSON.stringify(celebrations));
-  } catch {
-    // full or blocked storage: a celebration may play again once the app is reopened
-  }
-}
-
-const isGoal = (goal: number | null) => goal === null || GOALS.includes(goal);
-
-const goalError = (goal: number | null) =>
-  new Error(`A goal must be one of ${GOALS.join(", ")} days, not ${goal}.`);
-
-/**
- * The person's order. Two devices adding a habit after the same one offline give both the same
- * position, so ties fall back to the id, the same on every device.
- */
-const byOrder = (a: HabitRecord, b: HabitRecord) =>
-  a.order < b.order ? -1 : a.order > b.order ? 1 : a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 
 export async function openHabitStore({
   persistence,
@@ -327,22 +212,8 @@ export async function openHabitStore({
   timing,
   syncTriggers,
 }: HabitStoreOptions): Promise<HabitStore> {
-  const habitRecords = createCollection(
-    persistedCollectionOptions<HabitRecord, string>({
-      id: "habits",
-      getKey: (h) => h.id,
-      persistence,
-      schemaVersion: 1,
-    }),
-  );
-  const dayRecords = createCollection(
-    persistedCollectionOptions<DayRecord, string>({
-      id: "days",
-      getKey: dayKey,
-      persistence,
-      schemaVersion: 1,
-    }),
-  );
+  const habitRecords = createCollection(habitCollectionOptions(persistence));
+  const dayRecords = createCollection(dayCollectionOptions(persistence));
   await Promise.all([habitRecords.preload(), dayRecords.preload()]);
   let settings = readSettings(keyValueStorage);
 
@@ -350,20 +221,51 @@ export async function openHabitStore({
   let archivedSnapshot: Habit[] | null = null;
   let statusSnapshot: SyncStatus | null = null;
   const listeners = new Set<() => void>();
-  const notify = () => {
+  const statusChanged = () => {
     statusSnapshot = null;
     for (const listener of listeners) listener();
   };
-  const changed = () => {
+  const habitsChanged = () => {
     snapshot = null;
     archivedSnapshot = null;
-    notify();
+    statusChanged();
   };
   const subscriptions = [
-    habitRecords.subscribeChanges(changed),
-    dayRecords.subscribeChanges(changed),
+    habitRecords.subscribeChanges(habitsChanged),
+    dayRecords.subscribeChanges(habitsChanged),
   ];
-  const account = openAccount({ api, storage: keyValueStorage, changed: notify });
+  const toHabits = (records: HabitRecord[]): Habit[] => {
+    const logged = new Map<string, string[]>();
+    for (const d of dayRecords.toArray) {
+      if (d.logged) logged.set(d.habitId, [...(logged.get(d.habitId) ?? []), d.day]);
+    }
+    return records.flatMap((h): Habit[] => {
+      const days = (logged.get(h.id) ?? []).sort();
+      const base = {
+        id: h.id,
+        name: h.name,
+        color: h.color,
+        goal: h.goal,
+        archivedPeriods: archivedPeriodsOf(h),
+      };
+      if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
+      // a quit habit can't be counted without its quit day; the store never writes one without
+      return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
+    });
+  };
+
+  const markCelebrated = (habit: Habit) => keepCelebrated(keyValueStorage, habit);
+
+  /**
+   * A goal set or a quit day moved on another device was set there, not reached here, so it
+   * doesn't celebrate on this device either; nor does a habit arriving with its goal reached.
+   */
+  const goalsSetElsewhere = (habitIds: ReadonlySet<string>) => {
+    const records = habitRecords.toArray.filter((h) => habitIds.has(h.id) && !h.deleted);
+    for (const habit of toHabits(records)) if (goalReached(habit)) markCelebrated(habit);
+  };
+
+  const account = openAccount({ api, storage: keyValueStorage, statusChanged });
   const signedInAs = () => {
     const status = account.status();
     return status.signedIn ? status.email : null;
@@ -377,8 +279,9 @@ export async function openHabitStore({
     now,
     timing: { ...DEFAULT_TIMING, ...timing },
     triggers: syncTriggers,
-    changed: notify,
+    statusChanged,
     sessionEnded: () => void account.checkSession(),
+    goalsSetElsewhere,
   });
   void account.checkSession();
   void sync.sync();
@@ -401,26 +304,6 @@ export async function openHabitStore({
    */
   const editTime = (...previous: (number | undefined)[]) =>
     Math.max(now(), ...previous.map((p) => (p ?? 0) + 1));
-
-  const toHabits = (records: HabitRecord[]): Habit[] => {
-    const logged = new Map<string, string[]>();
-    for (const d of dayRecords.toArray) {
-      if (d.logged) logged.set(d.habitId, [...(logged.get(d.habitId) ?? []), d.day]);
-    }
-    return records.flatMap((h): Habit[] => {
-      const days = (logged.get(h.id) ?? []).sort();
-      const base = {
-        id: h.id,
-        name: h.name,
-        color: h.color,
-        goal: h.goal,
-        archivedPeriods: archivedPeriodsOf(h),
-      };
-      if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
-      // a quit habit can't be counted without its quit day; the store never writes one without
-      return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
-    });
-  };
 
   const habits = () =>
     (snapshot ??= toHabits(
@@ -453,6 +336,34 @@ export async function openHabitStore({
     await saved(tx);
   };
 
+  /** The first position after `position` (any, with null) of a habit other than `habitId`. */
+  const nextPosition = (position: string | null, habitId: string): string | null =>
+    habitRecords.toArray
+      .filter((h) => h.id !== habitId && (position === null || h.order > position))
+      .toSorted(byOrder)[0]?.order ?? null;
+
+  /**
+   * Gives the habits that share `after`'s position positions of their own, in the order they show
+   * in, the first keeping its own, so that `moving` can go between two of them. Two devices adding
+   * a habit after the same one offline give both one position, and nothing fits between equal
+   * positions. Deleted habits keep theirs, as nothing edits a tombstone.
+   */
+  const separateTied = async (after: string, moving: string) => {
+    const position = habitRecords.get(after)?.order;
+    const tied = habitRecords.toArray
+      .filter((h) => h.id !== moving && !h.deleted && h.order === position)
+      .toSorted(byOrder);
+    if (position === undefined || tied.length < 2) return;
+    const positions = generateNKeysBetween(
+      position,
+      nextPosition(position, moving),
+      tied.length - 1,
+    );
+    for (const [i, habit] of tied.slice(1).entries()) {
+      await changeHabit(habit.id, { order: positions[i] });
+    }
+  };
+
   const archivedHabits = () =>
     (archivedSnapshot ??= toHabits(
       habitRecords.toArray.filter((h) => !h.deleted && h.archived).toSorted(byOrder),
@@ -472,20 +383,11 @@ export async function openHabitStore({
   const activeHabit = (habitId: string): Habit | undefined =>
     habits().find((h) => h.id === habitId);
 
-  const markCelebrated = (habit: Habit) => {
-    // onto what's stored, so another tab's celebrations stay
-    const celebrations = readCelebrations(keyValueStorage);
-    const kept = celebrated(habit, celebrations[habit.id] ?? null);
-    if (kept) writeCelebrations(keyValueStorage, { ...celebrations, [habit.id]: kept });
-  };
-
   return {
     async createHabit(input) {
       const { kind, name, color, goal = null } = input;
-      if (input.kind === "quit" && !canBeQuitDay(input.quitDay)) {
-        throw new Error(`A quit day must be today or a past day, not "${input.quitDay}".`);
-      }
-      if (!isGoal(goal)) throw goalError(goal);
+      checkHabit({ name, color, goal });
+      if (input.kind === "quit") checkQuitDay(input.quitDay);
       const id = crypto.randomUUID();
       if (input.kind === "quit") {
         // a quit day far enough back reaches the goal at once: a goal set, not reached, today
@@ -519,11 +421,7 @@ export async function openHabitStore({
       const record = habitRecords.get(habitId);
       const habit = activeHabit(habitId);
       if (!record || !habit) return;
-      if (name !== undefined && !name.trim()) throw new Error("A habit's name can't be empty.");
-      if (color !== undefined && !HABIT_COLORS.some((c) => c.id === color)) {
-        throw new Error(`"${color}" isn't a habit colour.`);
-      }
-      if (goal !== undefined && !isGoal(goal)) throw goalError(goal);
+      checkHabit({ name, color, goal });
       const change: Partial<Pick<HabitRecord, EditableField>> = {};
       if (name !== undefined && name !== record.name) change.name = name;
       if (color !== undefined && color !== record.color) change.color = color;
@@ -540,9 +438,7 @@ export async function openHabitStore({
       const habit = activeHabit(habitId);
       if (!habit) return;
       if (habit.kind !== "quit") throw new Error("Only a quit habit has a quit day.");
-      if (!canBeQuitDay(quitDay)) {
-        throw new Error(`A quit day must be today or a past day, not "${quitDay}".`);
-      }
+      checkQuitDay(quitDay);
       if (quitDay === habit.quitDay) return;
       const removed = slipsRemovedByMovingQuitDay(habit, quitDay);
       const moved: Habit = {
@@ -569,7 +465,7 @@ export async function openHabitStore({
       await saved(tx);
     },
     async toggleDay(habitId, day = todayISO()) {
-      const habit = habits().find((h) => h.id === habitId);
+      const habit = activeHabit(habitId);
       if (!habit || !canToggle(habit, day)) return;
       const key = dayKey({ habitId, day });
       const changeId = crypto.randomUUID();
@@ -596,16 +492,14 @@ export async function openHabitStore({
       const isShown = (id: string | null) => id === null || shown.some((h) => h.id === id);
       if (at === -1 || after === habitId || !isShown(after)) return;
       if ((shown[at - 1]?.id ?? null) === after) return; // already there
+      // the person has found reordering, so Home's hint about it can go
+      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
+      if (after !== null) await separateTied(after, habitId);
       // Just after `after`, before the next position of any other habit, shown or not: archived
       // and deleted habits keep positions between the shown ones. Strictly between two
       // neighbouring positions, the new one can't equal another habit's.
       const lower = after === null ? null : (habitRecords.get(after)?.order ?? null);
-      const upper =
-        habitRecords.toArray
-          .filter((h) => h.id !== habitId && (lower === null || h.order > lower))
-          .toSorted(byOrder)[0]?.order ?? null;
-      // the person has found reordering, so Home's hint about it can go
-      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
+      const upper = nextPosition(lower, habitId);
       await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
     },
     // Archiving and restoring always write `archived` and `archivedPeriods` together, so the two
@@ -644,8 +538,7 @@ export async function openHabitStore({
     changeSettings,
     habits,
     archivedHabits,
-    celebrationDue: (habit) =>
-      isCelebrationDue(habit, readCelebrations(keyValueStorage)[habit.id] ?? null),
+    celebrationDue: (habit) => isCelebrationDue(keyValueStorage, habit),
     markCelebrated,
     settings: () => settings,
     exportHabits() {

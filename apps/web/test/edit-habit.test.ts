@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import {
   currentStreakDays,
   goalDate,
+  HABIT_NAME_MAX_LENGTH,
   streaksOf,
   toISO,
+  type ColorId,
   type Habit,
   type QuitHabit,
 } from "@streakky/core";
@@ -87,6 +89,17 @@ describe("editing a habit on a device", () => {
     await device.createHabit(build("Morning run"));
     await expect(device.editHabit(only(device).id, { name: "  " })).rejects.toThrow();
     expect(only(device).name).toBe("Morning run");
+  });
+
+  it("refuses a name longer than a habit's name can be, and a colour that isn't one", async () => {
+    const device = await openDevice(createStorage());
+    await device.createHabit(build("Morning run"));
+    const { id } = only(device);
+    const longest = "a".repeat(HABIT_NAME_MAX_LENGTH);
+    await expect(device.editHabit(id, { name: `${longest}a` })).rejects.toThrow();
+    await expect(device.editHabit(id, { color: "purple" as ColorId })).rejects.toThrow();
+    await device.editHabit(id, { name: longest });
+    expect(only(device)).toMatchObject({ name: longest, color: "green" });
   });
 
   it("leaves an archived habit as it is until it's restored", async () => {

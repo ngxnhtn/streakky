@@ -7,6 +7,8 @@
     "test": "vp test"
   },
   "dependencies": {
+    "@streakky/contract": "workspace:*",
+    "@streakky/core": "workspace:*",
     "better-auth": "catalog:",
     "drizzle-orm": "catalog:",
     "hono": "catalog:"
