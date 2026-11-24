@@ -22,6 +22,19 @@ export default defineConfig({
         dependsOn: ["web#build"],
         cache: false,
       },
+      // writes the SQL migration for a change to src/db/schema.ts, the auth options or better-auth
+      // itself, after rewriting better-auth's tables in src/db/auth-schema.ts. Name it with
+      // `vp run api#db-generate --name <what-changed>`; it writes nothing when nothing changed.
+      // Wrangler applies migrations on deploy, in dev and in tests
+      "db-generate": {
+        command: "drizzle-kit generate",
+        dependsOn: ["auth-schema"],
+        cache: false,
+      },
+      "auth-schema": {
+        command: "vpx scripts/auth-schema.ts",
+        cache: false,
+      },
       // regenerates worker-configuration.d.ts after a change to wrangler.jsonc
       "cf-typegen": {
         command: "wrangler types --strict-vars=false",

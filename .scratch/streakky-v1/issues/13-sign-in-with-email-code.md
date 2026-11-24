@@ -116,3 +116,13 @@ Steps 1–7 are unverified: they need your accounts. Nothing here has contacted 
 - The signed-out note also shows on an empty Home, before any habit exists, as the criterion reads. It could wait for the first habit instead.
 
 - **Owner decisions (2026-11-24):** sessions last a year from last use (kept); the allowlist is a Worker secret; the signed-out note appears only once there's a habit.
+
+**Follow-up (2026-11-24): Drizzle manages D1.** The owner asked for Drizzle on the backend. This replaces "the D1 binding passed straight in as `database`" and the **Schema** note above:
+
+- better-auth now runs on its Drizzle adapter (`authDatabase` in `apps/api/src/db/database.ts`), over `drizzle-orm/d1` with the adapter's transactions off, since D1 has none. The auth options didn't change.
+- `scripts/auth-migration.ts`, `0002_auth.sql` and `0003_sign_in_attempts.sql` are gone. `scripts/auth-schema.ts` writes better-auth's tables as a Drizzle schema, `src/db/auth-schema.ts`, through the `auth` CLI's own generator (`auth/api`), from the Worker's options. `sign_in_attempts` is in `src/db/schema.ts`, and `countAttempt` is a Drizzle batch.
+- `vp run api#db-generate` runs both: it rewrites the auth schema, then drizzle-kit writes any migration that's needed. After changing the auth options or upgrading better-auth, run it and commit what it writes. Keep `auth` and `better-auth` on the same version (both are `^1.7.27` in the catalog).
+- Column names are now snake_case (`email_verified`, `user_id`) and dates are integer milliseconds. Nothing was deployed, so `0000_initial.sql` is a fresh baseline.
+- Checked: `vp test` (103 passed, 2 todo), `vp check`, a no-op second `db-generate`, `wrangler d1 migrations apply --local` on an empty database (only `0000_initial.sql`, `meta/` ignored), and `wrangler deploy --dry-run`: 376 KiB gzipped, from 336 KiB.
+
+**Owner decision (2026-11-24): codes come from `hb@nhutien.com`.** `SIGN_IN_EMAIL_FROM` is now `Streakky <hb@nhutien.com>`, which replaces `sign-in@hb.nhutien.com` everywhere above. Resend verifies the root domain `nhutien.com` instead of `hb.nhutien.com`: its records sit on `send.nhutien.com` and `resend._domainkey.nhutien.com`, and the API key is limited to `nhutien.com`.

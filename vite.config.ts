@@ -6,10 +6,21 @@ export default defineConfig({
   },
   fmt: {
     // vendored agent skills are pinned by hash in skills-lock.json; generated files are rewritten by their tools
-    ignorePatterns: [".agents/**", ".claude/**", "**/worker-configuration.d.ts"],
+    ignorePatterns: [
+      ".agents/**",
+      ".claude/**",
+      "**/worker-configuration.d.ts",
+      "apps/api/src/db/auth-schema.ts",
+      "apps/api/migrations/**",
+    ],
   },
   lint: {
-    ignorePatterns: [".agents/**", ".claude/**", "**/worker-configuration.d.ts"],
+    ignorePatterns: [
+      ".agents/**",
+      ".claude/**",
+      "**/worker-configuration.d.ts",
+      "apps/api/src/db/auth-schema.ts",
+    ],
     jsPlugins: [{ name: "vite-plus", specifier: "vite-plus/oxlint-plugin" }],
     rules: { "vite-plus/prefer-vite-plus-imports": "error" },
     options: { typeAware: true, typeCheck: true },

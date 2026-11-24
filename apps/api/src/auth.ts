@@ -12,7 +12,7 @@ export const CODE_MINUTES = 5;
 export type SignInCode = { to: string; code: string };
 
 export type AuthConfig = {
-  /** The D1 binding in the Worker; any SQLite database better-auth knows, for the schema script. */
+  /** better-auth's tables, through its Drizzle adapter (`authDatabase` in src/db/database.ts). */
   database: BetterAuthOptions["database"];
   /** The app's origin, such as https://hb.nhutien.com. */
   baseURL?: string;

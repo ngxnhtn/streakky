@@ -1,4 +1,7 @@
+import { lt, sql } from "drizzle-orm";
 import { AUTH_PATH, createAuth } from "./auth.ts";
+import { authDatabase, openDatabase, type Database } from "./db/database.ts";
+import { signInAttempts } from "./db/schema.ts";
 import { sendSignInCode } from "./email.ts";
 
 /**
@@ -19,7 +22,7 @@ export default {
 
 /** Healthy once the Worker has reached its D1 database. */
 async function health(env: Env): Promise<Response> {
-  await env.DB.prepare("SELECT 1").run();
+  await openDatabase(env.DB).run(sql`select 1`);
   return Response.json({ ok: true });
 }
 
@@ -33,15 +36,16 @@ let auth: { origin: string; instance: ReturnType<typeof createAuth> } | undefine
 function authFor(request: Request, env: Env) {
   const { origin } = new URL(request.url);
   if (auth?.origin !== origin) {
+    const db = openDatabase(env.DB);
     auth = {
       origin,
       instance: createAuth({
-        database: env.DB,
+        database: authDatabase(db),
         baseURL: origin,
         secret: env.BETTER_AUTH_SECRET,
         allowlist: env.SIGN_IN_ALLOWLIST,
         sendCode: (code) => sendSignInCode(env, code),
-        countAttempt: (email, path) => countAttempt(env.DB, email, path),
+        countAttempt: (email, path) => countAttempt(db, email, path),
       }),
     };
   }
@@ -49,18 +53,20 @@ function authFor(request: Request, env: Env) {
 }
 
 /** Counts a sign-in step for an address in today's row (UTC), dropping rows from before yesterday. */
-async function countAttempt(db: D1Database, email: string, path: string): Promise<number> {
+async function countAttempt(db: Database, email: string, path: string): Promise<number> {
   const day = Math.floor(Date.now() / 86_400_000);
-  const [, counted] = await db.batch<{ count: number }>([
-    db.prepare("DELETE FROM sign_in_attempts WHERE day < ?").bind(day - 1),
+  const [, counted] = await db.batch([
+    db.delete(signInAttempts).where(lt(signInAttempts.day, day - 1)),
     db
-      .prepare(
-        `INSERT INTO sign_in_attempts (email, path, day, count) VALUES (?, ?, ?, 1)
-         ON CONFLICT (email, path, day) DO UPDATE SET count = count + 1 RETURNING count`,
-      )
-      .bind(email, path, day),
+      .insert(signInAttempts)
+      .values({ email, path, day, count: 1 })
+      .onConflictDoUpdate({
+        target: [signInAttempts.email, signInAttempts.path, signInAttempts.day],
+        set: { count: sql`${signInAttempts.count} + 1` },
+      })
+      .returning({ count: signInAttempts.count }),
   ]);
-  return counted.results[0]?.count ?? 0;
+  return counted[0]?.count ?? 0;
 }
 
 /**

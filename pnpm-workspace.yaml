@@ -15,10 +15,13 @@ catalog:
   "@tanstack/node-db-sqlite-persistence": 1.0.0-rc.1.5
   "@types/better-sqlite3": ^9.6.0
   "@types/node": ^24
+  auth: ^1.7.27
   better-auth: ^1.7.27
   better-sqlite3: ^12.11.1
   class-variance-authority: ^0.7.1
   clsx: ^2.1.1
+  drizzle-kit: ^0.31.11
+  drizzle-orm: ^0.45.4
   fractional-indexing: ^4.0.0
   lucide-react: ^1.78.0
   radix-ui: ^1.8.1

@@ -32,7 +32,7 @@ describe("signing in with an email code", () => {
     const device = await newDevice();
     await device.requestSignInCode(partner);
     expect(emailsSentTo(server, partner).at(-1)).toMatchObject({
-      from: "Streakky <sign-in@hb.nhutien.com>",
+      from: "Streakky <hb@nhutien.com>",
       subject: `${codeSentTo(server, partner)} is your Streakky sign-in code`,
     });
   });

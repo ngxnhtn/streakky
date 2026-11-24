@@ -136,7 +136,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
 83. As the owner, I want to deploy the Worker, web app and database migrations with one command from my Mac, so that releasing is quick.
 84. As the owner, I want pushing a version tag to build, sign and publish the Android APK to a GitHub Release, so that I don't need the Android SDK just to ship.
 85. As the owner, I want everything to run within Cloudflare's free tiers and Resend's free tier, so that Streakky costs me nothing to run.
-86. As the owner, I want sign-in codes sent from an address on `hb.nhutien.com`, so that the emails come from my own domain.
+86. As the owner, I want sign-in codes sent from `hb@nhutien.com`, so that the emails come from my own domain.
 87. As the owner, I want sign-in attempts rate-limited by client IP, so that the email codes can't be brute-forced.
 88. As the owner, I want the design playground to keep building against the renamed domain model, so that I can keep tinkering with designs.
 
@@ -225,13 +225,13 @@ type DayRecord = {
 
 ### Auth
 
-- better-auth runs in the Worker on the D1 binding directly, with no adapter.
+- better-auth runs in the Worker on the D1 binding through its Drizzle adapter.
 - It uses two plugins: **email OTP** (6-digit codes, with better-auth's defaults for expiry and attempts) and **bearer**.
 - **Allowlist:**
   - It's a Worker secret listing allowed emails, starting with the owner's, so the repository never shows them.
   - Requests for other addresses are refused before any email is sent, and the app shows that the address can't sign in.
   - New accounts are only ever created for allowlisted addresses.
-- **Email:** codes are sent through Resend, from an address on `hb.nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.
+- **Email:** codes are sent through Resend, from `hb@nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.
 - **Web:** uses same-origin session cookies.
 - **Android:**
   - The WebView origin is `https://localhost`, so cookies would be third-party. The app uses bearer tokens instead.
@@ -242,7 +242,8 @@ type DayRecord = {
 ### D1
 
 - **Tables:** better-auth's tables, habits and day records. The habit and day-record tables carry the owning account and the server version.
-- **Migrations:** better-auth's schema is generated as SQL migration files and lives alongside our own migrations. D1 migrations are applied as part of deploy.
+- **Drizzle:** Drizzle defines every table and runs every query. better-auth's tables are generated as a Drizzle schema from the auth options and live next to our own.
+- **Migrations:** drizzle-kit generates the SQL migrations from the Drizzle schema. Wrangler applies them to D1 as part of deploy, in local development and in tests.
 
 ### Web layouts and PWA
 

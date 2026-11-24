@@ -1,2 +1,0 @@
--- Streakky's D1 schema starts empty. Sign-in (ticket 13) adds better-auth's tables, and sync
--- (ticket 14) adds habits and day records. Wrangler records applied migrations in d1_migrations.
