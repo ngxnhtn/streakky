@@ -88,6 +88,22 @@ function mergeHabit(local: HabitRecord | undefined, remote: SyncedHabit): HabitR
   return { ...merged, pending: ahead };
 }
 
+/**
+ * Whether a pulled habit gives this device its goal or its quit day: it's new here, or the server
+ * holds a later edit of either. Its goal was then set, or reached by moving the quit day, on
+ * another device, which doesn't celebrate that (glossary, "Celebration"), so neither does this one.
+ */
+function setsGoal(local: HabitRecord | undefined, remote: SyncedHabit): boolean {
+  if (!local) return true;
+  const mine = syncedHabit(local);
+  return (["goal", "quitDay"] as const).some((field) =>
+    later(
+      [remote.edited[field], remote.changeIds[field]],
+      [mine.edited[field], mine.changeIds[field]],
+    ),
+  );
+}
+
 function mergeDay(local: DayRecord | undefined, remote: SyncedDay): DayRecord {
   if (!local) return { ...remote, pending: false };
   const mine = syncedDay(local);
@@ -123,6 +139,7 @@ export function openSync({
   triggers,
   statusChanged,
   sessionEnded,
+  goalsSetElsewhere,
 }: {
   api: ApiFetch;
   habitRecords: Collection<HabitRecord, string>;
@@ -138,6 +155,12 @@ export function openSync({
   statusChanged: () => void;
   /** The server answered that this device isn't signed in. */
   sessionEnded: () => void;
+  /**
+   * The habits this pull gave a goal or a quit day from another device, or brought here for the
+   * first time. Called as soon as each page of pulled rows is in the collections, before anything
+   * can show them, so that the device can keep their reached goals as celebrated.
+   */
+  goalsSetElsewhere: (habitIds: ReadonlySet<string>) => void;
 }): Sync {
   /** The account's cursor; none, another account's, or an unreadable one starts from the beginning. */
   const readCursor = (email: string): Cursor =>
@@ -212,8 +235,16 @@ export function openSync({
     return true;
   };
 
-  /** Merges pulled rows into the device's records, all at once, so no edit lands in between. */
-  const applyPulled = async ({ habits, days }: Pulled) => {
+  /**
+   * Merges pulled rows into the device's records, all at once, so no edit lands in between. Adds
+   * to `setElsewhere` the habits whose goal or quit day comes from another device.
+   */
+  const applyPulled = async ({ habits, days }: Pulled, setElsewhere: Set<string>) => {
+    for (const remote of habits) {
+      if (!remote.deleted && setsGoal(habitRecords.get(remote.id), remote)) {
+        setElsewhere.add(remote.id);
+      }
+    }
     const writes: Promise<unknown>[] = [];
     const apply = <T extends object>(
       records: Collection<T, string>,
@@ -245,16 +276,21 @@ export function openSync({
       dayKey,
       days.map((remote) => ({ key: dayKey(remote), merged: (local) => mergeDay(local, remote) })),
     );
+    // the merged rows are in the collections already, waiting to be stored: nothing has shown
+    // them yet
+    goalsSetElsewhere(setElsewhere);
     await Promise.all(writes);
   };
 
   const pullChanges = async (email: string): Promise<boolean> => {
     let cursor = readCursor(email);
+    // across the pull's pages, since a new habit's days can come a page after it
+    const setElsewhere = new Set<string>();
     for (;;) {
       const response = await request(`${SYNC_PATH}/pull?since=${cursor.version}`);
       if (!response) return false;
       const pulled = (await response.json()) as Pulled;
-      await applyPulled(pulled);
+      await applyPulled(pulled, setElsewhere);
       // only once the rows are stored, so a sync cut short pulls them again
       cursor = { ...cursor, version: pulled.version };
       saveCursor(cursor);

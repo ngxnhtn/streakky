@@ -122,7 +122,9 @@ export type HabitStore = {
   /**
    * Keeps on this device that the habit's current streak has had its celebration for its goal,
    * so it plays once. Setting a goal the streak already reaches, or moving the quit day so that it
-   * does, marks it too: those edits don't celebrate.
+   * does, marks it too, here and on the devices it syncs to: those edits don't celebrate. So does
+   * a habit reaching a device by sync with its goal already reached. Check-ins and slip-free days
+   * from another device may still celebrate here once.
    */
   markCelebrated(habit: Habit): void;
   /**
@@ -205,6 +207,37 @@ export async function openHabitStore({
     habitRecords.subscribeChanges(habitsChanged),
     dayRecords.subscribeChanges(habitsChanged),
   ];
+  const toHabits = (records: HabitRecord[]): Habit[] => {
+    const logged = new Map<string, string[]>();
+    for (const d of dayRecords.toArray) {
+      if (d.logged) logged.set(d.habitId, [...(logged.get(d.habitId) ?? []), d.day]);
+    }
+    return records.flatMap((h): Habit[] => {
+      const days = (logged.get(h.id) ?? []).sort();
+      const base = {
+        id: h.id,
+        name: h.name,
+        color: h.color,
+        goal: h.goal,
+        archivedPeriods: archivedPeriodsOf(h),
+      };
+      if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
+      // a quit habit can't be counted without its quit day; the store never writes one without
+      return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
+    });
+  };
+
+  const markCelebrated = (habit: Habit) => keepCelebrated(keyValueStorage, habit);
+
+  /**
+   * A goal set or a quit day moved on another device was set there, not reached here, so it
+   * doesn't celebrate on this device either; nor does a habit arriving with its goal reached.
+   */
+  const goalsSetElsewhere = (habitIds: ReadonlySet<string>) => {
+    const records = habitRecords.toArray.filter((h) => habitIds.has(h.id) && !h.deleted);
+    for (const habit of toHabits(records)) if (goalReached(habit)) markCelebrated(habit);
+  };
+
   const account = openAccount({ api, storage: keyValueStorage, statusChanged });
   const signedInAs = () => {
     const status = account.status();
@@ -221,6 +254,7 @@ export async function openHabitStore({
     triggers: syncTriggers,
     statusChanged,
     sessionEnded: () => void account.checkSession(),
+    goalsSetElsewhere,
   });
   void account.checkSession();
   void sync.sync();
@@ -243,26 +277,6 @@ export async function openHabitStore({
    */
   const editTime = (...previous: (number | undefined)[]) =>
     Math.max(now(), ...previous.map((p) => (p ?? 0) + 1));
-
-  const toHabits = (records: HabitRecord[]): Habit[] => {
-    const logged = new Map<string, string[]>();
-    for (const d of dayRecords.toArray) {
-      if (d.logged) logged.set(d.habitId, [...(logged.get(d.habitId) ?? []), d.day]);
-    }
-    return records.flatMap((h): Habit[] => {
-      const days = (logged.get(h.id) ?? []).sort();
-      const base = {
-        id: h.id,
-        name: h.name,
-        color: h.color,
-        goal: h.goal,
-        archivedPeriods: archivedPeriodsOf(h),
-      };
-      if (h.kind === "build") return [{ ...base, kind: "build", checkIns: days }];
-      // a quit habit can't be counted without its quit day; the store never writes one without
-      return h.quitDay ? [{ ...base, kind: "quit", quitDay: h.quitDay, slips: days }] : [];
-    });
-  };
 
   const habits = () =>
     (snapshot ??= toHabits(
@@ -313,8 +327,6 @@ export async function openHabitStore({
    */
   const activeHabit = (habitId: string): Habit | undefined =>
     habits().find((h) => h.id === habitId);
-
-  const markCelebrated = (habit: Habit) => keepCelebrated(keyValueStorage, habit);
 
   return {
     async createHabit(input) {

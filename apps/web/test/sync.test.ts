@@ -369,6 +369,44 @@ describe("syncing between two signed-in devices", () => {
     expect(phone.syncStatus()).toMatchObject({ pending: 1, failing: false });
   });
 
+  it("doesn't celebrate a goal another device set, or reached by moving a quit day", async () => {
+    const [phone, laptop] = await twoDevices();
+    await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
+    await phone.createHabit({
+      kind: "quit",
+      name: "No sugar",
+      color: "red",
+      quitDay: daysAgo(3),
+      goal: 7,
+    });
+    const [read, noSugar] = phone.habits();
+    for (let n = 6; n >= 0; n--) await phone.toggleDay(read.id, daysAgo(n));
+    await syncBoth(phone, laptop);
+    // the phone sets a goal that the 7-day streak already reaches, and moves a quit day back far
+    // enough to reach the goal
+    await phone.editHabit(read.id, { goal: 7 });
+    await phone.moveQuitDay(noSugar.id, daysAgo(10));
+    await syncBoth(phone, laptop);
+    const due = (device: Device) => device.habits().map((habit) => device.celebrationDue(habit));
+    expect([due(phone), due(laptop)]).toEqual([
+      [false, false],
+      [false, false],
+    ]);
+  });
+
+  it("doesn't celebrate a habit that arrives from another device with its goal reached", async () => {
+    const [phone, laptop] = await twoDevices();
+    await phone.createHabit({
+      kind: "quit",
+      name: "No sugar",
+      color: "red",
+      quitDay: daysAgo(20),
+      goal: 14,
+    });
+    await syncBoth(phone, laptop);
+    expect(laptop.habits().map((habit) => laptop.celebrationDue(habit))).toEqual([false]);
+  });
+
   it("never shows one account's habits to another", async () => {
     const [mine] = await twoDevices();
     const [theirs] = await twoDevices();
