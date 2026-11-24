@@ -22,6 +22,8 @@ export type KindCopy = {
   goalDay: string;
   /** the streaks chart, while the current streak has no days yet */
   noStreakYet: string;
+  /** the same, while the habit is archived */
+  noStreakArchived: string;
 };
 
 export const KIND_COPY: Record<Kind, KindCopy> = {
@@ -35,6 +37,8 @@ export const KIND_COPY: Record<Kind, KindCopy> = {
     logged: { one: "Check-in", other: "Check-ins" },
     goalDay: "day",
     noStreakYet: "check in today to start",
+    // its days while archived are days without check-ins
+    noStreakArchived: "none while archived",
   },
   quit: {
     hint: "Counts up every day by itself. Log a slip only if it happens.",
@@ -47,5 +51,7 @@ export const KIND_COPY: Record<Kind, KindCopy> = {
     goalDay: "clean day",
     // a slip today, or a quit day today: the streak starts again from the next day
     noStreakYet: "first clean day tomorrow",
+    // its count stays where it was until it's restored
+    noStreakArchived: "held while archived",
   },
 };

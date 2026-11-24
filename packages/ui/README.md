@@ -108,8 +108,8 @@ The calendar's days are 1.75rem squares at rest, where they're only read; in Edi
 | `today-button`  | `TodayButton`: check in today (build, one toggle named "Check in today") or log a slip (quit)                                                                                          |
 | `habit-card`    | `HabitCard` (grid), `HabitRow` (list), one set of props with `today` (logged, locked, onToggle); `CheckInTick`, `SlipIcon`, `TodayToggle` (2.75rem), `NewHabitTile`, `HabitCollection` |
 | `calendar`      | `HabitCalendar`: Weeks and Month views, edit days (2.75rem buttons); each day tells a screen reader its date and what it was                                                           |
-| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                                                               |
-| `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                                                         |
+| `streaks-chart` | `StreaksChart`: every streak as a bar, the longest and the current tagged; one slider control (arrow keys, Home, End, a tap), a readout and a hidden table                             |
+| `stats`         | `HabitStats`: four tiles from core's `habitStats` and the streaks chart                                                                                                                |
 | `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                                                                 |
 | `habit-fields`  | `NameField`, `QuitDayField`: a habit's name and quit day, with their errors                                                                                                            |
 | `color-picker`  | `HabitColorPicker`                                                                                                                                                                     |

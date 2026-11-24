@@ -1,15 +1,9 @@
-import {
-  daysBetween,
-  historyStart,
-  loggedDays,
-  longestStreakDays,
-  streaksOf,
-  today,
-  type Habit,
-} from "@streakky/core";
+import { archivedSince, habitStats, streaksOf, type Habit } from "@streakky/core";
 import { StatGrid, StatTile } from "@streakky/ui/components/stat";
 import { StreaksChart } from "@streakky/ui/components/habit/streaks-chart";
-import { cn } from "@streakky/ui/lib/utils";
+import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
+
+const days = (n: number) => (n === 1 ? "day" : "days");
 
 /** Four numbers and the streaks chart. Build: totals and the last 30 days; quit: average and slips. */
 export function HabitStats({
@@ -21,42 +15,36 @@ export function HabitStats({
   className?: string;
   tilesClassName?: string;
 }) {
-  const streaks = streaksOf(habit);
-  const days = streaks[streaks.length - 1].days;
-  const lengths = streaks.map((s) => s.days);
-  const longest = longestStreakDays(habit);
-  const average = Math.round(lengths.reduce((a, b) => a + b, 0) / lengths.length);
-  const unit = (n: number) => (n === 1 ? "day" : "days");
-  const t = today();
-  const tracked = Math.min(30, daysBetween(historyStart(habit), t) + 1);
-  // check-ins or slips: only the ones that count (none after today, no slip before the quit day)
-  const logged = loggedDays(habit);
-  const tiles =
-    habit.kind === "build"
+  const stats = habitStats(habit);
+  const copy = KIND_COPY[habit.kind];
+  const logged = stats.logged === 1 ? copy.logged.one : copy.logged.other;
+  const tiles = [
+    { value: stats.currentStreak, unit: days(stats.currentStreak), label: "Current streak" },
+    { value: stats.longestStreak, unit: days(stats.longestStreak), label: "Longest streak" },
+    ...(habit.kind === "build"
       ? [
-          { value: days, unit: unit(days), label: "This streak" },
-          { value: longest, unit: unit(longest), label: "Longest streak" },
-          { value: logged.length, unit: unit(logged.length), label: "Check-ins" },
-          {
-            value: logged.filter((d) => daysBetween(d, t) < 30).length,
-            unit: `of ${tracked}`,
-            label: "Last 30 days",
-          },
+          { value: stats.logged, unit: days(stats.logged), label: logged },
+          { value: stats.loggedLast30, unit: `of ${stats.trackedLast30}`, label: "Last 30 days" },
         ]
       : [
-          { value: days, unit: unit(days), label: "This streak" },
-          { value: longest, unit: unit(longest), label: "Longest streak" },
-          { value: average, unit: unit(average), label: "Average streak" },
-          { value: logged.length, unit: "", label: logged.length === 1 ? "Slip" : "Slips" },
-        ];
+          { value: stats.averageStreak, unit: days(stats.averageStreak), label: "Average streak" },
+          { value: stats.logged, unit: "", label: logged },
+        ]),
+  ];
   return (
     <div data-slot="habit-stats" className={className}>
       <StatGrid className={tilesClassName}>
-        {tiles.map((t) => (
-          <StatTile key={t.label} value={t.value} unit={t.unit} label={t.label} />
+        {tiles.map((tile) => (
+          <StatTile key={tile.label} value={tile.value} unit={tile.unit} label={tile.label} />
         ))}
       </StatGrid>
-      <StreaksChart streaks={streaks} name={habit.name} className={cn("mt-7")} />
+      <StreaksChart
+        streaks={streaksOf(habit)}
+        name={habit.name}
+        // an archived habit can't start one until it's restored
+        noStreakYet={archivedSince(habit) !== null ? copy.noStreakArchived : copy.noStreakYet}
+        className="mt-7"
+      />
     </div>
   );
 }

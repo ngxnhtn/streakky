@@ -88,11 +88,11 @@ export function HabitDetail({ id }: { id: string }) {
           days={days}
           goal={habit.goal}
           label={counterLabel(habit, days)}
-          // an archived habit can't be checked in, so it isn't asked to
+          // An archived habit has no streak going at 0 days: a build habit can't be checked in, and
+          // a quit habit's count is held, so neither is asked to start or said to have started
+          // today. A slip logged today, before it was archived, still says so.
           since={
-            archived && habit.kind === "build" && days === 0
-              ? "no current streak"
-              : sinceLabel(habit)
+            archived && days === 0 && !loggedToday(habit) ? "no current streak" : sinceLabel(habit)
           }
         />
         <div className="flex justify-center px-5 pt-1 pb-5">
