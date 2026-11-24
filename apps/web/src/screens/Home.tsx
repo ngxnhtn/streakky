@@ -38,6 +38,12 @@ export function Home() {
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const open = (habit: Habit) => push({ name: "detail", id: habit.id });
+  // a habit dragged to `to` goes just after the habit that ends up before it there
+  const move = (from: number, to: number) => {
+    const moved = habits[from];
+    const rest = habits.filter((h) => h !== moved);
+    if (moved) void store.moveHabit(moved.id, rest[to - 1]?.id ?? null);
+  };
   return (
     <>
       <AppBar
@@ -74,10 +80,15 @@ export function Home() {
               day={day}
               onOpen={open}
               onSlip={toggleSlip}
+              onMove={move}
               onAdd={() => setAdding(true)}
             />
           ) : (
-            <HabitCollection layout="grid">
+            <HabitCollection
+              layout="grid"
+              onMove={move}
+              end={<NewHabitTile layout="grid" onClick={() => setAdding(true)} />}
+            >
               {habits.map((habit) => {
                 const days = currentStreakDays(habit);
                 return (
@@ -97,7 +108,6 @@ export function Home() {
                   />
                 );
               })}
-              <NewHabitTile layout="grid" onClick={() => setAdding(true)} />
             </HabitCollection>
           )}
         </div>
@@ -118,23 +128,30 @@ const labelOf = (habit: Habit, days: number) =>
 /**
  * The list layout: a row per habit, whose tick checks a build habit in today with one tap and
  * whose slip button asks before logging a quit habit's slip. The rest of the row opens the habit.
+ * Rows are dragged into order as the grid's cards are.
  */
 function HabitList({
   habits,
   day,
   onOpen,
   onSlip,
+  onMove,
   onAdd,
 }: {
   habits: Habit[];
   day: string;
   onOpen: (habit: Habit) => void;
   onSlip: (habit: Habit) => void;
+  onMove: (from: number, to: number) => void;
   onAdd: () => void;
 }) {
   const store = useHabitStore();
   return (
-    <HabitCollection layout="list">
+    <HabitCollection
+      layout="list"
+      onMove={onMove}
+      end={<NewHabitTile layout="list" onClick={onAdd} />}
+    >
       {habits.map((habit) => {
         const days = currentStreakDays(habit);
         return (
@@ -155,7 +172,6 @@ function HabitList({
           />
         );
       })}
-      <NewHabitTile layout="list" onClick={onAdd} />
     </HabitCollection>
   );
 }

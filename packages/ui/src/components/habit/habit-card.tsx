@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Check, Plus, RotateCcw } from "lucide-react";
 import type { ColorId, Kind, Layout } from "@streakky/core";
+import { useReorder, type ReorderState } from "@streakky/ui/hooks/use-reorder";
 import { cn } from "@streakky/ui/lib/utils";
 
 /** Today's state on a build habit: an empty ring, filled with a tick once checked in. */
@@ -399,31 +400,94 @@ export function NewHabitTile({
   );
 }
 
-/** Lays out habit faces as a grid of cards (two across on a phone) or a list of rows. */
+/** How a habit face looks at each step of a drag (see `useReorder`). */
+const reorderLook: Record<ReorderState, string> = {
+  // Picked up: raised over the others on a soft shadow, the face edged with a hairline so it
+  // shows on dark too. The face's own press and hover moves stop, so it stays flush with its
+  // shadow while the pointer still holds it.
+  lifted: [
+    "z-10 cursor-grabbing [&_*]:cursor-grabbing",
+    "shadow-[0_1.25rem_2.5rem_-1rem_rgb(0_0_0/0.38)] motion-safe:scale-[1.03]",
+    "*:border-input! *:translate-y-0! *:scale-100!",
+    "transition-[scale,box-shadow] duration-180 ease-ui",
+  ].join(" "),
+  settling: "z-10 transition-[translate,scale,box-shadow] duration-200 ease-ui",
+  shifting: "transition-[translate] duration-200 ease-ui",
+  moved: "",
+};
+
+/**
+ * Lays out habit faces as a grid of cards (two across on a phone) or a list of rows.
+ * With `onMove`, the person can drag the faces into their own order: a mouse drags at once, a
+ * finger after resting on a face for a moment, so a swipe still scrolls. Alt with the up or down
+ * arrow moves the face holding the focus. `onMove(from, to)` gets the moved face's index before
+ * and after. `end`, such as the New habit tile, comes after the faces and never moves.
+ */
 export function HabitCollection({
   layout,
   className,
   children,
+  onMove,
+  end,
 }: {
   layout: Layout;
   className?: string;
   children: React.ReactNode;
+  onMove?: (from: number, to: number) => void;
+  end?: React.ReactNode;
 }) {
+  const faces = React.Children.toArray(children).filter(React.isValidElement);
+  const { listRef, item, announcement } = useReorder({
+    keys: faces.map((face) => String(face.key)),
+    onMove: onMove ?? (() => {}),
+    enabled: onMove !== undefined,
+  });
   return (
-    <ul
-      key={layout}
-      aria-label="Your habits"
-      data-slot="habit-collection"
-      data-layout={layout}
-      className={cn(
-        "grid animate-rise",
-        layout === "grid"
-          ? "grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2.5"
-          : "grid-cols-[repeat(auto-fill,minmax(min(100%,22.5rem),1fr))] gap-2",
-        className,
+    <>
+      <ul
+        key={layout}
+        ref={listRef}
+        aria-label="Your habits"
+        data-slot="habit-collection"
+        data-layout={layout}
+        className={cn(
+          "grid animate-rise",
+          layout === "grid"
+            ? "grid-cols-[repeat(auto-fill,minmax(9.375rem,1fr))] gap-2.5"
+            : "grid-cols-[repeat(auto-fill,minmax(min(100%,22.5rem),1fr))] gap-2",
+          className,
+        )}
+      >
+        {faces.map((face, i) => {
+          const { "data-reorder": state, ...props } = item(i);
+          return (
+            <li
+              key={face.key}
+              data-reorder={state}
+              {...props}
+              className={cn(
+                onMove && [
+                  // a resting finger lifts the face, so it mustn't pick text or call up a menu
+                  "select-none [-webkit-touch-callout:none]",
+                  layout === "grid" ? "rounded-3xl" : "rounded-[1.25rem]",
+                  // Only a drag's steps animate. When the new order arrives, the old offsets go
+                  // at once, even under reduced motion, whose 1ms transitions apply to `all`.
+                  "transition-none",
+                ],
+                state && reorderLook[state],
+              )}
+            >
+              {face}
+            </li>
+          );
+        })}
+        {end && <li>{end}</li>}
+      </ul>
+      {onMove && (
+        <p role="status" className="sr-only">
+          {announcement}
+        </p>
       )}
-    >
-      {React.Children.map(children, (child) => (child ? <li>{child}</li> : null))}
-    </ul>
+    </>
   );
 }

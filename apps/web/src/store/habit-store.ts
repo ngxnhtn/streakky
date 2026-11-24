@@ -75,6 +75,11 @@ export type HabitStore = {
   createHabit(input: NewHabit): Promise<void>;
   /** Adds or removes a check-in (build) or a slip (quit); today when `day` is left out. */
   toggleDay(habitId: string, day?: string): Promise<void>;
+  /**
+   * Reorders: puts an active habit just after another active habit (`after`), or first with
+   * null. Only the moved habit's order position changes. Does nothing if either one isn't active.
+   */
+  moveHabit(habitId: string, after: string | null): Promise<void>;
   /** Active habits in the person's order. The same array until something changes. */
   habits: () => Habit[];
   /** Changes some of this device's settings; the rest stay as they are. */
@@ -220,6 +225,24 @@ export async function openHabitStore({
       habitRecords.toArray.filter((h) => !h.deleted && !h.archived).toSorted(byOrder),
     ));
 
+  /**
+   * Changes some of a habit's editable fields, giving each changed field this device's edit time.
+   * A missing or deleted habit stays as it is: a tombstone is never edited (ADR-0002).
+   */
+  const changeHabit = async (
+    habitId: string,
+    change: Partial<Pick<HabitRecord, EditableField>>,
+  ): Promise<void> => {
+    const habit = habitRecords.get(habitId);
+    if (!habit || habit.deleted) return;
+    const editedAt = Date.now();
+    const tx = habitRecords.update(habitId, (h) => {
+      Object.assign(h, change);
+      for (const field of EDITABLE_FIELDS) if (field in change) h.edited[field] = editedAt;
+    });
+    await tx.when("settled");
+  };
+
   return {
     async createHabit(input) {
       const { kind, name, color } = input;
@@ -256,6 +279,22 @@ export async function openHabitStore({
           })
         : dayRecords.insert({ habitId, day, logged: true, edited: Date.now() });
       await tx.when("settled");
+    },
+    async moveHabit(habitId, after) {
+      const shown = habits();
+      const at = shown.findIndex((h) => h.id === habitId);
+      const isShown = (id: string | null) => id === null || shown.some((h) => h.id === id);
+      if (at === -1 || after === habitId || !isShown(after)) return;
+      if ((shown[at - 1]?.id ?? null) === after) return; // already there
+      // Just after `after`, before the next position of any other habit, shown or not: archived
+      // and deleted habits keep positions between the shown ones. Strictly between two
+      // neighbouring positions, the new one can't equal another habit's.
+      const lower = after === null ? null : (habitRecords.get(after)?.order ?? null);
+      const upper =
+        habitRecords.toArray
+          .filter((h) => h.id !== habitId && (lower === null || h.order > lower))
+          .toSorted(byOrder)[0]?.order ?? null;
+      await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
     },
     changeSettings(change) {
       // onto the stored settings, not this store's copy, so a change made in another tab stays
