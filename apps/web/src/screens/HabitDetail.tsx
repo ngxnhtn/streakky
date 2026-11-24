@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ChevronLeft, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import {
   canToggle,
   counterLabel,
@@ -20,7 +20,7 @@ import { ArchivedNote } from "./ArchivedHabits.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { HabitOptions, type HabitDialog } from "./HabitOptions.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { BackButton, ScreenScroll } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
 const TABS = ["calendar", "stats", "goal"] as const;
@@ -43,7 +43,6 @@ export function HabitDetail({ id }: { id: string }) {
   const archived = active === undefined;
   const { weekStart } = useSettings();
   const day = useToday();
-  const { pop } = useNav();
   const [chosenTab, setTab] = useState<Tab>("calendar");
   const tabs = archived ? ARCHIVED_TABS : TABS;
   const tab = tabs.includes(chosenTab) ? chosenTab : "calendar";
@@ -53,11 +52,7 @@ export function HabitDetail({ id }: { id: string }) {
   // an archived habit's goal waits, like its days, until it's restored
   const shown = useMemo(() => (active ? [active] : []), [active]);
   const celebration = useCelebration(shown, day);
-  const back = (
-    <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
-      <ChevronLeft strokeWidth={1.75} />
-    </Button>
-  );
+  const back = <BackButton />;
   if (!habit) {
     // say, a reload on a habit that has since gone
     return (

@@ -93,7 +93,7 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | `list`           | `ListGroup` `List` `ListItem` `ListButton` `ListLabel`: grouped settings rows                                                                               |
 | `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                       |
 | `stat`           | `StatGrid`, `StatTile`                                                                                                                                      |
-| `app-bar`        | A phone screen's top bar                                                                                                                                    |
+| `app-bar`        | A phone screen's top bar; its title is the screen's `h1`, which takes focus when the screen opens                                                           |
 | `note`           | `Note` and `NoteLink`: one small dismissible note in a pill, its text a button when it leads somewhere                                                      |
 | `empty-state`    | `EmptyState`: what a screen says when it has nothing to show, with an optional action                                                                       |
 | `palette-picker` | The app colour themes as swatches                                                                                                                           |

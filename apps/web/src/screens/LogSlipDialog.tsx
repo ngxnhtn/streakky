@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@streakky/ui/components/dialog";
 import { useHabitStore } from "../store/react.tsx";
-import { useInFront, useBackCloses } from "./stack.tsx";
+import { useBackCloses, useCloseWhenCovered } from "./stack.tsx";
 
 /**
  * Today's slip on a quit habit: removing it takes one tap, but logging one asks first, since it
@@ -18,10 +18,10 @@ import { useInFront, useBackCloses } from "./stack.tsx";
  */
 export function useTodaysSlip(): { toggleSlip: (habit: Habit) => void; dialog: ReactNode } {
   const store = useHabitStore();
-  const inFront = useInFront();
   // the quit habit whose slip we're asking about, as it was when asked, kept while the sheet leaves
   const [slipping, setSlipping] = useState<{ habit: Habit; open: boolean } | null>(null);
-  if (!inFront && slipping?.open) setSlipping({ ...slipping, open: false });
+  const close = () => setSlipping((s) => s && { ...s, open: false });
+  useCloseWhenCovered(slipping?.open ?? false, close);
   return {
     toggleSlip: (habit) =>
       loggedToday(habit) ? void store.toggleDay(habit.id) : setSlipping({ habit, open: true }),
@@ -34,7 +34,7 @@ export function useTodaysSlip(): { toggleSlip: (habit: Habit) => void; dialog: R
           const habit = store.habits().find((h) => h.id === asked.id);
           if (habit && !loggedToday(habit)) void store.toggleDay(habit.id);
         }}
-        onClose={() => setSlipping((s) => s && { ...s, open: false })}
+        onClose={close}
       />
     ),
   };

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { Archive, ArchiveRestore, Pencil, Trash2 } from "lucide-react";
 import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
@@ -14,7 +14,7 @@ import { List, ListButton } from "@streakky/ui/components/list";
 import { useHabitStore } from "../store/react.tsx";
 import { EditHabitForm } from "./EditHabit.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
-import { useBackCloses, useInFront, useNav } from "./stack.tsx";
+import { useBackCloses, useCloseWhenCovered, useNav } from "./stack.tsx";
 
 /** The options sheet, or what it leads to: Edit habit, or the question before deleting. */
 export type HabitDialog = "options" | "edit" | "delete" | null;
@@ -44,10 +44,7 @@ export function HabitOptions({
 }) {
   const store = useHabitStore();
   const { pop } = useNav();
-  const inFront = useInFront();
-  useEffect(() => {
-    if (!inFront && dialog !== null) setDialog(null);
-  }, [inFront, dialog, setDialog]);
+  useCloseWhenCovered(dialog !== null, () => setDialog(null));
   // one history entry for the sheet and the question after it, so back closes either
   useBackCloses(dialog !== null, () => setDialog(null));
 

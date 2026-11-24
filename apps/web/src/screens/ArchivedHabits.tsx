@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ArchiveRestore, ChevronLeft } from "lucide-react";
+import { ArchiveRestore } from "lucide-react";
 import { archivedSince, fmtShort, longestStreakDays, plural, type Habit } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
@@ -8,7 +8,7 @@ import { List } from "@streakky/ui/components/list";
 import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore } from "../store/react.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
-import { ScreenScroll, useNav, useScreenBelow } from "./stack.tsx";
+import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
 
 /**
  * Archived habits, reached from Settings, or from Home when every habit is archived: hidden from
@@ -16,8 +16,7 @@ import { ScreenScroll, useNav, useScreenBelow } from "./stack.tsx";
  * one brings it back to Home.
  */
 export function ArchivedHabits() {
-  const { push, pop } = useNav();
-  const fromHome = useScreenBelow()?.name === "home";
+  const { push } = useNav();
   const store = useHabitStore();
   const habits = useArchivedHabits();
 
@@ -33,19 +32,7 @@ export function ArchivedHabits() {
 
   return (
     <>
-      <AppBar
-        left={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={fromHome ? "Back to habits" : "Back to settings"}
-            onClick={pop}
-          >
-            <ChevronLeft strokeWidth={1.75} />
-          </Button>
-        }
-        title="Archived habits"
-      />
+      <AppBar left={<BackButton />} title="Archived habits" />
       <ScreenScroll>
         <div className="px-5 pt-2">
           {habits.length === 0 ? (

@@ -27,7 +27,7 @@ import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
 import { ReorderHint } from "./ReorderHint.tsx";
 import { SignedOutNote, useSignedOutNoteShown } from "./SignedOutNote.tsx";
-import { ScreenScroll, useInFront, useNav } from "./stack.tsx";
+import { ScreenScroll, useCloseWhenCovered, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
 export function Home() {
@@ -37,8 +37,7 @@ export function Home() {
   const day = useToday();
   const [adding, setAdding] = useState(false);
   // the browser's forward button can cover Home while New habit is open
-  const inFront = useInFront();
-  if (!inFront && adding) setAdding(false);
+  useCloseWhenCovered(adding, () => setAdding(false));
   const { push } = useNav();
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
@@ -73,7 +72,10 @@ export function Home() {
       <ScreenScroll>
         <header className="px-5 pt-1 pb-5">
           <p className="text-sm text-muted-foreground">{fmtLong(fromISO(day))}</p>
-          <h1 className="mt-0.5 font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] [font-stretch:96%]">
+          <h1
+            tabIndex={-1}
+            className="mt-0.5 rounded-lg font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] focus-ring [font-stretch:96%]"
+          >
             Habits
           </h1>
         </header>

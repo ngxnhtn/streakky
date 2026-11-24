@@ -1,7 +1,6 @@
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { ChevronRight, Download } from "lucide-react";
 import type { Layout, Theme, WeekStart } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
-import { Button } from "@streakky/ui/components/button";
 import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
@@ -9,24 +8,17 @@ import { Switch } from "@streakky/ui/components/switch";
 import { saveFile } from "../save-file.ts";
 import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
 
 /** This device's settings. Each change applies at once and stays on the device. */
 export function Settings() {
-  const { pop, push } = useNav();
+  const { push } = useNav();
   const store = useHabitStore();
   const settings = useSettings();
   const archived = useArchivedHabits();
   return (
     <>
-      <AppBar
-        left={
-          <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
-            <ChevronLeft strokeWidth={1.75} />
-          </Button>
-        }
-        title="Settings"
-      />
+      <AppBar left={<BackButton />} title="Settings" />
       <ScreenScroll>
         <div className="px-5">
           <AccountSettings />
