@@ -1,4 +1,4 @@
-import { AUTH_PATH, SYNC_PATH } from "@streakky/contract";
+import { AUTH_PATH, SYNC_PATH, type PushAnswer } from "@streakky/contract";
 import { lt, sql } from "drizzle-orm";
 import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -53,7 +53,7 @@ const sync = new Hono<WorkerEnv>()
       if (pushed === "invalid") return c.json({ error: "Bad push" }, 400);
       await push(openDatabase(c.env.DB), c.var.userId, pushed);
       // rows the server couldn't read stay waiting on the device; the rest are stored
-      return c.json({ refused: pushed.refused });
+      return c.json({ refused: pushed.refused } satisfies PushAnswer);
     },
   );
 

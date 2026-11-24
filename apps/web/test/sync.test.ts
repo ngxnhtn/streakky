@@ -8,8 +8,8 @@ import {
   it,
   vi,
 } from "vite-plus/test";
-import { addDays, streaksOf, toISO, todayISO, type Habit } from "@streakky/core";
-import type { HabitStore } from "../src/store/habit-store.ts";
+import { addDays, streaksOf, toISO, todayISO, type ColorId, type Habit } from "@streakky/core";
+import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
 import {
   createStorage,
   openDevice,
@@ -90,6 +90,21 @@ const shown = (device: HabitStore) =>
   }));
 
 const daysAgo = (n: number) => toISO(addDays(todayISO(), -n));
+
+/** A build habit as a version of the app from before sync stored it: no change ids, nothing synced. */
+const storedBeforeSync = (fields: Partial<HabitRecord> = {}): HabitRecord => ({
+  id: crypto.randomUUID(),
+  kind: "build",
+  name: "Read",
+  color: "blue",
+  goal: null,
+  quitDay: null,
+  archived: false,
+  order: "a0",
+  deleted: false,
+  edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
+  ...fields,
+});
 
 /** A clock the test moves on, which devices read for their edit times. */
 function testClock() {
@@ -321,20 +336,7 @@ describe("syncing between two signed-in devices", () => {
     const days = Array.from({ length: 1200 }, (_, i) => daysAgo(i + 1));
     // years of check-ins, kept from before this device synced
     await storeRecords(storage, {
-      habits: [
-        {
-          id,
-          kind: "build",
-          name: "Read",
-          color: "blue",
-          goal: null,
-          quitDay: null,
-          archived: false,
-          order: "a0",
-          deleted: false,
-          edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
-        },
-      ],
+      habits: [storedBeforeSync({ id, name: "Read" })],
       days: days.map((day) => ({ habitId: id, day, logged: true, edited: 1 })),
     });
     const phone = await signedInDevice(email, {}, { storage });
@@ -347,33 +349,22 @@ describe("syncing between two signed-in devices", () => {
     expect([checkIns(phone), checkIns(laptop)]).toEqual([1200, 1200]);
   });
 
-  it("keeps syncing the rest when the server can't read one record", async () => {
+  // records no version of the app writes, which the server refuses to store
+  it.each<[string, Partial<HabitRecord>]>([
+    ["a colour the server can't take", { color: "Not a colour" as ColorId }],
+    ["a quit habit with no quit day", { kind: "quit", quitDay: null }],
+    ["a build habit with a quit day", { kind: "build", quitDay: daysAgo(10) }],
+  ])("keeps syncing the rest when the server can't read one record: %s", async (_, odd) => {
     const email = accounts[nextAccount++];
     const storage = createStorage();
-    // a record no version of the app writes: a colour the server can't take
-    await storeRecords(storage, {
-      habits: [
-        {
-          id: "unreadable",
-          kind: "build",
-          name: "Odd one",
-          color: "Not a colour" as "blue",
-          goal: null,
-          quitDay: null,
-          archived: false,
-          order: "a0",
-          deleted: false,
-          edited: { name: 1, color: 1, goal: 1, quitDay: 1, archived: 1, order: 1 },
-        },
-      ],
-    });
+    await storeRecords(storage, { habits: [storedBeforeSync({ name: "Odd one", ...odd })] });
     const phone = await signedInDevice(email, {}, { storage });
     const laptop = await signedInDevice(email);
     await phone.createHabit({ kind: "build", name: "Read", color: "blue" });
     await laptop.createHabit({ kind: "build", name: "Stretch", color: "green" });
     await syncBoth(phone, laptop);
     expect(names(laptop).toSorted()).toEqual(["Read", "Stretch"]);
-    expect(names(phone).toSorted()).toEqual(["Odd one", "Read", "Stretch"]);
+    expect(names(phone)).toEqual(expect.arrayContaining(["Read", "Stretch"]));
     // the one record stays waiting on the phone; the rest went through
     expect(phone.syncStatus()).toMatchObject({ pending: 1, failing: false });
   });

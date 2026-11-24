@@ -273,7 +273,9 @@ const isHabit = (value: unknown): value is SyncedHabit =>
       VALID_VALUE[field](value[field]) &&
       isTime((value.edited as Record<string, unknown>)[field]) &&
       matches(CHANGE_ID, (value.changeIds as Record<string, unknown>)[field]),
-  );
+  ) &&
+  // a quit habit can't be counted without its quit day, and a build habit has none
+  (value.kind === "quit") === (value.quitDay !== null);
 
 const isDay = (value: unknown): value is SyncedDay =>
   isObject(value) &&
