@@ -1,4 +1,5 @@
-import { CODE_MINUTES, type SignInCode } from "./auth.ts";
+import { SIGN_IN_CODE } from "@streakky/contract";
+import type { SignInCode } from "./auth.ts";
 
 /** Resend's endpoint for sending one email. */
 const RESEND_EMAILS_URL = "https://api.resend.com/emails";
@@ -29,7 +30,7 @@ export async function sendSignInCode(env: Env, { to, code }: SignInCode): Promis
       subject: `${code} is your Streakky sign-in code`,
       text: [
         `Your Streakky sign-in code is ${code}.`,
-        `It works for ${CODE_MINUTES} minutes. If you didn't ask for it, you can ignore this email.`,
+        `It works for ${SIGN_IN_CODE.minutes} minutes. If you didn't ask for it, you can ignore this email.`,
       ].join("\n\n"),
     }),
   });

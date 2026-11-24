@@ -3,65 +3,28 @@
  * changed, and pulls every row changed since the server version it last saw. The server applies
  * ADR-0002's merge rules as it stores a push.
  */
+import {
+  EDITABLE_FIELDS,
+  PUSH_LIMIT,
+  type EditableField,
+  type Pulled,
+  type Pushed,
+  type Refused,
+  type SyncedDay,
+  type SyncedHabit,
+} from "@streakky/contract";
 import { and, asc, eq, getTableColumns, getTableName, gt, sql, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { Database } from "./db/database.ts";
-import { dayRecords, habits, syncVersions, type ArchivedPeriod } from "./db/schema.ts";
+import { dayRecords, habits, syncVersions } from "./db/schema.ts";
 
-/** The habit fields a device edits, each with its own edit time and change id. */
-const FIELDS = [
-  "name",
-  "color",
-  "goal",
-  "quitDay",
-  "archived",
-  "archivedPeriods",
-  "order",
-] as const;
-type Field = (typeof FIELDS)[number];
-
-/** A habit as devices send and receive it. */
-export type SyncedHabit = {
-  id: string;
-  kind: "build" | "quit";
-  name: string;
-  color: string;
-  goal: number | null;
-  quitDay: string | null;
-  archived: boolean;
-  archivedPeriods: ArchivedPeriod[];
-  order: string;
-  deleted: boolean;
-  edited: Record<Field, number>;
-  changeIds: Record<Field, string>;
-};
-
-/** A day record as devices send and receive it. */
-export type SyncedDay = {
-  habitId: string;
-  day: string;
-  logged: boolean;
-  edited: number;
-  changeId: string;
-};
-
-export type Pushed = { habits: SyncedHabit[]; days: SyncedDay[] };
-export type Pulled = Pushed & {
-  /** the server version to pull from next time */
-  version: number;
-  /** more rows wait past `version`: pull again */
-  more: boolean;
-};
-
-/** The most rows one push may carry; devices send larger changes in several pushes. */
-const PUSH_LIMIT = 200;
 /** The most rows one pull returns. */
 const PULL_LIMIT = 500;
 
 type HabitRow = typeof habits.$inferSelect;
 
 /** Where a habit row keeps each field's value, edit time and change id. */
-const FIELD_KEYS: Record<Field, [keyof HabitRow, keyof HabitRow, keyof HabitRow]> = {
+const FIELD_KEYS: Record<EditableField, [keyof HabitRow, keyof HabitRow, keyof HabitRow]> = {
   name: ["name", "nameEdited", "nameChangeId"],
   color: ["color", "colorEdited", "colorChangeId"],
   goal: ["goal", "goalEdited", "goalChangeId"],
@@ -73,8 +36,8 @@ const FIELD_KEYS: Record<Field, [keyof HabitRow, keyof HabitRow, keyof HabitRow]
 const habitColumn = getTableColumns(habits);
 /** Each field's value, edit-time and change-id columns. */
 const FIELD_COLUMNS = Object.fromEntries(
-  FIELDS.map((field) => [field, FIELD_KEYS[field].map((key) => habitColumn[key])]),
-) as unknown as Record<Field, [SQLiteColumn, SQLiteColumn, SQLiteColumn]>;
+  EDITABLE_FIELDS.map((field) => [field, FIELD_KEYS[field].map((key) => habitColumn[key])]),
+) as unknown as Record<EditableField, [SQLiteColumn, SQLiteColumn, SQLiteColumn]>;
 
 const columnName = (column: SQLiteColumn) => sql`${sql.identifier(column.name)}`;
 /** The stored row's column, inside an upsert. */
@@ -139,12 +102,14 @@ export async function push(
       set: { version: sql`${syncVersions.version} + ${count}` },
     });
 
-  const fieldWins = FIELDS.map((field) => later(FIELD_COLUMNS[field][1], FIELD_COLUMNS[field][2]));
+  const fieldWins = EDITABLE_FIELDS.map((field) =>
+    later(FIELD_COLUMNS[field][1], FIELD_COLUMNS[field][2]),
+  );
   const habitRows = pushedHabits.map((habit) => ({
     [habits.id.name]: habit.id,
     [habits.kind.name]: habit.kind,
     ...Object.fromEntries(
-      FIELDS.flatMap((field) => {
+      EDITABLE_FIELDS.flatMap((field) => {
         const [value, edited, changeId] = FIELD_COLUMNS[field];
         return [
           [value.name, habit[field]],
@@ -166,7 +131,7 @@ export async function push(
       target: [habits.userId, habits.id],
       set: {
         ...Object.fromEntries(
-          FIELDS.flatMap((field, i) =>
+          EDITABLE_FIELDS.flatMap((field, i) =>
             FIELD_KEYS[field].map((key) => [key, takeIf(fieldWins[i], habitColumn[key])]),
           ),
         ),
@@ -236,9 +201,9 @@ export async function pull(db: Database, userId: string, since: number) {
 }
 
 function syncedHabit(row: HabitRow): SyncedHabit {
-  const edited = {} as Record<Field, number>;
-  const changeIds = {} as Record<Field, string>;
-  for (const field of FIELDS) {
+  const edited = {} as Record<EditableField, number>;
+  const changeIds = {} as Record<EditableField, string>;
+  for (const field of EDITABLE_FIELDS) {
     const [, editedKey, changeIdKey] = FIELD_KEYS[field];
     edited[field] = row[editedKey] as number;
     changeIds[field] = row[changeIdKey] as string;
@@ -286,7 +251,7 @@ const isArchivedPeriod = (value: unknown) =>
   (value.restoredOn === null || matches(DAY, value.restoredOn));
 
 /** What each field may hold: far more than the app writes, to keep out only what no device sends. */
-const VALID_VALUE: Record<Field, (value: unknown) => boolean> = {
+const VALID_VALUE: Record<EditableField, (value: unknown) => boolean> = {
   name: (v) => typeof v === "string" && v.length > 0 && v.length <= 1000,
   color: (v) => matches(/^[a-z-]{1,32}$/, v),
   goal: (v) => v === null || (Number.isSafeInteger(v) && (v as number) > 0),
@@ -303,7 +268,7 @@ const isHabit = (value: unknown): value is SyncedHabit =>
   typeof value.deleted === "boolean" &&
   isObject(value.edited) &&
   isObject(value.changeIds) &&
-  FIELDS.every(
+  EDITABLE_FIELDS.every(
     (field) =>
       VALID_VALUE[field](value[field]) &&
       isTime((value.edited as Record<string, unknown>)[field]) &&
@@ -317,9 +282,6 @@ const isDay = (value: unknown): value is SyncedDay =>
   typeof value.logged === "boolean" &&
   isTime(value.edited) &&
   matches(CHANGE_ID, value.changeId);
-
-/** Where in a push the rows the server couldn't read were: their places in each list. */
-export type Refused = { habits: number[]; days: number[] };
 
 /**
  * The rows of a push the server can store, and where the ones it can't were, or why it takes none

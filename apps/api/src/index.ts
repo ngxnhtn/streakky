@@ -1,7 +1,8 @@
+import { AUTH_PATH, SYNC_PATH } from "@streakky/contract";
 import { lt, sql } from "drizzle-orm";
 import { Hono, type MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
-import { AUTH_PATH, createAuth } from "./auth.ts";
+import { createAuth } from "./auth.ts";
 import { authDatabase, openDatabase, type Database } from "./db/database.ts";
 import { signInAttempts } from "./db/schema.ts";
 import { sendSignInCode } from "./email.ts";
@@ -55,7 +56,7 @@ const app = new Hono<Worker>()
     return c.json({ ok: true });
   })
   .on(["GET", "POST"], `${AUTH_PATH}/*`, (c) => authFor(c.req.raw, c.env).handler(c.req.raw))
-  .route("/api/sync", sync)
+  .route(SYNC_PATH, sync)
   .all("/api", (c) => c.json({ error: "Not found" }, 404))
   .all("/api/*", (c) => c.json({ error: "Not found" }, 404))
   .all("*", (c) => appFallback(c.req.raw, c.env));

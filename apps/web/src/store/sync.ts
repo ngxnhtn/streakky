@@ -9,33 +9,24 @@
  * - a deleted habit stays deleted.
  */
 import type { Collection } from "@tanstack/db";
-import type { ApiFetch } from "./account.ts";
 import {
-  dayKey,
   EDITABLE_FIELDS,
-  type DayRecord,
+  PUSH_LIMIT,
+  SYNC_PATH,
   type EditableField,
-  type HabitRecord,
-  type KeyValueStorage,
-} from "./habit-store.ts";
-
-/** A habit as push and pull carry it: every field with its edit time and change id. */
-type SyncedHabit = Omit<HabitRecord, "edited" | "changeIds" | "pending" | "archivedPeriods"> & {
-  archivedPeriods: NonNullable<HabitRecord["archivedPeriods"]>;
-  edited: Record<EditableField, number>;
-  changeIds: Record<EditableField, string>;
-};
-type SyncedDay = Omit<DayRecord, "changeId" | "pending"> & { changeId: string };
-type Pulled = { habits: SyncedHabit[]; days: SyncedDay[]; version: number; more: boolean };
-/** A push's answer: where in its lists were the rows the server couldn't read. */
-type PushAnswer = { refused: { habits: number[]; days: number[] } };
+  type Pulled,
+  type PushAnswer,
+  type SyncedDay,
+  type SyncedHabit,
+} from "@streakky/contract";
+import type { ApiFetch } from "./account.ts";
+import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
+import { dayKey, type DayRecord, type HabitRecord } from "./records.ts";
 
 /** What a sync knows between runs, kept per account so another account starts afresh. */
 type Cursor = { email: string; version: number; lastSynced: number | null };
 
 const CURSOR_KEY = "streakky.sync";
-/** The Worker takes at most this many rows in one push (apps/api/src/sync.ts, PUSH_LIMIT). */
-const PUSH_LIMIT = 200;
 
 export type SyncTiming = {
   /** How long after a change on the device it syncs, gathering the changes made meanwhile. */
@@ -130,7 +121,7 @@ export function openSync({
   now,
   timing,
   triggers,
-  changed,
+  statusChanged,
   sessionEnded,
 }: {
   api: ApiFetch;
@@ -143,29 +134,28 @@ export function openSync({
   timing: SyncTiming;
   /** The platform's moments to sync, such as coming back online or to the foreground. */
   triggers?: (sync: () => void) => () => void;
-  /** Sync's progress changed. */
-  changed: () => void;
+  /** Sync's progress changed: what waits for a push, the last sync, or whether it's failing. */
+  statusChanged: () => void;
   /** The server answered that this device isn't signed in. */
   sessionEnded: () => void;
 }): Sync {
-  const readCursor = (email: string): Cursor => {
-    try {
-      const stored = JSON.parse(storage.getItem(CURSOR_KEY) ?? "null") as Partial<Cursor> | null;
-      if (stored?.email === email && Number.isSafeInteger(stored.version)) {
-        return { email, version: stored.version!, lastSynced: stored.lastSynced ?? null };
-      }
-    } catch {
-      // unreadable: start from the beginning, which is always safe
-    }
-    return { email, version: 0, lastSynced: null };
-  };
-  const saveCursor = (cursor: Cursor) => {
-    try {
-      storage.setItem(CURSOR_KEY, JSON.stringify(cursor));
-    } catch {
-      // full or blocked storage: the next sync pulls again from the last version saved
-    }
-  };
+  /** The account's cursor; none, another account's, or an unreadable one starts from the beginning. */
+  const readCursor = (email: string): Cursor =>
+    readJSON<Cursor>(
+      storage,
+      CURSOR_KEY,
+      (stored) =>
+        isRecord(stored) && stored.email === email && Number.isSafeInteger(stored.version)
+          ? {
+              email,
+              version: stored.version as number,
+              lastSynced: typeof stored.lastSynced === "number" ? stored.lastSynced : null,
+            }
+          : undefined,
+      { email, version: 0, lastSynced: null },
+    );
+  // with full or blocked storage, the next sync pulls again from the last version saved
+  const saveCursor = (cursor: Cursor) => writeJSON(storage, CURSOR_KEY, cursor);
 
   const request = async (path: string, init?: RequestInit): Promise<Response | null> => {
     const response = await api(path, init).catch(() => null);
@@ -207,7 +197,7 @@ export function openSync({
         habits: chunk.flatMap((row) => ("habit" in row ? [row.habit] : [])),
         days: chunk.flatMap((row) => ("day" in row ? [row.day] : [])),
       };
-      const response = await request("/api/sync/push", {
+      const response = await request(`${SYNC_PATH}/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -261,7 +251,7 @@ export function openSync({
   const pullChanges = async (email: string): Promise<boolean> => {
     let cursor = readCursor(email);
     for (;;) {
-      const response = await request(`/api/sync/pull?since=${cursor.version}`);
+      const response = await request(`${SYNC_PATH}/pull?since=${cursor.version}`);
       if (!response) return false;
       const pulled = (await response.json()) as Pulled;
       await applyPulled(pulled);
@@ -283,7 +273,7 @@ export function openSync({
     const pulled = await pullChanges(email);
     failing = !(pushed && pulled);
     if (!failing) saveCursor({ ...readCursor(email), lastSynced: now() });
-    changed();
+    statusChanged();
   };
 
   let running: Promise<void> | null = null;

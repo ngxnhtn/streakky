@@ -12,6 +12,7 @@
     "@fontsource-variable/instrument-sans": "catalog:",
     "@fontsource/dm-mono": "catalog:",
     "@journeyapps/wa-sqlite": "catalog:",
+    "@streakky/contract": "workspace:*",
     "@streakky/core": "workspace:*",
     "@streakky/ui": "workspace:*",
     "@tailwindcss/vite": "^4.1.18",

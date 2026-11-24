@@ -3,13 +3,11 @@
  * which writes the SQL migration that deploy applies. better-auth's tables come from
  * auth-schema.ts, which that task regenerates from the auth options.
  */
+import type { ArchivedPeriod, ColorId } from "@streakky/core";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { user } from "./auth-schema.ts";
 
 export * from "./auth-schema.ts";
-
-/** A habit's archived period, as the devices keep it (YYYY-MM-DD; `restoredOn` null while open). */
-export type ArchivedPeriod = { archivedOn: string; restoredOn: string | null };
 
 /** The account a synced row belongs to; its rows go when the account does. */
 const owner = () =>
@@ -36,7 +34,8 @@ export const habits = sqliteTable(
     name: text().notNull(),
     nameEdited: edited("name"),
     nameChangeId: changeId("name"),
-    color: text().notNull(),
+    // the devices' colour ids; the server takes any it can read (src/sync.ts)
+    color: text().$type<ColorId>().notNull(),
     colorEdited: edited("color"),
     colorChangeId: changeId("color"),
     goal: integer(),

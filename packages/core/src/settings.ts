@@ -2,10 +2,29 @@
 
 export type Theme = "system" | "light" | "dark";
 
+/** Light or dark, or following the device. */
+export const THEMES: { id: Theme; name: string }[] = [
+  { id: "system", name: "System" },
+  { id: "light", name: "Light" },
+  { id: "dark", name: "Dark" },
+];
+
 export type Layout = "grid" | "list";
+
+/** How Home shows the habits. */
+export const LAYOUTS: { id: Layout; name: string }[] = [
+  { id: "grid", name: "Grid" },
+  { id: "list", name: "List" },
+];
 
 /** 0: weeks start on Sunday. 1: on Monday. */
 export type WeekStart = 0 | 1;
+
+/** The days a week can start on, in the calendars. */
+export const WEEK_STARTS: { id: WeekStart; name: string }[] = [
+  { id: 1, name: "Monday" },
+  { id: 0, name: "Sunday" },
+];
 
 export type PaletteId = "teal" | "cobalt" | "olive" | "oxblood" | "graphite";
 

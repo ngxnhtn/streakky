@@ -3,7 +3,10 @@
  * signed in, so the app knows while offline. The session itself is the server's cookie, which
  * the browser keeps. Screens reach all of this through the habit store.
  */
-import type { HabitStore, KeyValueStorage } from "./habit-store.ts";
+import { AUTH_PATH, SIGN_IN_CODE, SIGN_IN_ERRORS } from "@streakky/contract";
+import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
+
+export { SIGN_IN_CODE };
 
 /** Calls the API Worker: `fetch` on the app's own origin in the browser. */
 export type ApiFetch = (path: string, init?: RequestInit) => Promise<Response>;
@@ -19,9 +22,6 @@ export type AccountStatus = { signedIn: false } | { signedIn: true; email: strin
 export type SyncStatus =
   | { signedIn: false }
   | { signedIn: true; email: string; pending: number; lastSynced: number | null; failing: boolean };
-
-/** The codes the server emails: how many digits, and how many minutes each works (auth.ts). */
-export const SIGN_IN_CODE = { length: 6, minutes: 5 } as const;
 
 /** Why a code wasn't sent, or a sign-in didn't go through. */
 export type SignInFailure =
@@ -55,31 +55,37 @@ export class SignInError extends Error {
 type Stored = { email: string } | { signingOut: true } | null;
 
 const ACCOUNT_KEY = "streakky.account";
-const AUTH = "/api/auth";
 
-/** better-auth's error codes, as the app tells them apart. */
+/** Sign-in's error codes, better-auth's and the Worker's own, as the app tells them apart. */
 const FAILURES: Record<string, SignInFailure> = {
   INVALID_EMAIL: "invalid-email",
-  EMAIL_NOT_ALLOWED: "not-allowed",
+  [SIGN_IN_ERRORS.notAllowed]: "not-allowed",
   INVALID_OTP: "wrong-code",
   OTP_EXPIRED: "expired-code",
   TOO_MANY_ATTEMPTS: "used-up-code",
 };
 
-/** The habit store's sign-in commands, which the store hands on, and whether it's signed in. */
-export type Account = Pick<
-  HabitStore,
-  "requestSignInCode" | "signIn" | "signOut" | "checkSession"
-> & { status: () => AccountStatus };
+/**
+ * The habit store's sign-in commands, which the store hands on (see `HabitStore`), and whether
+ * this device is signed in.
+ */
+export type Account = {
+  requestSignInCode: (email: string) => Promise<void>;
+  signIn: (email: string, code: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  checkSession: () => Promise<void>;
+  status: () => AccountStatus;
+};
 
 export function openAccount({
   api,
   storage,
-  changed,
+  statusChanged,
 }: {
   api: ApiFetch;
   storage: KeyValueStorage;
-  changed: () => void;
+  /** Whether the device is signed in, or as whom, changed. */
+  statusChanged: () => void;
 }): Account {
   let stored = readStored(storage);
   let status = statusOf(stored);
@@ -89,17 +95,14 @@ export function openAccount({
     generation++;
     stored = next;
     status = statusOf(next);
-    try {
-      storage.setItem(ACCOUNT_KEY, JSON.stringify(next));
-    } catch {
-      // full or blocked storage: the change holds until the app is reopened
-    }
-    changed();
+    // with full or blocked storage, the change holds until the app is reopened
+    writeJSON(storage, ACCOUNT_KEY, next);
+    statusChanged();
   };
 
   const post = async (path: string, body: object) => {
     try {
-      return await api(`${AUTH}${path}`, {
+      return await api(`${AUTH_PATH}${path}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -144,7 +147,7 @@ export function openAccount({
     async checkSession() {
       if (stored && "signingOut" in stored) return endSession();
       const started = generation;
-      const response = await api(`${AUTH}/get-session`).catch(() => null);
+      const response = await api(`${AUTH_PATH}/get-session`).catch(() => null);
       // offline, or the server failing: the device keeps what it knew
       if (!response?.ok) return;
       const session = (await response.json()) as { user: { email: string } } | null;
@@ -155,8 +158,8 @@ export function openAccount({
 
 async function failure(response: Response): Promise<SignInError> {
   const body = (await response.json().catch(() => null)) as { code?: string } | null;
-  // the Worker's per-address daily limit (apps/api/src/auth.ts, TOO_MANY_TODAY)
-  if (body?.code === "TOO_MANY_SIGN_IN_ATTEMPTS_TODAY") return new SignInError("limit-today");
+  // the Worker's per-address daily limit, which answers 429 as the per-IP limits do
+  if (body?.code === SIGN_IN_ERRORS.limitToday) return new SignInError("limit-today");
   if (response.status === 429) return new SignInError("rate-limited");
   return new SignInError(FAILURES[body?.code ?? ""] ?? "server");
 }
@@ -164,14 +167,15 @@ async function failure(response: Response): Promise<SignInError> {
 const statusOf = (stored: Stored): AccountStatus =>
   stored && "email" in stored ? { signedIn: true, email: stored.email } : { signedIn: false };
 
-function readStored(storage: KeyValueStorage): Stored {
-  try {
-    const value: unknown = JSON.parse(storage.getItem(ACCOUNT_KEY) ?? "null");
-    if (typeof value !== "object" || value === null) return null;
-    if ("email" in value && typeof value.email === "string") return { email: value.email };
-    if ("signingOut" in value && value.signingOut === true) return { signingOut: true };
-    return null;
-  } catch {
-    return null;
-  }
-}
+const readStored = (storage: KeyValueStorage): Stored =>
+  readJSON<Stored>(
+    storage,
+    ACCOUNT_KEY,
+    (value) => {
+      if (!isRecord(value)) return null;
+      if (typeof value.email === "string") return { email: value.email };
+      if (value.signingOut === true) return { signingOut: true };
+      return null;
+    },
+    null,
+  );

@@ -281,6 +281,12 @@ importers:
 
   apps/api:
     dependencies:
+      '@streakky/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
+      '@streakky/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       better-auth:
         specifier: 'catalog:'
         version: 1.7.27(drizzle-kit@0.31.11)(drizzle-orm@0.45.4(@types/better-sqlite3@9.6.0)(better-sqlite3@12.11.1)(kysely@0.29.9))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(vitest@5.1.0)
@@ -364,6 +370,9 @@ importers:
       '@journeyapps/wa-sqlite':
         specifier: 'catalog:'
         version: 1.7.2
+      '@streakky/contract':
+        specifier: workspace:*
+        version: link:../../packages/contract
       '@streakky/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -431,6 +440,16 @@ importers:
       vite-plus:
         specifier: 'catalog:'
         version: 1.7.0(@types/node@24.19.2)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.4)(tsx@4.23.15)(typescript@7.0.2)
+
+  packages/contract:
+    dependencies:
+      '@streakky/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   packages/core:
     devDependencies:
