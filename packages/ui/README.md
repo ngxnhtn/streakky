@@ -73,8 +73,8 @@ whole interface grows with the reader's browser text size. Only hairlines of 2px
 outlines, inset ring strokes, the 1px hover and press steps) stay in px. Tap targets are at least
 2.75rem (`size-11`, or `tap-target` around a smaller control), which is 44px at the default size.
 The calendar's days are 1.75rem squares at rest, where they're only read; in Edit days they grow to
-2.75rem in Weeks, and Month's rows are 2.75rem tall. Month's columns share the width, so below a
-22rem-wide calendar (a 320px phone) they're a little narrower than 2.75rem.
+2.75rem in Weeks, and Month's rows are 2.75rem tall. Month's seven columns share the calendar's
+width, so on a phone narrower than about 22rem (a 320px one) they're a little under 2.75rem wide.
 
 ## Components
 

@@ -310,7 +310,12 @@ function WeeksGrid({
     <div className="-mr-1 flex gap-2">
       <div
         ref={scroller}
-        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,#000_1.25rem)] [&::-webkit-scrollbar]:hidden"
+        // At rest the days aren't controls, so the weeks themselves take focus, for the arrow
+        // keys to scroll back through them; while editing, the day buttons do.
+        role="group"
+        aria-label="Weeks, newest last"
+        tabIndex={edit.editing ? undefined : 0}
+        className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain rounded-lg py-0.5 pr-0.5 [scrollbar-width:none] [mask-image:linear-gradient(to_right,transparent,#000_1.25rem)] focus-ring-flush focus-visible:-outline-offset-2 [&::-webkit-scrollbar]:hidden"
       >
         <div className="flex w-max gap-1 pl-4">
           {cols.map((c, i) => (
@@ -358,7 +363,7 @@ function WeeksGrid({
           ))}
         </div>
       </div>
-      <div aria-hidden="true" className={cn(rows, "flex-none")}>
+      <div aria-hidden="true" className={cn(rows, "flex-none py-0.5")}>
         <span />
         {rotate(NAMES, weekStart).map((n) => (
           <span
