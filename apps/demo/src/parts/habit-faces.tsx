@@ -45,16 +45,17 @@ export function HabitFaces({
         const face = {
           name: s.name,
           days,
-          label: counterLabel(s, days),
+          unit: counterLabel(s, days),
+          status: statusLabel(s),
           kind: s.kind,
           color: s.color,
-          checkedIn: loggedToday(s),
+          today: { logged: loggedToday(s) },
           onClick: () => onOpen(s.id),
         };
         return layout === "grid" ? (
           <HabitCard key={s.id} {...face} />
         ) : (
-          <HabitRow key={s.id} {...face} status={statusLabel(s)} />
+          <HabitRow key={s.id} {...face} />
         );
       })}
       <NewHabitTile layout={layout} onClick={onAdd} />

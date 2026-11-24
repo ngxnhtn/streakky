@@ -1,7 +1,13 @@
-import { ChevronLeft, ChevronRight, Download } from "lucide-react";
-import type { Layout, Theme } from "@streakky/core";
+import { ChevronRight, Download } from "lucide-react";
+import {
+  LAYOUTS,
+  THEMES,
+  WEEK_STARTS,
+  type Layout,
+  type Theme,
+  type WeekStart,
+} from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
-import { Button } from "@streakky/ui/components/button";
 import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/components/list";
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
@@ -9,24 +15,21 @@ import { Switch } from "@streakky/ui/components/switch";
 import { saveFile } from "../save-file.ts";
 import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
+
+/** A setting's choices from core, as a segmented control's options. */
+const optionsOf = <T extends string | number>(choices: { id: T; name: string }[]) =>
+  choices.map(({ id, name }) => ({ value: id, label: name }));
 
 /** This device's settings. Each change applies at once and stays on the device. */
 export function Settings() {
-  const { pop, push } = useNav();
+  const { push } = useNav();
   const store = useHabitStore();
   const settings = useSettings();
   const archived = useArchivedHabits();
   return (
     <>
-      <AppBar
-        left={
-          <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
-            <ChevronLeft strokeWidth={1.75} />
-          </Button>
-        }
-        title="Settings"
-      />
+      <AppBar left={<BackButton />} title="Settings" />
       <ScreenScroll>
         <div className="px-5">
           <AccountSettings />
@@ -38,11 +41,7 @@ export function Settings() {
                   label="Theme"
                   value={settings.theme}
                   onValueChange={(theme) => store.changeSettings({ theme })}
-                  options={[
-                    { value: "system", label: "System" },
-                    { value: "light", label: "Light" },
-                    { value: "dark", label: "Dark" },
-                  ]}
+                  options={optionsOf(THEMES)}
                 />
               </ListItem>
               <ListItem stacked>
@@ -58,24 +57,16 @@ export function Settings() {
                   label="Home layout"
                   value={settings.layout}
                   onValueChange={(layout) => store.changeSettings({ layout })}
-                  options={[
-                    { value: "grid", label: "Grid" },
-                    { value: "list", label: "List" },
-                  ]}
+                  options={optionsOf(LAYOUTS)}
                 />
               </ListItem>
               <ListItem stacked>
                 <ListLabel>Week starts on</ListLabel>
-                <Segmented
+                <Segmented<WeekStart>
                   label="Week starts on"
-                  value={String(settings.weekStart)}
-                  onValueChange={(value) =>
-                    store.changeSettings({ weekStart: value === "0" ? 0 : 1 })
-                  }
-                  options={[
-                    { value: "1", label: "Monday" },
-                    { value: "0", label: "Sunday" },
-                  ]}
+                  value={settings.weekStart}
+                  onValueChange={(weekStart) => store.changeSettings({ weekStart })}
+                  options={optionsOf(WEEK_STARTS)}
                 />
               </ListItem>
               <ListItem>

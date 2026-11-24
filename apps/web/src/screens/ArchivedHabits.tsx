@@ -1,13 +1,14 @@
 import { useEffect, useRef } from "react";
-import { ArchiveRestore, ChevronLeft } from "lucide-react";
+import { ArchiveRestore } from "lucide-react";
 import { archivedSince, fmtShort, longestStreakDays, plural, type Habit } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
+import { EmptyState } from "@streakky/ui/components/empty-state";
 import { List } from "@streakky/ui/components/list";
 import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore } from "../store/react.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
-import { ScreenScroll, useNav, useScreenBelow } from "./stack.tsx";
+import { BackButton, ScreenScroll, useNav } from "./stack.tsx";
 
 /**
  * Archived habits, reached from Settings, or from Home when every habit is archived: hidden from
@@ -15,8 +16,7 @@ import { ScreenScroll, useNav, useScreenBelow } from "./stack.tsx";
  * one brings it back to Home.
  */
 export function ArchivedHabits() {
-  const { push, pop } = useNav();
-  const fromHome = useScreenBelow()?.name === "home";
+  const { push } = useNav();
   const store = useHabitStore();
   const habits = useArchivedHabits();
 
@@ -32,33 +32,14 @@ export function ArchivedHabits() {
 
   return (
     <>
-      <AppBar
-        left={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={fromHome ? "Back to habits" : "Back to settings"}
-            onClick={pop}
-          >
-            <ChevronLeft strokeWidth={1.75} />
-          </Button>
-        }
-        title="Archived habits"
-      />
+      <AppBar left={<BackButton />} title="Archived habits" />
       <ScreenScroll>
         <div className="px-5 pt-2">
           {habits.length === 0 ? (
-            <div
-              ref={none}
-              tabIndex={-1}
-              className="max-w-[30rem] rounded-3xl bg-muted px-6 pt-7 pb-6 focus-ring"
-            >
-              <p className="text-xl font-medium tracking-[-0.015em]">Nothing archived</p>
-              <p className="mt-1.5 text-muted-foreground">
-                Archive a habit from its options when you stop tracking it. It leaves Home and waits
-                here, history and all, until you restore it.
-              </p>
-            </div>
+            <EmptyState ref={none} tabIndex={-1} title="Nothing archived" className="focus-ring">
+              Archive a habit from its options when you stop tracking it. It leaves Home and waits
+              here, history and all, until you restore it.
+            </EmptyState>
           ) : (
             <>
               <p className="mx-1 mb-4 text-sm text-muted-foreground">

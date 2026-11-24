@@ -21,11 +21,18 @@ export function Field({
 }) {
   const id = React.useId();
   const errId = `${id}-err`;
+  const hintId = `${id}-hint`;
+  // the error takes the hint's place, so the control is described by whichever shows
+  const describedBy = error ? errId : hint ? hintId : undefined;
   return (
     <div data-slot="field" className={cn("grid min-w-0 gap-2", className)}>
       <Label htmlFor={id}>{label}</Label>
-      {children({ id, describedBy: error ? errId : undefined, invalid: Boolean(error) })}
-      {hint && !error && <p className="text-[0.8125rem] text-muted-foreground">{hint}</p>}
+      {children({ id, describedBy, invalid: Boolean(error) })}
+      {hint && !error && (
+        <p id={hintId} className="text-[0.8125rem] text-muted-foreground">
+          {hint}
+        </p>
+      )}
       {error && (
         <p id={errId} className="text-[0.8125rem] text-destructive">
           {error}

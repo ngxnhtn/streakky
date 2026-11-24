@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { ChevronLeft, Menu } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Menu } from "lucide-react";
 import {
   canToggle,
   counterLabel,
@@ -20,7 +20,7 @@ import { ArchivedNote } from "./ArchivedHabits.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { HabitOptions, type HabitDialog } from "./HabitOptions.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { BackButton, ScreenScroll } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
 const TABS = ["calendar", "stats", "goal"] as const;
@@ -43,21 +43,17 @@ export function HabitDetail({ id }: { id: string }) {
   const archived = active === undefined;
   const { weekStart } = useSettings();
   const day = useToday();
-  const { pop } = useNav();
   const [chosenTab, setTab] = useState<Tab>("calendar");
   const tabs = archived ? ARCHIVED_TABS : TABS;
   const tab = tabs.includes(chosenTab) ? chosenTab : "calendar";
   const [view, setView] = useState<CalendarView>("weeks");
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const [dialog, setDialog] = useState<HabitDialog>(null);
+  const optionsButton = useRef<HTMLButtonElement>(null);
   // an archived habit's goal waits, like its days, until it's restored
   const shown = useMemo(() => (active ? [active] : []), [active]);
   const celebration = useCelebration(shown, day);
-  const back = (
-    <Button variant="ghost" size="icon" aria-label="Back to habits" onClick={pop}>
-      <ChevronLeft strokeWidth={1.75} />
-    </Button>
-  );
+  const back = <BackButton />;
   if (!habit) {
     // say, a reload on a habit that has since gone
     return (
@@ -80,6 +76,7 @@ export function HabitDetail({ id }: { id: string }) {
             size="icon"
             aria-label="Habit options"
             aria-haspopup="dialog"
+            ref={optionsButton}
             onClick={() => setDialog("options")}
           >
             <Menu strokeWidth={1.75} />
@@ -91,11 +88,11 @@ export function HabitDetail({ id }: { id: string }) {
           days={days}
           goal={habit.goal}
           label={counterLabel(habit, days)}
-          // an archived habit can't be checked in, so it isn't asked to
+          // An archived habit has no streak going at 0 days: a build habit can't be checked in, and
+          // a quit habit's count is held, so neither is asked to start or said to have started
+          // today. A slip logged today, before it was archived, still says so.
           since={
-            archived && habit.kind === "build" && days === 0
-              ? "no current streak"
-              : sinceLabel(habit)
+            archived && days === 0 && !loggedToday(habit) ? "no current streak" : sinceLabel(habit)
           }
         />
         <div className="flex justify-center px-5 pt-1 pb-5">
@@ -146,7 +143,13 @@ export function HabitDetail({ id }: { id: string }) {
         </Tabs>
       </ScreenScroll>
       {slipDialog}
-      <HabitOptions habit={habit} archived={archived} dialog={dialog} setDialog={setDialog} />
+      <HabitOptions
+        habit={habit}
+        archived={archived}
+        dialog={dialog}
+        setDialog={setDialog}
+        optionsButton={optionsButton}
+      />
       {celebration}
     </div>
   );

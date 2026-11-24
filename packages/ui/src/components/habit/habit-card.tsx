@@ -2,6 +2,7 @@ import * as React from "react";
 import { Check, Plus, RotateCcw } from "lucide-react";
 import type { ColorId, Kind, Layout } from "@streakky/core";
 import { useReorder, type ReorderState } from "@streakky/ui/hooks/use-reorder";
+import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
 import { cn } from "@streakky/ui/lib/utils";
 
 /** Today's state on a build habit: an empty ring, filled with a tick once checked in. */
@@ -18,41 +19,6 @@ export function CheckInTick({ checkedIn, className }: { checkedIn: boolean; clas
     >
       {checkedIn && <Check strokeWidth={2.5} className="size-[60%]" />}
     </span>
-  );
-}
-
-/** The tick as a toggle: checks a build habit in today, or undoes it. A 2.75rem target around it. */
-export function CheckInButton({
-  name,
-  checkedIn,
-  onToggle,
-  className,
-  tickClassName,
-}: {
-  name: string;
-  checkedIn: boolean;
-  onToggle: () => void;
-  className?: string;
-  /** sizes the tick inside the 2.75rem target */
-  tickClassName?: string;
-}) {
-  return (
-    <button
-      type="button"
-      data-slot="check-in-button"
-      aria-label={`Check in ${name} today`}
-      aria-pressed={checkedIn}
-      onClick={onToggle}
-      className={cn(
-        "grid size-11 place-items-center rounded-full",
-        "transition-[background-color,transform,scale] duration-120 ease-ui",
-        "hover-fine:bg-habit/12 active:scale-94 active:duration-90",
-        "focus-ring-flush",
-        className,
-      )}
-    >
-      <CheckInTick checkedIn={checkedIn} className={tickClassName} />
-    </button>
   );
 }
 
@@ -75,33 +41,45 @@ export function SlipIcon({ slipped, className }: { slipped: boolean; className?:
   );
 }
 
+/** Today on a habit's face. */
+export type Today = {
+  /** build: checked in today; quit: a slip logged today */
+  logged: boolean;
+  /** today can't be logged, as on a quit habit's quit day */
+  locked?: boolean;
+  /**
+   * With it, today's tick (build) or slip (quit) is a button of its own. A slip ends the current
+   * streak, so ask before logging one.
+   */
+  onToggle?: () => void;
+};
+
 /**
- * The slip icon as a toggle: logs today's slip on a quit habit, or removes it. A 2.75rem target
- * around it. A slip ends the current streak, so ask before calling `onToggle` to log one.
- * `disabled` on the quit day itself, which can't have a slip.
+ * Today's tick or slip as a toggle, in a 2.75rem target: checks a build habit in today or undoes
+ * it, or logs a quit habit's slip today or removes it. Its name stays the same either way, and
+ * `aria-pressed` says which.
  */
-export function SlipButton({
+export function TodayToggle({
+  kind,
   name,
-  slipped,
-  disabled,
-  onToggle,
+  today: { logged, locked, onToggle },
   className,
-  iconClassName,
+  markClassName,
 }: {
+  kind: Kind;
   name: string;
-  slipped: boolean;
-  disabled?: boolean;
-  onToggle: () => void;
+  today: Today;
   className?: string;
-  iconClassName?: string;
+  /** sizes the tick or slip inside the 2.75rem target */
+  markClassName?: string;
 }) {
   return (
     <button
       type="button"
-      data-slot="slip-button"
-      aria-label={`Log a slip for ${name} today`}
-      aria-pressed={slipped}
-      disabled={disabled}
+      data-slot={kind === "build" ? "check-in-button" : "slip-button"}
+      aria-label={KIND_COPY[kind].todayToggle(name)}
+      aria-pressed={logged}
+      disabled={locked}
       onClick={onToggle}
       className={cn(
         "grid size-11 place-items-center rounded-full",
@@ -112,7 +90,11 @@ export function SlipButton({
         className,
       )}
     >
-      <SlipIcon slipped={slipped} className={iconClassName} />
+      {kind === "build" ? (
+        <CheckInTick checkedIn={logged} className={markClassName} />
+      ) : (
+        <SlipIcon slipped={logged} className={markClassName} />
+      )}
     </button>
   );
 }
@@ -126,223 +108,65 @@ const tileLift =
   "hover-fine:-translate-y-0.5 hover-fine:border-input hover-fine:shadow-[0_0.75rem_1.5rem_-0.875rem_rgb(0_0_0/0.28)] hover-fine:duration-180";
 const tile = [tileGround, tileLift, "focus-ring active:scale-[0.98] active:duration-90"].join(" ");
 
-type HabitFace = {
+/** What both faces take: `HabitCard` in the grid, `HabitRow` in the list. */
+export type HabitFaceProps = {
   name: string;
   days: number;
-  /** under the count: "day streak", "days free" */
-  label: string;
+  /** what the count counts: "day streak", "days free" */
+  unit: string;
+  /** how today stands: "Checked in today", "Since 12 Nov", "Check in today to start" */
+  status: string;
   kind: Kind;
   color: ColorId;
-  /** build habits: checked in today */
-  checkedIn: boolean;
-  onClick: () => void;
+  today: Today;
+  /** opens the habit, from anywhere on the face but today's button */
+  onClick?: () => void;
   className?: string;
 };
 
-const summaryOf = ({
-  name,
-  days,
-  label,
-  kind,
-  checkedIn,
-}: Pick<HabitFace, "name" | "days" | "label" | "kind" | "checkedIn">) =>
-  `${name}: ${days} ${label}${kind === "build" ? (checkedIn ? ", checked in today" : ", not checked in today") : ""}`;
+const lowerFirst = (text: string) => text.charAt(0).toLowerCase() + text.slice(1);
+
+/** What a screen reader hears for a face: "Morning run: 6 day streak, checked in today". */
+const summaryOf = ({ name, days, unit, status }: HabitFaceProps) =>
+  `${name}: ${days} ${unit}, ${lowerFirst(status)}`;
 
 /**
- * Grid face: the name on top, the big count in the habit's colour at the bottom.
- * With `onCheckIn`, a build habit's tick becomes its own button; with `onSlip`, a quit habit gets
- * a slip button in the same place. `onClick` then opens the habit from anywhere else on the card,
- * and without it the card is not a button at all.
+ * The tile both faces sit on. With `onClick` and no button of today's inside, the whole face is
+ * the button that opens the habit. With today's button too, an open button covers the face under
+ * it, and the face's own text is hidden from screen readers, since the open button names it.
  */
-export function HabitCard({
-  onCheckIn,
-  slipped = false,
-  slipLocked = false,
-  onSlip,
-  ...face
-}: Omit<HabitFace, "onClick"> & {
-  onClick?: () => void;
-  onCheckIn?: () => void;
-  /** quit habits: a slip logged today */
-  slipped?: boolean;
-  /** quit habits: today is the quit day, so no slip can be logged yet */
-  slipLocked?: boolean;
-  onSlip?: () => void;
+function FaceShell({
+  slot,
+  face,
+  whole,
+  shape,
+  children,
+}: {
+  slot: "habit-card" | "habit-row";
+  face: HabitFaceProps;
+  /** the whole face is the open button */
+  whole: boolean;
+  shape: string;
+  children: React.ReactNode;
 }) {
-  const { name, days, label, kind, color, checkedIn, onClick, className } = face;
-  const summary = summaryOf(face);
-  const tickIsButton = kind === "build" && onCheckIn !== undefined;
-  const slipIsButton = kind === "quit" && onSlip !== undefined;
-  const body = (
-    <>
-      <span className="flex items-start justify-between gap-2">
-        <span className="line-clamp-2 text-sm leading-tight font-medium">{name}</span>
-        {kind === "build" &&
-          (tickIsButton ? (
-            <span className="size-[1.375rem] flex-none" />
-          ) : (
-            <CheckInTick checkedIn={checkedIn} className="-mt-px -mr-0.5" />
-          ))}
-        {slipIsButton && <span className="size-[1.375rem] flex-none" />}
-      </span>
-      <span className="mt-auto font-display text-[3.25rem] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
-        {days}
-      </span>
-      <span className="mt-1.5 text-[0.8125rem] text-muted-foreground">{label}</span>
-    </>
-  );
-  const shape = "flex h-[10.5rem] flex-col rounded-3xl p-4";
-
-  if (!tickIsButton && !slipIsButton && onClick) {
+  const { color, onClick, className } = face;
+  if (whole) {
     return (
       <button
         type="button"
-        data-slot="habit-card"
+        data-slot={slot}
         data-habit-color={color}
         onClick={onClick}
-        aria-label={summary}
+        aria-label={summaryOf(face)}
         className={cn(tile, shape, className)}
       >
-        {body}
+        {children}
       </button>
     );
   }
   return (
     <div
-      data-slot="habit-card"
-      data-habit-color={color}
-      className={cn(
-        tileGround,
-        "relative",
-        onClick && [tileLift, "has-[>[data-slot=habit-open]:active]:scale-[0.98]"],
-        shape,
-        className,
-      )}
-    >
-      {onClick && (
-        <button
-          type="button"
-          data-slot="habit-open"
-          onClick={onClick}
-          aria-label={summary}
-          className="focus-ring absolute inset-0 rounded-[inherit]"
-        />
-      )}
-      <span
-        aria-hidden={onClick ? true : undefined}
-        className="pointer-events-none relative flex flex-1 flex-col"
-      >
-        {body}
-      </span>
-      {tickIsButton && (
-        <CheckInButton
-          name={name}
-          checkedIn={checkedIn}
-          onToggle={onCheckIn}
-          className="absolute top-1 right-[0.1875rem]"
-        />
-      )}
-      {slipIsButton && (
-        <SlipButton
-          name={name}
-          slipped={slipped}
-          disabled={slipLocked}
-          onToggle={onSlip}
-          className="absolute top-1 right-[0.1875rem]"
-        />
-      )}
-    </div>
-  );
-}
-
-/**
- * List face: the name and today's state on the left, the count on the right.
- * With `onCheckIn` or `onSlip`, today's tick or slip becomes its own button, as on `HabitCard`.
- */
-export function HabitRow({
-  onCheckIn,
-  slipped = false,
-  slipLocked = false,
-  onSlip,
-  status,
-  ...face
-}: Omit<HabitFace, "onClick"> & {
-  status: string;
-  onClick?: () => void;
-  onCheckIn?: () => void;
-  /** quit habits: a slip logged today */
-  slipped?: boolean;
-  /** quit habits: today is the quit day, so no slip can be logged yet */
-  slipLocked?: boolean;
-  onSlip?: () => void;
-}) {
-  const { name, days, label, kind, color, checkedIn, onClick, className } = face;
-  const tickIsButton = kind === "build" && onCheckIn !== undefined;
-  const slipIsButton = kind === "quit" && onSlip !== undefined;
-  const todayIsButton = tickIsButton || slipIsButton;
-  // with an open button over the row, it names the habit and the text is hidden from readers;
-  // today's button sits in the text, so the text is hidden span by span
-  const hideText = todayIsButton && onClick ? true : undefined;
-  const body = (
-    <>
-      <span className="flex min-w-0 flex-col gap-1">
-        <span aria-hidden={hideText} className="truncate text-base font-medium">
-          {name}
-        </span>
-        <span className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
-          {kind === "build" &&
-            (tickIsButton ? (
-              // the 2.75rem target overhangs the 1rem tick, so the line keeps its height
-              <CheckInButton
-                name={name}
-                checkedIn={checkedIn}
-                onToggle={onCheckIn}
-                tickClassName="size-4"
-                className="pointer-events-auto -m-3.5"
-              />
-            ) : (
-              <CheckInTick checkedIn={checkedIn} className="size-4" />
-            ))}
-          {slipIsButton && (
-            <SlipButton
-              name={name}
-              slipped={slipped}
-              disabled={slipLocked}
-              onToggle={onSlip}
-              iconClassName="size-4"
-              className="pointer-events-auto -m-3.5"
-            />
-          )}
-          <span aria-hidden={hideText}>{status}</span>
-        </span>
-      </span>
-      <span aria-hidden={hideText} className="flex flex-none flex-col items-end gap-0.5">
-        <span className="font-display text-[2.125rem] leading-[0.95] font-medium tracking-[-0.04em] text-habit tabular-nums [font-stretch:96%]">
-          {days}
-        </span>
-        <span className="text-xs text-muted-foreground">{label}</span>
-      </span>
-    </>
-  );
-  const shape =
-    "flex min-h-[4.75rem] items-center justify-between gap-4 rounded-[1.25rem] px-[1.125rem] py-3";
-
-  if (!todayIsButton && onClick) {
-    return (
-      <button
-        type="button"
-        data-slot="habit-row"
-        data-habit-color={color}
-        onClick={onClick}
-        className={cn(tile, shape, className)}
-      >
-        {body}
-      </button>
-    );
-  }
-  return (
-    <div
-      data-slot="habit-row"
+      data-slot={slot}
       data-habit-color={color}
       className={cn(
         tileGround,
@@ -361,10 +185,119 @@ export function HabitRow({
           className="focus-ring absolute inset-0 rounded-[inherit]"
         />
       )}
-      <span className="pointer-events-none relative flex min-w-0 flex-1 items-center justify-between gap-4">
-        {body}
-      </span>
+      {children}
     </div>
+  );
+}
+
+/**
+ * Grid face: the name on top, the big count in the habit's colour at the bottom, and what it
+ * counts under it, or with no streak yet, how today stands. With `today.onToggle`, today's tick or
+ * slip is a button in the corner; `onClick` then opens the habit from anywhere else on the card.
+ * Without `onClick` the card opens nothing.
+ */
+export function HabitCard(face: HabitFaceProps) {
+  const { name, days, unit, status, kind, today, onClick } = face;
+  const toggles = today.onToggle !== undefined;
+  const body = (
+    <>
+      <span className="flex items-start justify-between gap-2">
+        <span className="line-clamp-2 text-sm leading-tight font-medium">{name}</span>
+        {toggles ? (
+          <span className="size-[1.375rem] flex-none" />
+        ) : (
+          kind === "build" && <CheckInTick checkedIn={today.logged} className="-mt-px -mr-0.5" />
+        )}
+      </span>
+      <span className="mt-auto font-display text-[3.25rem] leading-[0.9] font-medium tracking-[-0.045em] text-habit tabular-nums [font-stretch:96%]">
+        {days}
+      </span>
+      <span className="mt-1.5 text-[0.8125rem] text-muted-foreground">
+        {days === 0 ? lowerFirst(status) : unit}
+      </span>
+    </>
+  );
+  const shape = "flex h-[10.5rem] flex-col rounded-3xl p-4";
+  const whole = !toggles && onClick !== undefined;
+  return (
+    <FaceShell slot="habit-card" face={face} whole={whole} shape={shape}>
+      {whole ? (
+        body
+      ) : (
+        <>
+          <span
+            aria-hidden={onClick ? true : undefined}
+            className="pointer-events-none relative flex flex-1 flex-col"
+          >
+            {body}
+          </span>
+          {toggles && (
+            <TodayToggle
+              kind={kind}
+              name={name}
+              today={today}
+              className="absolute top-1 right-[0.1875rem]"
+            />
+          )}
+        </>
+      )}
+    </FaceShell>
+  );
+}
+
+/**
+ * List face: the name and how today stands on the left, the count on the right. With
+ * `today.onToggle`, today's tick or slip in the status line is a button, as on `HabitCard`.
+ */
+export function HabitRow(face: HabitFaceProps) {
+  const { name, days, unit, status, kind, today, onClick } = face;
+  const toggles = today.onToggle !== undefined;
+  // today's button sits in the text, so with the open button over the row, the text is hidden
+  // from screen readers span by span
+  const hideText = toggles && onClick ? true : undefined;
+  const body = (
+    <>
+      <span className="flex min-w-0 flex-col gap-1">
+        <span aria-hidden={hideText} className="truncate text-base font-medium">
+          {name}
+        </span>
+        <span className="flex items-center gap-1.5 text-[0.8125rem] text-muted-foreground">
+          {toggles ? (
+            // the 2.75rem target overhangs the 1rem mark, so the line keeps its height
+            <TodayToggle
+              kind={kind}
+              name={name}
+              today={today}
+              markClassName="size-4"
+              className="pointer-events-auto -m-3.5"
+            />
+          ) : (
+            kind === "build" && <CheckInTick checkedIn={today.logged} className="size-4" />
+          )}
+          <span aria-hidden={hideText}>{status}</span>
+        </span>
+      </span>
+      <span aria-hidden={hideText} className="flex flex-none flex-col items-end gap-0.5">
+        <span className="font-display text-[2.125rem] leading-[0.95] font-medium tracking-[-0.04em] text-habit tabular-nums [font-stretch:96%]">
+          {days}
+        </span>
+        <span className="text-xs text-muted-foreground">{unit}</span>
+      </span>
+    </>
+  );
+  const shape =
+    "flex min-h-[4.75rem] items-center justify-between gap-4 rounded-[1.25rem] px-[1.125rem] py-3";
+  const whole = !toggles && onClick !== undefined;
+  return (
+    <FaceShell slot="habit-row" face={face} whole={whole} shape={shape}>
+      {whole ? (
+        body
+      ) : (
+        <span className="pointer-events-none relative flex min-w-0 flex-1 items-center justify-between gap-4">
+          {body}
+        </span>
+      )}
+    </FaceShell>
   );
 }
 

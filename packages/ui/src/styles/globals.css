@@ -306,7 +306,6 @@
   }
 }
 
-/* pointer-only hover: hover styles never stick on touch */
 /*
  * Keyboard focus: a 2px ring in --ring, shown on :focus-visible only. Use one of these instead of
  * outline-none or outline-hidden plus focus-visible:outline-*, which draw nothing in Tailwind v4
@@ -363,6 +362,7 @@
   );
 }
 
+/* pointer-only hover: hover styles never stick on touch */
 @custom-variant hover-fine {
   @media (hover: hover) and (pointer: fine) {
     &:hover {

@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-
-export const prefersReducedMotion = () =>
-  typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 
 /** Eases a number toward its target (ease-out); jumps straight there under reduced motion. */
 export function useTween(target: number, ms = 900): number {

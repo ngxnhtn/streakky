@@ -7,27 +7,27 @@ import {
   fmtLong,
   fromISO,
   loggedToday,
-  sinceLabel,
   statusLabel,
   type Habit,
   type Layout,
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
+import { EmptyState } from "@streakky/ui/components/empty-state";
 import {
   HabitCard,
   HabitCollection,
   HabitRow,
   NewHabitTile,
+  type HabitFaceProps,
 } from "@streakky/ui/components/habit/habit-card";
-import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
 import { ReorderHint } from "./ReorderHint.tsx";
 import { SignedOutNote, useSignedOutNoteShown } from "./SignedOutNote.tsx";
-import { ScreenScroll, useInFront, useNav } from "./stack.tsx";
+import { ScreenScroll, useCloseWhenCovered, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
 export function Home() {
@@ -37,14 +37,34 @@ export function Home() {
   const day = useToday();
   const [adding, setAdding] = useState(false);
   // the browser's forward button can cover Home while New habit is open
-  const inFront = useInFront();
-  if (!inFront && adding) setAdding(false);
+  useCloseWhenCovered(adding, () => setAdding(false));
   const { push } = useNav();
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
   const signedOutNoteShown = useSignedOutNoteShown();
   const celebration = useCelebration(habits, day);
-  const open = (habit: Habit) => push({ name: "detail", id: habit.id });
+  /**
+   * A habit's face, in the grid or the list. Its tick checks a build habit in today with one tap,
+   * and its slip button asks before logging a quit habit's slip; the rest of it opens the habit.
+   */
+  const faceOf = (habit: Habit): HabitFaceProps => {
+    const days = currentStreakDays(habit);
+    return {
+      name: habit.name,
+      days,
+      unit: counterLabel(habit, days),
+      status: statusLabel(habit),
+      kind: habit.kind,
+      color: habit.color,
+      onClick: () => push({ name: "detail", id: habit.id }),
+      today: {
+        logged: loggedToday(habit),
+        locked: !canToggle(habit, day),
+        onToggle: () =>
+          habit.kind === "build" ? void store.toggleDay(habit.id) : toggleSlip(habit),
+      },
+    };
+  };
   // a habit dragged to `to` goes just after the habit that ends up before it there
   const move = (from: number, to: number) => {
     const moved = habits[from];
@@ -73,7 +93,10 @@ export function Home() {
       <ScreenScroll>
         <header className="px-5 pt-1 pb-5">
           <p className="text-sm text-muted-foreground">{fmtLong(fromISO(day))}</p>
-          <h1 className="mt-0.5 font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] [font-stretch:96%]">
+          <h1
+            tabIndex={-1}
+            className="mt-0.5 rounded-lg font-display text-4xl leading-[1.05] font-medium tracking-[-0.032em] focus-ring [font-stretch:96%]"
+          >
             Habits
           </h1>
         </header>
@@ -88,39 +111,15 @@ export function Home() {
               onShowArchived={() => push({ name: "archived" })}
               onAdd={() => setAdding(true)}
             />
-          ) : layout === "list" ? (
-            <HabitList
-              habits={habits}
-              day={day}
-              onOpen={open}
-              onSlip={toggleSlip}
-              onMove={move}
-              onAdd={() => setAdding(true)}
-            />
           ) : (
             <HabitCollection
-              layout="grid"
+              layout={layout}
               onMove={move}
-              end={<NewHabitTile layout="grid" onClick={() => setAdding(true)} />}
+              end={<NewHabitTile layout={layout} onClick={() => setAdding(true)} />}
             >
               {habits.map((habit) => {
-                const days = currentStreakDays(habit);
-                return (
-                  <HabitCard
-                    key={habit.id}
-                    name={habit.name}
-                    days={days}
-                    label={labelOf(habit, days)}
-                    kind={habit.kind}
-                    color={habit.color}
-                    onClick={() => open(habit)}
-                    checkedIn={loggedToday(habit)}
-                    onCheckIn={() => void store.toggleDay(habit.id)}
-                    slipped={loggedToday(habit)}
-                    slipLocked={!canToggle(habit, day)}
-                    onSlip={() => toggleSlip(habit)}
-                  />
-                );
+                const Face = layout === "grid" ? HabitCard : HabitRow;
+                return <Face key={habit.id} {...faceOf(habit)} />;
               })}
             </HabitCollection>
           )}
@@ -134,64 +133,6 @@ export function Home() {
 }
 
 /**
- * Under the count: what it counts, or, with no streak yet, why: "check in today to start" (build),
- * "started today" or "slip logged today" (quit).
- */
-const labelOf = (habit: Habit, days: number) =>
-  days === 0 ? sinceLabel(habit) : counterLabel(habit, days);
-
-/**
- * The list layout: a row per habit, whose tick checks a build habit in today with one tap and
- * whose slip button asks before logging a quit habit's slip. The rest of the row opens the habit.
- * Rows are dragged into order as the grid's cards are.
- */
-function HabitList({
-  habits,
-  day,
-  onOpen,
-  onSlip,
-  onMove,
-  onAdd,
-}: {
-  habits: Habit[];
-  day: string;
-  onOpen: (habit: Habit) => void;
-  onSlip: (habit: Habit) => void;
-  onMove: (from: number, to: number) => void;
-  onAdd: () => void;
-}) {
-  const store = useHabitStore();
-  return (
-    <HabitCollection
-      layout="list"
-      onMove={onMove}
-      end={<NewHabitTile layout="list" onClick={onAdd} />}
-    >
-      {habits.map((habit) => {
-        const days = currentStreakDays(habit);
-        return (
-          <HabitRow
-            key={habit.id}
-            name={habit.name}
-            days={days}
-            label={counterLabel(habit, days)}
-            status={statusLabel(habit)}
-            kind={habit.kind}
-            color={habit.color}
-            onClick={() => onOpen(habit)}
-            checkedIn={loggedToday(habit)}
-            onCheckIn={() => void store.toggleDay(habit.id)}
-            slipped={loggedToday(habit)}
-            slipLocked={!canToggle(habit, day)}
-            onSlip={() => onSlip(habit)}
-          />
-        );
-      })}
-    </HabitCollection>
-  );
-}
-
-/**
  * Why Home has no habit to show, if it has none: the device has no habits at all, or every one
  * of them is archived. Deleted habits don't count.
  */
@@ -200,21 +141,18 @@ export function emptyHome(habits: Habit[], archived: Habit[]): "no habits" | "al
   return archived.length > 0 ? "all archived" : "no habits";
 }
 
-const emptyCard = "max-w-[30rem] rounded-3xl bg-muted px-6 pt-7 pb-6";
-const emptyTitle = "text-xl font-medium tracking-[-0.015em]";
-const emptyText = "mt-1.5 mb-5 text-muted-foreground";
-
 function EmptyHabits({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className={emptyCard}>
-      <p className={emptyTitle}>Nothing counted yet</p>
-      <p className={emptyText}>
-        Add a habit to build, like a morning run, or one to quit, like smoking.
-      </p>
-      <Button className="w-full" onClick={onAdd}>
-        Add a habit
-      </Button>
-    </div>
+    <EmptyState
+      title="Nothing counted yet"
+      action={
+        <Button className="w-full" onClick={onAdd}>
+          Add a habit
+        </Button>
+      }
+    >
+      Add a habit to build, like a morning run, or one to quit, like smoking.
+    </EmptyState>
   );
 }
 
@@ -233,15 +171,17 @@ function AllArchived({
 }) {
   return (
     <>
-      <div className={cn(emptyCard, "mb-5")}>
-        <p className={emptyTitle}>Every habit is archived</p>
-        <p className={emptyText}>
-          Archived habits keep their history. Restore one to track it again, or start a new one.
-        </p>
-        <Button className="w-full" onClick={onShowArchived}>
-          See archived habits
-        </Button>
-      </div>
+      <EmptyState
+        title="Every habit is archived"
+        className="mb-5"
+        action={
+          <Button className="w-full" onClick={onShowArchived}>
+            See archived habits
+          </Button>
+        }
+      >
+        Archived habits keep their history. Restore one to track it again, or start a new one.
+      </EmptyState>
       <HabitCollection layout={layout} end={<NewHabitTile layout={layout} onClick={onAdd} />}>
         {null}
       </HabitCollection>

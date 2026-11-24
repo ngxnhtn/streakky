@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@streakky/ui/components/dialog";
 import { useHabitStore } from "../store/react.tsx";
-import { useInFront, useBackCloses } from "./stack.tsx";
+import { useBackCloses, useCloseWhenCovered } from "./stack.tsx";
 
 /**
  * Today's slip on a quit habit: removing it takes one tap, but logging one asks first, since it
@@ -18,10 +18,10 @@ import { useInFront, useBackCloses } from "./stack.tsx";
  */
 export function useTodaysSlip(): { toggleSlip: (habit: Habit) => void; dialog: ReactNode } {
   const store = useHabitStore();
-  const inFront = useInFront();
   // the quit habit whose slip we're asking about, as it was when asked, kept while the sheet leaves
   const [slipping, setSlipping] = useState<{ habit: Habit; open: boolean } | null>(null);
-  if (!inFront && slipping?.open) setSlipping({ ...slipping, open: false });
+  const close = () => setSlipping((s) => s && { ...s, open: false });
+  useCloseWhenCovered(slipping?.open ?? false, close);
   return {
     toggleSlip: (habit) =>
       loggedToday(habit) ? void store.toggleDay(habit.id) : setSlipping({ habit, open: true }),
@@ -34,7 +34,7 @@ export function useTodaysSlip(): { toggleSlip: (habit: Habit) => void; dialog: R
           const habit = store.habits().find((h) => h.id === asked.id);
           if (habit && !loggedToday(habit)) void store.toggleDay(habit.id);
         }}
-        onClose={() => setSlipping((s) => s && { ...s, open: false })}
+        onClose={close}
       />
     ),
   };
@@ -57,25 +57,11 @@ function LogSlipDialog({
 }) {
   const days = habit ? currentStreakDays(habit) : 0;
   useBackCloses(open && habit !== null, onClose);
-  // with no DialogTrigger, Radix would drop focus on the page; return it to the slip button
-  const opener = useRef<HTMLElement | null>(null);
   const keepCounting = useRef<HTMLButtonElement>(null);
   return (
     <Dialog open={open && habit !== null} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent
-        shape="sheet"
-        onOpenAutoFocus={(e) => {
-          opener.current =
-            document.activeElement instanceof HTMLElement ? document.activeElement : null;
-          // start on the safe choice, so a second Enter doesn't log the slip
-          e.preventDefault();
-          keepCounting.current?.focus();
-        }}
-        onCloseAutoFocus={(e) => {
-          e.preventDefault();
-          opener.current?.focus();
-        }}
-      >
+      {/* starts on the safe choice, so a second Enter doesn't log the slip */}
+      <DialogContent shape="sheet" initialFocus={keepCounting}>
         <DialogTitle>Log a slip for {habit?.name}?</DialogTitle>
         <DialogDescription>
           {days > 0

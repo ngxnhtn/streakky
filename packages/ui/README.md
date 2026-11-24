@@ -72,8 +72,9 @@ Everything is sized in rem (Tailwind's scale, or arbitrary values such as `text-
 whole interface grows with the reader's browser text size. Only hairlines of 2px or less (borders,
 outlines, inset ring strokes, the 1px hover and press steps) stay in px. Tap targets are at least
 2.75rem (`size-11`, or `tap-target` around a smaller control), which is 44px at the default size.
-The one exception is a dense grid of days (the calendar while editing), whose cells stay at
-1.75rem, above WCAG 2.2's 1.5rem minimum.
+The calendar's days are 1.75rem squares at rest, where they're only read; in Edit days they grow to
+2.75rem in Weeks, and Month's rows are 2.75rem tall. Month's seven columns share the calendar's
+width, so on a phone narrower than about 22rem (a 320px one) they're a little under 2.75rem wide.
 
 ## Components
 
@@ -82,35 +83,41 @@ The one exception is a dense grid of days (the calendar while editing), whose ce
 | Component        | What it is                                                                                                                                                  |
 | ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `button`         | Pill buttons: `default` `secondary` `outline` `ghost` `ring` `destructive` `outline-destructive` `habit` `link`; sizes `default` `sm` `lg` `icon` `icon-sm` |
-| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `DialogActions`                                                                   |
+| `dialog`         | Radix dialog in two shapes: `shape="sheet"` (bottom sheet) or `"center"`; `initialFocus` and `returnFocus` (back to the opener by default); `DialogActions` |
 | `portal`         | `PortalContainerProvider`: render dialogs inside a given element (a phone frame, a panel)                                                                   |
 | `tabs`           | Radix tabs drawn as a segmented track with a sliding pill (`TabsList index count`)                                                                          |
-| `segmented`      | A single choice of two to four options, sliding pill; options may be icons                                                                                  |
+| `segmented`      | A single choice of two to four options, sliding pill; options may be icons, values strings or numbers                                                       |
 | `toggle-group`   | `ToggleGroup` + `ToggleChip` (pill chips) + `ToggleGroupItem` (custom faces)                                                                                |
 | `switch`         | Radix switch                                                                                                                                                |
 | `input`, `label` | Text fields                                                                                                                                                 |
-| `field`          | `Field` (label, control, hint, error, wired ids) and `FieldSet`                                                                                             |
+| `field`          | `Field` (label, control, hint, error, wired ids: the control is described by the hint or the error) and `FieldSet`                                          |
 | `list`           | `ListGroup` `List` `ListItem` `ListButton` `ListLabel`: grouped settings rows                                                                               |
 | `card`           | `Card`, `CardTitle`: outlined panels for wide layouts                                                                                                       |
 | `stat`           | `StatGrid`, `StatTile`                                                                                                                                      |
-| `app-bar`        | A phone screen's top bar                                                                                                                                    |
+| `app-bar`        | A phone screen's top bar; its title is the screen's `h1`, which takes focus when the screen opens                                                           |
+| `note`           | `Note` and `NoteLink`: one small dismissible note in a pill, its text a button when it leads somewhere                                                      |
+| `empty-state`    | `EmptyState`: what a screen says when it has nothing to show, with an optional action                                                                       |
 | `palette-picker` | The app colour themes as swatches                                                                                                                           |
 
 `@streakky/ui/components/habit/…`: presentational; they take a `Habit` from
 `@streakky/core` and callbacks, and keep no app state.
 
-| Component       | What it is                                                                                                                                           |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                         |
-| `today-button`  | `TodayButton`: check in today (build) or log a slip (quit)                                                                                           |
-| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), `CheckInTick`, `CheckInButton`, `SlipIcon`, `SlipButton` (2.75rem toggles), `NewHabitTile`, `HabitCollection` |
-| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days                                                                                                    |
-| `streaks-chart` | `StreaksChart`: every streak as a bar, with a readout and a hidden table                                                                             |
-| `stats`         | `HabitStats`: four tiles and the streaks chart                                                                                                       |
-| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips                                                                                              |
-| `color-picker`  | `HabitColorPicker`                                                                                                                                   |
+| Component       | What it is                                                                                                                                                                             |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ring`          | `StreakRing`: the 270° gauge with the count; arc and number ease up together                                                                                                           |
+| `today-button`  | `TodayButton`: check in today (build, one toggle named "Check in today") or log a slip (quit)                                                                                          |
+| `habit-card`    | `HabitCard` (grid), `HabitRow` (list), one set of props with `today` (logged, locked, onToggle); `CheckInTick`, `SlipIcon`, `TodayToggle` (2.75rem), `NewHabitTile`, `HabitCollection` |
+| `calendar`      | `HabitCalendar`: Weeks and Month views, edit days (2.75rem buttons); each day tells a screen reader its date and what it was                                                           |
+| `streaks-chart` | `StreaksChart`: every streak as a bar, the longest and the current tagged; one slider control (arrow keys, Home, End, a tap), a readout and a hidden table                             |
+| `stats`         | `HabitStats`: four tiles from core's `habitStats` and the streaks chart                                                                                                                |
+| `goal`          | `HabitGoal`: distance to the goal, progress, goal chips; `GoalPicker`: the chips alone, for a goal of `number \| null`                                                                 |
+| `habit-fields`  | `NameField`, `QuitDayField`: a habit's name and quit day, with their errors                                                                                                            |
+| `color-picker`  | `HabitColorPicker`                                                                                                                                                                     |
 
-Hooks: `@streakky/ui/hooks/use-tween` (`useTween`, `prefersReducedMotion`).
+Hooks: `@streakky/ui/hooks/use-tween` (`useTween`), `@streakky/ui/hooks/use-media-query`
+(`useMediaQuery`) and `@streakky/ui/hooks/use-reorder`. Helpers: `@streakky/ui/lib/motion`
+(`prefersReducedMotion`), `@streakky/ui/lib/media` (`matchesMedia`) and `@streakky/ui/lib/kind-copy`
+(`KIND_COPY`, the words that differ between build and quit habits).
 
 ## Add a shadcn component
 

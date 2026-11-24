@@ -1,6 +1,50 @@
 import { Check } from "lucide-react";
 import { GOALS, currentStreakDays, fmtShort, goalDate, plural, type Habit } from "@streakky/core";
 import { ToggleChip, ToggleGroup } from "@streakky/ui/components/toggle-group";
+import { KIND_COPY } from "@streakky/ui/lib/kind-copy";
+
+/** The chip for no goal; the chips hold strings, the goal a number or null. */
+const NONE = "none";
+
+/**
+ * The goal presets as chips, and None. With `reached`, the days of the current streak, the goals
+ * it has reached carry a tick.
+ */
+export function GoalPicker({
+  value,
+  onValueChange,
+  reached,
+  className,
+}: {
+  value: number | null;
+  onValueChange: (goal: number | null) => void;
+  reached?: number;
+  className?: string;
+}) {
+  return (
+    <ToggleGroup
+      value={value === null ? NONE : String(value)}
+      onValueChange={(chosen) => onValueChange(chosen === NONE ? null : Number(chosen))}
+      aria-label="Goal in days"
+      className={className}
+    >
+      {GOALS.map((goal) => {
+        const done = reached !== undefined && reached >= goal;
+        return (
+          <ToggleChip
+            key={goal}
+            value={String(goal)}
+            className={done ? "text-muted-foreground" : undefined}
+          >
+            {done && <Check />}
+            {goal}
+          </ToggleChip>
+        );
+      })}
+      <ToggleChip value={NONE}>None</ToggleChip>
+    </ToggleGroup>
+  );
+}
 
 /** How far to the goal, a progress bar, and the goal chips (reached ones carry a tick). */
 export function HabitGoal({
@@ -15,7 +59,7 @@ export function HabitGoal({
   const days = currentStreakDays(habit);
   const goal = habit.goal;
   const on = goalDate(habit);
-  const unit = habit.kind === "build" ? "day" : "clean day";
+  const unit = KIND_COPY[habit.kind].goalDay;
   const [big, sub] =
     goal === null || !on
       ? ["No goal yet", "Pick a number of days below to aim for."]
@@ -42,24 +86,8 @@ export function HabitGoal({
           </div>
         </div>
       )}
-      <h3 className="mt-7 mb-3 text-[0.8125rem] font-medium text-muted-foreground">Change goal</h3>
-      <ToggleGroup
-        value={goal === null ? "none" : String(goal)}
-        onValueChange={(v) => onGoalChange(v === "none" ? null : Number(v))}
-        aria-label="Goal in days"
-      >
-        {GOALS.map((g) => (
-          <ToggleChip
-            key={g}
-            value={String(g)}
-            className={days >= g ? "text-muted-foreground" : ""}
-          >
-            {days >= g && <Check />}
-            {g}
-          </ToggleChip>
-        ))}
-        <ToggleChip value="none">None</ToggleChip>
-      </ToggleGroup>
+      <h2 className="mt-7 mb-3 text-[0.8125rem] font-medium text-muted-foreground">Change goal</h2>
+      <GoalPicker value={goal} onValueChange={onGoalChange} reached={days} />
     </div>
   );
 }

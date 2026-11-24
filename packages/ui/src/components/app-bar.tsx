@@ -1,7 +1,10 @@
 import * as React from "react";
 import { cn } from "@streakky/ui/lib/utils";
 
-/** A phone screen's top bar: one control each side, the title centred between them. */
+/**
+ * A phone screen's top bar: one control each side, the title centred between them. The title is
+ * the screen's heading, and takes focus (tabIndex -1) when the screen opens.
+ */
 export function AppBar({
   left,
   title,
@@ -22,7 +25,16 @@ export function AppBar({
       )}
     >
       <div>{left}</div>
-      {title ? <p className="truncate text-center text-base font-medium">{title}</p> : <span />}
+      {title ? (
+        <h1
+          tabIndex={-1}
+          className="truncate rounded-lg text-center text-base font-medium focus-ring"
+        >
+          {title}
+        </h1>
+      ) : (
+        <span />
+      )}
       <div className="justify-self-end">{right}</div>
     </div>
   );

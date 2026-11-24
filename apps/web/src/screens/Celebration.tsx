@@ -2,11 +2,11 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { PartyPopper, X } from "lucide-react";
 import type { Habit } from "@streakky/core";
 import { Button } from "@streakky/ui/components/button";
-import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
 import { ScreenNotice, useScreenNoticesReady } from "../BottomNotices.tsx";
 import { useHabitStore, useSettings } from "../store/react.tsx";
-import { useInFront } from "./stack.tsx";
+import { useCloseWhenCovered, useInFront } from "./stack.tsx";
 
 /** How long the notice stays when nothing holds it. */
 const SHOWN_MS = 6000;
@@ -28,7 +28,7 @@ export function useCelebration(habits: Habit[], day: string): ReactNode {
   const ready = useScreenNoticesReady();
   const [playing, setPlaying] = useState<Habit | null>(null);
   // a screen covered by another, or going, ends its celebration
-  if (!inFront && playing) setPlaying(null);
+  useCloseWhenCovered(playing !== null, () => setPlaying(null));
   useEffect(() => {
     if (!inFront || !ready || playing) return;
     for (const habit of habits) {

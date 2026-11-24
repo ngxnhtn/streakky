@@ -1,6 +1,6 @@
 import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { PortalContainerProvider } from "@streakky/ui/components/portal";
-import { prefersReducedMotion } from "@streakky/ui/hooks/use-tween";
+import { prefersReducedMotion } from "@streakky/ui/lib/motion";
 import { cn } from "@streakky/ui/lib/utils";
 import { ShapeContext } from "../parts/shape.tsx";
 import { Detail } from "./Detail.tsx";
