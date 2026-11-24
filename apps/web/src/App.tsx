@@ -1,13 +1,14 @@
 import { useLayoutEffect } from "react";
 import { useMediaQuery } from "@streakky/ui/hooks/use-media-query";
 import { applyAppearance, SYSTEM_DARK } from "./appearance.ts";
-import type { Platform } from "./platform.ts";
+import { PlatformProvider, type Platform } from "./platform.ts";
 import { BottomNotices } from "./BottomNotices.tsx";
 import { ArchivedHabits } from "./screens/ArchivedHabits.tsx";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
 import { Home } from "./screens/Home.tsx";
 import { DesktopProvider } from "./screens/desktop.tsx";
 import { NewHabit, NewHabitProvider } from "./screens/NewHabitDialog.tsx";
+import { ReminderSchedule } from "./screens/Reminder.tsx";
 import { Settings } from "./screens/Settings.tsx";
 import { Sidebar } from "./screens/Sidebar.tsx";
 import { SignIn } from "./screens/SignIn.tsx";
@@ -56,15 +57,18 @@ export function App({ platform }: { platform: Platform }) {
     // In the Android app and an installed web app the page reaches under the status bar and the
     // screen's rounded edges (viewport-fit=cover); the app keeps inside them, its ground beneath.
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
-      <DesktopProvider>
-        <NewHabitProvider>
-          <BottomNotices appNotice={<UpdatePrompt />}>
-            <ScreenStack routes={ROUTES} aside={<Sidebar />} backButton={platform.backButton}>
-              <NewHabit />
-            </ScreenStack>
-          </BottomNotices>
-        </NewHabitProvider>
-      </DesktopProvider>
+      <PlatformProvider value={platform}>
+        {platform.reminders && <ReminderSchedule reminders={platform.reminders} />}
+        <DesktopProvider>
+          <NewHabitProvider>
+            <BottomNotices appNotice={<UpdatePrompt />}>
+              <ScreenStack routes={ROUTES} aside={<Sidebar />} backButton={platform.backButton}>
+                <NewHabit />
+              </ScreenStack>
+            </BottomNotices>
+          </NewHabitProvider>
+        </DesktopProvider>
+      </PlatformProvider>
     </div>
   );
 }

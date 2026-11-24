@@ -12,9 +12,11 @@ import { List, ListButton, ListGroup, ListItem, ListLabel } from "@streakky/ui/c
 import { PalettePicker } from "@streakky/ui/components/palette-picker";
 import { Segmented } from "@streakky/ui/components/segmented";
 import { Switch } from "@streakky/ui/components/switch";
+import { usePlatform } from "../platform.ts";
 import { saveFile } from "../save-file.ts";
 import { useArchivedHabits, useHabitStore, useSettings } from "../store/react.tsx";
 import { AccountSettings } from "./AccountSettings.tsx";
+import { ReminderSettings } from "./Reminder.tsx";
 import { SaveError } from "./saving.tsx";
 import { Screen } from "./screen.tsx";
 import { useNav } from "./stack.tsx";
@@ -29,6 +31,7 @@ export function Settings() {
   const store = useHabitStore();
   const settings = useSettings();
   const archived = useArchivedHabits();
+  const { reminders } = usePlatform();
   const [exportFailed, setExportFailed] = useState(false);
   // a download can't fail, but the Android app's share sheet can be refused its file
   const exportHabits = () => {
@@ -89,6 +92,7 @@ export function Settings() {
             </ListItem>
           </List>
         </ListGroup>
+        {reminders && <ReminderSettings reminders={reminders} />}
         <ListGroup title="Data">
           <List>
             <ListButton onClick={() => push({ name: "archived" })}>

@@ -42,4 +42,6 @@
     <!-- the SQLite plugin's, for databases opened with a fingerprint, which Streakky's never are -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove" />
+    <!-- the notifications plugin's: the daily reminder is inexact, as the spec allows -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
 </manifest>

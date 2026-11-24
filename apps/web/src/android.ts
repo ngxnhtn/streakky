@@ -7,12 +7,14 @@
 import { App } from "@capacitor/app";
 import { SystemBars, SystemBarsStyle, type PluginListenerHandle } from "@capacitor/core";
 import { Directory, Encoding, Filesystem } from "@capacitor/filesystem";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
 import { Share } from "@capacitor/share";
 import { CapacitorSQLite, SQLiteConnection } from "@capacitor-community/sqlite";
 import { SecureStoragePlugin } from "capacitor-secure-storage-plugin";
 import { createCapacitorSQLitePersistence } from "@tanstack/capacitor-db-sqlite-persistence";
-import type { Platform } from "./platform.ts";
+import { toISO, type Reminder } from "@streakky/core";
+import type { Platform, Reminders } from "./platform.ts";
 import type { ExportFile } from "./store/export.ts";
 import {
   openHabitStore,
@@ -28,7 +30,7 @@ const SESSION_TOKEN_KEY = "streakky.session-token";
 
 /**
  * Opens the habit store on the phone's own storage, with what the app needs from Android: its back
- * button and the colour of the system bars' icons. `applySettings` puts the settings on the page
+ * button, the colour of the system bars' icons and the daily reminder's notifications. `applySettings` puts the settings on the page
  * once they're read, before the database opens, and says whether the page is dark. The app's
  * pages come from another origin than the API's, so its cookies wouldn't be its own: it keeps its
  * session as a token, in secure storage (spec, "Auth").
@@ -56,8 +58,66 @@ export async function openAndroidApp(
         return () => removeListener(listener);
       },
       systemBars: setSystemBars,
+      reminders,
     },
   };
+}
+
+const REMINDER_CHANNEL = "daily-reminder";
+/** Android's default importance: the reminder makes a sound but doesn't pop up over the screen. */
+const DEFAULT_IMPORTANCE = 3;
+const habitList = new Intl.ListFormat("en-GB", { style: "long", type: "conjunction" });
+
+/**
+ * The daily reminder as local notifications, one a day, each with its day as its id. They're
+ * inexact, as the spec allows: an exact one would need Android's alarms permission, and the
+ * plugin would open its settings to ask. Android puts them back after the phone restarts.
+ */
+const reminders: Reminders = {
+  allowed: async () => (await LocalNotifications.checkPermissions()).display === "granted",
+  allow: async () => (await LocalNotifications.requestPermissions()).display === "granted",
+  schedule(plan, stillToday) {
+    // One replacement at a time, so two close together can't leave a mix of both. One that fails
+    // doesn't hold up the next, which starts from whatever is in place.
+    const replaced = scheduling.then(() => replaceReminders(plan, stillToday));
+    scheduling = replaced.catch(() => {});
+    return replaced;
+  },
+};
+let scheduling = Promise.resolve();
+
+/** A day's reminder's id: the day, as 20261124. */
+const reminderId = (day: string) => Number(day.replaceAll("-", ""));
+
+async function replaceReminders(plan: Reminder[], stillToday: string[]) {
+  const { notifications } = await LocalNotifications.getPending();
+  if (notifications.length > 0) {
+    await LocalNotifications.cancel({ notifications: notifications.map(({ id }) => ({ id })) });
+  }
+  // one already shown stays only while it's today's and something is still to check in today
+  const today = reminderId(toISO(new Date()));
+  const shown = (await LocalNotifications.getDeliveredNotifications()).notifications;
+  const outOfDate = shown.filter(({ id }) => id !== today || stillToday.length === 0);
+  if (outOfDate.length > 0) {
+    await LocalNotifications.removeDeliveredNotifications({ notifications: outOfDate });
+  }
+  if (plan.length === 0) return;
+  await LocalNotifications.createChannel({
+    id: REMINDER_CHANNEL,
+    name: "Daily reminder",
+    description: "The build habits still to check in today",
+    importance: DEFAULT_IMPORTANCE,
+  });
+  await LocalNotifications.schedule({
+    notifications: plan.map((reminder) => ({
+      id: reminderId(reminder.day),
+      title: "Still to check in today",
+      body: habitList.format(reminder.habits),
+      channelId: REMINDER_CHANNEL,
+      schedule: { at: reminder.at, allowWhileIdle: true },
+      isExactNotification: false,
+    })),
+  });
 }
 
 /**

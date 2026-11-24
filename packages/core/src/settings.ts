@@ -42,7 +42,12 @@ export type Settings = {
   palette: PaletteId;
   layout: Layout;
   weekStart: WeekStart;
-  reminder: boolean;
+  /**
+   * The Android app's daily reminder: on only once notifications are allowed (ticket 19). Named
+   * apart from the playground's old `reminder`, which devices kept as on by default.
+   */
+  dailyReminder: boolean;
+  /** When the daily reminder fires, HH:MM (`isReminderTime`). */
   reminderTime: string;
   celebrate: boolean;
   /** The web app's note that signed-out habits live only in this browser, once dismissed. */
@@ -56,9 +61,13 @@ export const defaultSettings: Settings = {
   palette: "teal",
   layout: "grid",
   weekStart: 1,
-  reminder: true,
+  dailyReminder: false,
   reminderTime: "21:00",
   celebrate: true,
   signedOutNoteDismissed: false,
   reorderHintDismissed: false,
 };
+
+/** Whether `value` is a time of day the reminder can be set to: HH:MM, 24-hour. */
+export const isReminderTime = (value: unknown): value is string =>
+  typeof value === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);

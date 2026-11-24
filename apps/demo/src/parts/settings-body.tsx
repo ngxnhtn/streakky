@@ -92,11 +92,11 @@ export function SettingsBody({ className }: { className?: string }) {
             <ListLabel>Evening check-in</ListLabel>
             <Switch
               aria-label="Evening check-in"
-              checked={settings.reminder}
-              onCheckedChange={(reminder) => set({ reminder })}
+              checked={settings.dailyReminder}
+              onCheckedChange={(dailyReminder) => set({ dailyReminder })}
             />
           </ListItem>
-          <ListItem className={cn(!settings.reminder && "[&>*]:opacity-40")}>
+          <ListItem className={cn(!settings.dailyReminder && "[&>*]:opacity-40")}>
             <label htmlFor={timeId} className="text-[0.9375rem] font-medium">
               Time
             </label>
@@ -104,7 +104,7 @@ export function SettingsBody({ className }: { className?: string }) {
               id={timeId}
               type="time"
               value={settings.reminderTime}
-              disabled={!settings.reminder}
+              disabled={!settings.dailyReminder}
               onChange={(e) => set({ reminderTime: e.target.value })}
               className="min-h-9 border-0 bg-transparent text-right text-[0.9375rem] text-foreground tabular-nums"
             />

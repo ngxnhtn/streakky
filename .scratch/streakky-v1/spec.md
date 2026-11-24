@@ -302,6 +302,11 @@ type DayRecord = {
   - Future days' reminders name all active build habits, since none can be checked in ahead of time.
   - No reminder is scheduled if there are no active build habits.
   - Notification permission is requested when the reminder is turned on. Exact delivery time isn't guaranteed by Android.
+  - **Inexact by choice:** the notifications don't use Android's exact-alarm permission, whose request the plugin would make by opening a settings screen, so one can come a minute or two late.
+  - **Planning:** core's `reminderPlan` plans seven days, today included, and `stillToCheckIn` gives the habits each day names. The reminders live on their own "Daily reminder" channel and carry Streakky's mark.
+  - **Shown reminders:** one already shown is removed once nothing is left to check in that day, or once the reminder is off; earlier days' go too.
+  - **Turned off by itself:** if notifications are taken back in Android's settings, the reminder turns itself off.
+  - **The setting:** it's `dailyReminder`, off by default. The playground's old `reminder` key, which devices stored as on, is ignored.
 - **Widget:**
   - **Placing:** a configuration screen picks one active habit. Each widget instance shows one habit, and the widget can be resized.
   - **Data:** after every change, the web app writes each habit's widget summary (name, colour, kind, quit day or last slip and the archived days since it, last check-in and the streak length ending at it, archived or deleted) to shared native storage through the custom plugin, which then refreshes the widgets.
