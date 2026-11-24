@@ -20,11 +20,13 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 │   ├── 0001-<decision>.md
 │   └── 0002-<decision>.md
 ├── apps/
-│   ├── demo/
-│   └── web/
+│   ├── api/        the Worker: Hono, better-auth, sync, Drizzle on D1
+│   ├── demo/       the design playground the app was ported from
+│   └── web/        the app (PWA; the Android app wraps the same build)
 └── packages/
-    ├── core/
-    └── ui/
+    ├── contract/   what the Worker and the app agree on: sync and sign-in
+    ├── core/       the domain rules
+    └── ui/         the design system and habit components
 ```
 
 ## Use the glossary's vocabulary
