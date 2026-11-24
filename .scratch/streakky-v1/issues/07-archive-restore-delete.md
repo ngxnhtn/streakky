@@ -67,3 +67,34 @@
   - **The options button uses the playground's `Menu` (three lines) icon,** the same as Home's Settings button. An ellipsis might read better as "options".
 
 - **Owner decisions (2026-11-24):** an archived quit habit stops counting while it's archived (follow-up). When every habit is archived, Home points to Archived habits (follow-up).
+
+**Follow-up (2026-11-24): Home when every habit is archived.**
+
+- **What Home says:** with no active habit and at least one archived, Home shows a card in the same style as "Nothing counted yet":
+  - "Every habit is archived" over "Archived habits keep their history. Restore one to track it again, or start a new one.";
+  - a full-width **See archived habits** button, which pushes `{ name: "archived" }` through `useNav().push`;
+  - under the card, the New habit tile, in the person's layout (grid or list), where it always ends the habits.
+
+  "Nothing counted yet" stays for a device with no habits at all. Deleted habits don't count, so deleting every archived habit brings it back. `emptyHome(habits, archived)` in `Home.tsx` makes the choice.
+
+- **The way back:** Archived habits' back button now says "Back to habits" when it was opened from Home and "Back to settings" when it was opened from Settings. `stack.tsx` gains `useScreenBelow()`, the route of the screen underneath, which also holds after a reload.
+- **Tests:** `apps/web/test/home.test.ts` (6) checks `emptyHome` against the real store:
+  - a new device;
+  - some habits archived but one still active;
+  - every habit archived, also after a restart;
+  - one of them restored;
+  - every archived habit deleted, one at a time;
+  - the only habit deleted.
+
+  183 tests pass.
+
+- **Checked in headless Chrome 158** against `vp build` + `vp preview`, at 320px (dark, list), 400px (light, grid) and 1024px (dark, grid). Three habits, one of them a quit habit, were each archived from their options:
+  - **Home:** it showed the card and the New habit tile, and no "Nothing counted yet".
+  - **Keyboard:** from the top, Tab went to Settings, New habit, See archived habits and the New habit tile, and each showed the 2px ring. The button is 52px tall; the tile is 168px (grid) or 60px (list). Enter opened Archived habits, whose back button said "Back to habits". Tab reached the back button, and Enter went back to Home with focus on See archived habits.
+  - **Pointer:** restoring Stretch there and going back showed Stretch on Home, with the signed-out note. Archiving it again brought the card back.
+  - **From Settings:** the back button said "Back to settings". Deleting all three habits from their details left "Nothing archived", and Home said "Nothing counted yet".
+  - **Dev mode** (StrictMode) behaved the same.
+  - **Console:** no errors or warnings from the app. The only entry was the 502 for `/api/auth/get-session`, since no API Worker ran.
+- **For the owner:**
+  - **The signed-out note hides while every habit is archived.** `useSignedOutNoteShown` counts only active habits, but archived habits still live only in this browser. Home's note slot then falls to the reorder hint, which stays folded because it needs two active habits. Counting archived habits there would be a one-line change.
+  - **Focus after a restore:** after restoring a habit in Archived habits and going back, the See archived habits button is gone, so focus is left on the page and the next Tab starts at the top.

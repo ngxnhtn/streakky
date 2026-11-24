@@ -65,6 +65,13 @@ export function useInFront(): boolean {
   return useContext(InFrontContext);
 }
 
+const BelowContext = createContext<Route | null>(null);
+
+/** The screen this one opened over, which its back button goes back to; null on Home. */
+export function useScreenBelow(): Route | null {
+  return useContext(BelowContext);
+}
+
 /** The screens as the person sees them: all but the one sliding out. */
 const shownOf = ({ entries, leaving }: Stack) => entries.filter((e) => e.key !== leaving);
 
@@ -223,7 +230,9 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
               )}
             >
               <InFrontContext.Provider value={i === visibleTop}>
-                {screen(entry.route)}
+                <BelowContext.Provider value={entries[i - 1]?.route ?? null}>
+                  {screen(entry.route)}
+                </BelowContext.Provider>
               </InFrontContext.Provider>
             </section>
           );
