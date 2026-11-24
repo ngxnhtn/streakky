@@ -103,6 +103,12 @@ export type HabitStore = {
    * habit's for good.
    */
   toggleDay(habitId: string, day?: string): Promise<void>;
+  /**
+   * Reorders: puts an active habit just after another active habit (`after`), or first with
+   * null. Only the moved habit's order position changes. Does nothing if either one isn't active.
+   * The first move that changes the order also dismisses Home's reorder hint on this device.
+   */
+  moveHabit(habitId: string, after: string | null): Promise<void>;
   /** Hides a habit from the active habits, keeping its days. Does nothing to a deleted habit. */
   archiveHabit(habitId: string): Promise<void>;
   /**
@@ -178,6 +184,7 @@ const SETTING_VALUES: { [K in keyof Settings]: (value: unknown) => boolean } = {
   reminderTime: (v) => typeof v === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(v),
   celebrate: (v) => typeof v === "boolean",
   signedOutNoteDismissed: (v) => typeof v === "boolean",
+  reorderHintDismissed: (v) => typeof v === "boolean",
 };
 
 /**
@@ -333,6 +340,13 @@ export async function openHabitStore({
       habitRecords.toArray.filter((h) => !h.deleted && h.archived).toSorted(byOrder),
     ));
 
+  const changeSettings = (change: Partial<Settings>) => {
+    // onto the stored settings, not this store's copy, so a change made in another tab stays
+    settings = { ...readSettings(keyValueStorage, settings), ...change };
+    writeSettings(keyValueStorage, settings);
+    for (const listener of listeners) listener();
+  };
+
   /**
    * An active habit, the only kind Edit habit and the Goal tab change: an archived habit stays as
    * it is until it's restored, as its days do, and a deleted one for good.
@@ -443,6 +457,24 @@ export async function openHabitStore({
         : dayRecords.insert({ habitId, day, logged: true, edited: Date.now() });
       await tx.when("settled");
     },
+    async moveHabit(habitId, after) {
+      const shown = habits();
+      const at = shown.findIndex((h) => h.id === habitId);
+      const isShown = (id: string | null) => id === null || shown.some((h) => h.id === id);
+      if (at === -1 || after === habitId || !isShown(after)) return;
+      if ((shown[at - 1]?.id ?? null) === after) return; // already there
+      // Just after `after`, before the next position of any other habit, shown or not: archived
+      // and deleted habits keep positions between the shown ones. Strictly between two
+      // neighbouring positions, the new one can't equal another habit's.
+      const lower = after === null ? null : (habitRecords.get(after)?.order ?? null);
+      const upper =
+        habitRecords.toArray
+          .filter((h) => h.id !== habitId && (lower === null || h.order > lower))
+          .toSorted(byOrder)[0]?.order ?? null;
+      // the person has found reordering, so Home's hint about it can go
+      if (!settings.reorderHintDismissed) changeSettings({ reorderHintDismissed: true });
+      await changeHabit(habitId, { order: generateKeyBetween(lower, upper) });
+    },
     archiveHabit: (habitId) => changeHabit(habitId, { archived: true }),
     restoreHabit: (habitId) => changeHabit(habitId, { archived: false }),
     async deleteHabit(habitId) {
@@ -454,12 +486,7 @@ export async function openHabitStore({
       });
       await tx.when("settled");
     },
-    changeSettings(change) {
-      // onto the stored settings, not this store's copy, so a change made in another tab stays
-      settings = { ...readSettings(keyValueStorage, settings), ...change };
-      writeSettings(keyValueStorage, settings);
-      for (const listener of listeners) listener();
-    },
+    changeSettings,
     habits,
     archivedHabits,
     celebrationDue: (habit) =>

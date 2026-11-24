@@ -23,7 +23,8 @@ import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
-import { SignedOutNote } from "./SignedOutNote.tsx";
+import { ReorderHint } from "./ReorderHint.tsx";
+import { SignedOutNote, useSignedOutNoteShown } from "./SignedOutNote.tsx";
 import { ScreenScroll, useInFront, useNav } from "./stack.tsx";
 import { useToday } from "./use-today.ts";
 
@@ -38,8 +39,15 @@ export function Home() {
   const { push } = useNav();
   const { layout } = useSettings();
   const { toggleSlip, dialog: slipDialog } = useTodaysSlip();
+  const signedOutNoteShown = useSignedOutNoteShown();
   const celebration = useCelebration(habits, day);
   const open = (habit: Habit) => push({ name: "detail", id: habit.id });
+  // a habit dragged to `to` goes just after the habit that ends up before it there
+  const move = (from: number, to: number) => {
+    const moved = habits[from];
+    const rest = habits.filter((h) => h !== moved);
+    if (moved) void store.moveHabit(moved.id, rest[to - 1]?.id ?? null);
+  };
   return (
     <>
       <AppBar
@@ -66,7 +74,8 @@ export function Home() {
             Habits
           </h1>
         </header>
-        <SignedOutNote />
+        {/* one note at a time: keeping the habits safe comes before the reorder hint */}
+        {signedOutNoteShown ? <SignedOutNote /> : <ReorderHint />}
         <div className="px-5 pb-5">
           {habits.length === 0 ? (
             <EmptyHabits onAdd={() => setAdding(true)} />
@@ -76,10 +85,15 @@ export function Home() {
               day={day}
               onOpen={open}
               onSlip={toggleSlip}
+              onMove={move}
               onAdd={() => setAdding(true)}
             />
           ) : (
-            <HabitCollection layout="grid">
+            <HabitCollection
+              layout="grid"
+              onMove={move}
+              end={<NewHabitTile layout="grid" onClick={() => setAdding(true)} />}
+            >
               {habits.map((habit) => {
                 const days = currentStreakDays(habit);
                 return (
@@ -99,7 +113,6 @@ export function Home() {
                   />
                 );
               })}
-              <NewHabitTile layout="grid" onClick={() => setAdding(true)} />
             </HabitCollection>
           )}
         </div>
@@ -121,23 +134,30 @@ const labelOf = (habit: Habit, days: number) =>
 /**
  * The list layout: a row per habit, whose tick checks a build habit in today with one tap and
  * whose slip button asks before logging a quit habit's slip. The rest of the row opens the habit.
+ * Rows are dragged into order as the grid's cards are.
  */
 function HabitList({
   habits,
   day,
   onOpen,
   onSlip,
+  onMove,
   onAdd,
 }: {
   habits: Habit[];
   day: string;
   onOpen: (habit: Habit) => void;
   onSlip: (habit: Habit) => void;
+  onMove: (from: number, to: number) => void;
   onAdd: () => void;
 }) {
   const store = useHabitStore();
   return (
-    <HabitCollection layout="list">
+    <HabitCollection
+      layout="list"
+      onMove={onMove}
+      end={<NewHabitTile layout="list" onClick={onAdd} />}
+    >
       {habits.map((habit) => {
         const days = currentStreakDays(habit);
         return (
@@ -158,7 +178,6 @@ function HabitList({
           />
         );
       })}
-      <NewHabitTile layout="list" onClick={onAdd} />
     </HabitCollection>
   );
 }

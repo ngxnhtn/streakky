@@ -371,12 +371,22 @@
   }
 }
 
+/*
+ * Reduced motion: nothing moves or fades; every change lands at once.
+ * - Animations still run, but take no time. A zero-length animation still fires `animationend`,
+ *   which dialogs wait on to unmount and the screen stack to drop a screen.
+ * - Transitions don't run at all. Nothing in the app waits on `transitionend`.
+ * Durations are zero, not a tiny 1ms. A 1ms animation or transition still paints its old or
+ * starting values for a frame, and a 1ms transition even applies to every property of elements
+ * that set no transition, since `transition-property` starts as `all`.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
-    animation-duration: 1ms !important;
-    animation-delay: 0ms !important;
-    transition-duration: 1ms !important;
+    animation-duration: 0s !important;
+    animation-delay: 0s !important;
+    transition-duration: 0s !important;
+    transition-delay: 0s !important;
   }
 }

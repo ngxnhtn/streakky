@@ -28,6 +28,8 @@ export type Settings = {
   celebrate: boolean;
   /** The web app's note that signed-out habits live only in this browser, once dismissed. */
   signedOutNoteDismissed: boolean;
+  /** Home's hint that habits can be dragged into order, once dismissed or after a first reorder. */
+  reorderHintDismissed: boolean;
 };
 
 export const defaultSettings: Settings = {
@@ -39,4 +41,5 @@ export const defaultSettings: Settings = {
   reminderTime: "21:00",
   celebrate: true,
   signedOutNoteDismissed: false,
+  reorderHintDismissed: false,
 };
