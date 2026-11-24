@@ -26,3 +26,5 @@
 ## Comments
 
 **Note from 14 (2026-11-24).** Every record a device changes waits (`pending`) until a push carries it, and records stored before sync count as waiting, so signing in already pushes the device's signed-out habits and their days, then pulls. What's left here: the tests named above, the pending-changes warning on sign-out (`syncStatus().pending`), and the wipe. Until the wipe lands, signing out keeps the habits and their pending marks, so signing in to another account on the same device would push them into that account. Clear `streakky.sync` (the per-account version and last sync) with the rest; it's already keyed by address, so a different account starts from the beginning.
+
+**Note from the code review (2026-11-24): a second account on the same device.** Signing in pushes only the records still waiting. Until the wipe lands, signing out of one account and in to another on the same device leaves the first account's synced habits on screen, but they never reach the second account, since nothing marks them waiting again. The wipe on sign-out must cover them, so the second account starts from an empty device.
