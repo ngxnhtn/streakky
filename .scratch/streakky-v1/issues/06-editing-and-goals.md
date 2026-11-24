@@ -80,3 +80,46 @@ If moving the quit day would remove slips on or before the new day, I'm warned f
   - **Goal celebrations sits in Appearance.** It could move to a Reminders or Goals group once 19 adds the reminder.
 
 - **Owner decisions (2026-11-24):** a quit day may move to today as well as a past day, as when creating a habit (kept). "Celebration" is now in the glossary. The celebration notice and the update prompt must not overlap; that's fixed in a follow-up.
+
+**Follow-up (2026-11-24): the celebration and the update prompt never overlap.** This replaces the "Found, not fixed" note about the two overlapping.
+
+- **One bottom stack:** `BottomNotices` (`apps/web/src/BottomNotices.tsx`) is the one place for notices along the bottom of the window. `App` renders it around the screen stack.
+  - It is a column pinned at `inset-x-2`, `bottom: max(0.5rem, env(safe-area-inset-bottom))`, at z-40. It ignores the pointer; each notice takes it back.
+  - The screens' notices go on top: the celebration's region portals in through `ScreenNotice`. The update prompt, the app's notice, goes below.
+  - Since they share one column, neither can cover the other at any width or height. At 320px the prompt wraps to two lines.
+  - With the prompt shown, the celebration keeps 0.5rem above it, through a `:has()` rule on the stack. The notices carry `data-notice="celebration"` and `data-notice="update"`.
+  - **Why the celebration goes on top:** its burst rises from its top edge, so it flies into the screen, not through the prompt. Also, the prompt usually comes first (on opening the app) and a check-in comes after, so the prompt stays put.
+- **Room at the end of every screen:**
+  - A `ResizeObserver` keeps the stack's height in `--notices-height`, set on a `display: contents` wrapper around the screens.
+  - `ScreenScroll`'s bottom padding is `max(4.5rem, notices height + max(0.5rem, safe-area inset) + 0.5rem)`. With nothing showing it stays at ticket 11's 72px. With the prompt it is 78px, and with both about 150px.
+  - Scrolled to the end, the last habit, the New habit tile or the end of Habit detail stays clear of whatever shows. That now holds above a home indicator too, where the 72px wasn't enough for the prompt (a 34px inset plus 62px).
+- **The celebration belongs to its screen:**
+  - Its notice no longer sits inside its screen's section, so a screen in front wouldn't cover or inert it. Instead, a screen that another covers, or that goes, ends its celebration at once. Before, the celebration slid away with its screen and could still be there on coming back within 6s.
+  - It starts only once the stack's slot is in the page, so its live region is there first.
+- **The burst lets taps through:** the burst's pieces are now `pointer-events-none`. Before, the 28 invisible pieces stayed over the screen for the notice's 6s and could catch taps.
+- **Unchanged:**
+  - **Update prompt:** it is an always-present `role="status"` region with explicit `aria-live`. It never takes focus, sits under a dialog's scrim, and Not now hides it for the page's life.
+  - **Celebration:** it stays while pointed at or focused, and its dismiss button returns focus. Under reduced motion it has no burst, and the burst is in the habit's colour.
+- **Checked in headless Chrome 158** against `vp build` + `vp preview`:
+  - **Setup:** build A was installed. B (A with a changed `index.html` and its precache revision) was then deployed, and a reload's update check showed the prompt.
+  - **Prompt first:** a 7-day goal was reached on Home (Enter on a card's tick) and on Habit detail (Check in today). Sizes: 320×568 light, 400×860 light, 1024×768 dark, and 400×860 dark with reduced motion.
+    - Every frame for 1.5s was sampled, and the two never overlapped. The gap was 8px, or 4–8px while the celebration rose its 0.25rem.
+    - The celebration was 64px tall and the prompt 62px (63.5px at 320, on two lines), so the stack was 134–136px.
+    - The burst had 28 pieces. Under reduced motion it had none, and the notice was at full opacity from the first frame.
+  - **Celebration first:** a quit habit reached its 7-day goal on load, with the clock moved a day, at 400px light and at 320px dark with reduced motion.
+    - The celebration showed at about 110ms and the prompt at about 1.65s.
+    - None of the 360 frames with both overlapped. The celebration moved up in one step when the prompt arrived under it.
+  - **Scroll end:** Home's New habit tile and Habit detail's calendar ended above the notices, with the prompt (78px of padding) and with both (150px). After Not now, the padding was back to 72px.
+  - **Reorder hint:** at 320×568 it was clear of both notices (the hint ends at 222px and the notices start at 424px). In a 568×320 landscape window, the celebration covered the hint's lower part at the top of the scroll; 42px of scrolling cleared it.
+  - **Keyboard:**
+    - Focus stayed on the page when the prompt appeared, and on the tick when the celebration played.
+    - From the New habit tile, Tab reached the celebration's dismiss button first, which held the notice past 6s. Enter dismissed it, with focus back on the tile.
+    - Focus never went into the prompt by itself. Not now is 44px tall with the 2px ring.
+  - **Pointer:** on Habit detail, the pointer held the notice past 6s, and it left 6s after the pointer moved away. In scripted runs, a headless screenshot moves the virtual pointer out and back, which restarts the timer.
+  - **Dialog:** New habit opened over both notices. The sheet and its scrim covered them, neither live region was `aria-hidden`, and focus stayed in the dialog.
+  - **Prompt buttons:** Not now hid the prompt for the page, and Reload moved the page to B.
+  - **Colour:** a blue habit's pieces and disc were #2453a0 in light and #a9c8f5 in dark, the habit's own colour.
+  - **Dev mode:** with StrictMode it behaved the same, with one live region per mounted screen plus the prompt's.
+  - **Console:** no errors or warnings from the app, apart from the 502 for `/api/auth/get-session`.
+- **Not unit-tested:** the layout. The web app's tests run in Node without a DOM, so the browser runs above cover it.
+- **For the owner:** if the prompt arrives while a pointer rests on a celebration, the celebration moves up out from under the pointer, and its 6s starts. It's rare: both have to show within the same 6s.

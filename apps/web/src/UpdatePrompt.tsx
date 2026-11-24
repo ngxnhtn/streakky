@@ -10,7 +10,8 @@ const actionClasses = "h-11";
  * A one-line notice along the bottom of the window once a new version is ready: Reload switches
  * to it, Not now hides it until the app is opened again or comes back from the background. It
  * never takes focus, and it sits under the scrim of an open dialog, so whatever is being typed
- * there stays put until the person chooses.
+ * there stays put until the person chooses. It is the app's notice in BottomNotices, under a
+ * screen's own, such as a goal's celebration.
  */
 export function UpdatePrompt() {
   const update = useSyncExternalStore(subscribeToUpdates, readyUpdate);
@@ -29,13 +30,12 @@ export function UpdatePrompt() {
   return (
     // always in the page, so screen readers announce what appears in it; the explicit aria-live
     // also keeps a modal dialog from hiding it while one is open
-    <div
-      role="status"
-      aria-live="polite"
-      className="pointer-events-none absolute inset-x-2 bottom-[max(0.5rem,env(safe-area-inset-bottom))] z-40 flex justify-center"
-    >
+    <div role="status" aria-live="polite" className="flex justify-center">
       {shown && (
-        <div className="pointer-events-auto flex w-full max-w-[26rem] animate-rise flex-wrap items-center gap-x-2 rounded-[1.75rem] border border-border bg-popover p-2 pl-5 text-popover-foreground shadow-[0_0.5rem_2rem_rgb(0_0_0/0.14)]">
+        <div
+          data-notice="update"
+          className="pointer-events-auto flex w-full max-w-[26rem] animate-rise flex-wrap items-center gap-x-2 rounded-[1.75rem] border border-border bg-popover p-2 pl-5 text-popover-foreground shadow-[0_0.5rem_2rem_rgb(0_0_0/0.14)]"
+        >
           <p id={messageId} className="min-w-[6rem] flex-1 py-1 leading-tight font-medium">
             A new version is ready.
           </p>

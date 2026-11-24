@@ -10,6 +10,7 @@ import {
   sinceLabel,
   statusLabel,
   type Habit,
+  type Layout,
 } from "@streakky/core";
 import { AppBar } from "@streakky/ui/components/app-bar";
 import { Button } from "@streakky/ui/components/button";
@@ -19,7 +20,8 @@ import {
   HabitRow,
   NewHabitTile,
 } from "@streakky/ui/components/habit/habit-card";
-import { useHabitStore, useHabits, useSettings } from "../store/react.tsx";
+import { cn } from "@streakky/ui/lib/utils";
+import { useArchivedHabits, useHabitStore, useHabits, useSettings } from "../store/react.tsx";
 import { useCelebration } from "./Celebration.tsx";
 import { useTodaysSlip } from "./LogSlipDialog.tsx";
 import { NewHabitDialog } from "./NewHabitDialog.tsx";
@@ -31,6 +33,7 @@ import { useToday } from "./use-today.ts";
 export function Home() {
   const store = useHabitStore();
   const habits = useHabits();
+  const empty = emptyHome(habits, useArchivedHabits());
   const day = useToday();
   const [adding, setAdding] = useState(false);
   // the browser's forward button can cover Home while New habit is open
@@ -77,8 +80,14 @@ export function Home() {
         {/* one note at a time: keeping the habits safe comes before the reorder hint */}
         {signedOutNoteShown ? <SignedOutNote /> : <ReorderHint />}
         <div className="px-5 pb-5">
-          {habits.length === 0 ? (
+          {empty === "no habits" ? (
             <EmptyHabits onAdd={() => setAdding(true)} />
+          ) : empty === "all archived" ? (
+            <AllArchived
+              layout={layout}
+              onShowArchived={() => push({ name: "archived" })}
+              onAdd={() => setAdding(true)}
+            />
           ) : layout === "list" ? (
             <HabitList
               habits={habits}
@@ -182,16 +191,60 @@ function HabitList({
   );
 }
 
+/**
+ * Why Home has no habit to show, if it has none: the device has no habits at all, or every one
+ * of them is archived. Deleted habits don't count.
+ */
+export function emptyHome(habits: Habit[], archived: Habit[]): "no habits" | "all archived" | null {
+  if (habits.length > 0) return null;
+  return archived.length > 0 ? "all archived" : "no habits";
+}
+
+const emptyCard = "max-w-[30rem] rounded-3xl bg-muted px-6 pt-7 pb-6";
+const emptyTitle = "text-xl font-medium tracking-[-0.015em]";
+const emptyText = "mt-1.5 mb-5 text-muted-foreground";
+
 function EmptyHabits({ onAdd }: { onAdd: () => void }) {
   return (
-    <div className="max-w-[30rem] rounded-3xl bg-muted px-6 pt-7 pb-6">
-      <p className="text-xl font-medium tracking-[-0.015em]">Nothing counted yet</p>
-      <p className="mt-1.5 mb-5 text-muted-foreground">
+    <div className={emptyCard}>
+      <p className={emptyTitle}>Nothing counted yet</p>
+      <p className={emptyText}>
         Add a habit to build, like a morning run, or one to quit, like smoking.
       </p>
       <Button className="w-full" onClick={onAdd}>
         Add a habit
       </Button>
     </div>
+  );
+}
+
+/**
+ * Home when every habit is archived: says so, with a way to Archived habits to restore one, and
+ * the New habit tile where it always is, after the habits.
+ */
+function AllArchived({
+  layout,
+  onShowArchived,
+  onAdd,
+}: {
+  layout: Layout;
+  onShowArchived: () => void;
+  onAdd: () => void;
+}) {
+  return (
+    <>
+      <div className={cn(emptyCard, "mb-5")}>
+        <p className={emptyTitle}>Every habit is archived</p>
+        <p className={emptyText}>
+          Archived habits keep their history. Restore one to track it again, or start a new one.
+        </p>
+        <Button className="w-full" onClick={onShowArchived}>
+          See archived habits
+        </Button>
+      </div>
+      <HabitCollection layout={layout} end={<NewHabitTile layout={layout} onClick={onAdd} />}>
+        {null}
+      </HabitCollection>
+    </>
   );
 }
