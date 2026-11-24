@@ -30,6 +30,10 @@ _Avoid_: Start date
 A habit hidden from everyday views, with its history kept so it can be restored. A quit habit stops counting while it's archived, and carries on from where it stopped once restored.
 _Avoid_: Paused habit, hidden habit
 
+**Archived period**:
+One stretch of a habit's history spent archived: the day it was archived and the day it was restored, with no end yet while it still is. A habit keeps every one, even one restored the day it was archived. A quit habit's archived days are the days strictly between the two.
+_Avoid_: Pause, archive span
+
 ### Days
 
 **Day**:
@@ -73,7 +77,7 @@ An optional target length for a habit's current streak. It is reached when the c
 _Avoid_: Target, milestone
 
 **Celebration**:
-What a device plays once when a habit's current streak reaches its goal, through a check-in, a slip-free day or the days passing. Setting a goal or moving a quit day never plays one. It can be turned off in Settings.
+What a device plays once when a habit's current streak reaches its goal, through a check-in, a slip-free day or the days passing. Setting a goal or moving a quit day never plays one, on the device that made the change or on any other. It can be turned off in Settings.
 _Avoid_: Milestone, reward
 
 ### Devices and sync

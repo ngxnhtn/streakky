@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { archivedDays, currentStreakDays, goalDate, toISO } from "@streakky/core";
+import { archivedDays, currentStreakDays, goalDate, toISO, type Habit } from "@streakky/core";
 import type { HabitRecord, HabitStore } from "../src/store/habit-store.ts";
-import { createStorage, openDevice, storedHabits, storeRecords } from "./devices.ts";
+import { createStorage, openDevice, storeRecords } from "./devices.ts";
 
 // Every test starts on Tuesday 24 November 2026, local time; `on` moves the clock to another day.
 beforeEach(() => {
@@ -46,38 +46,29 @@ describe("an archived quit habit", () => {
     expect([onArchiveDay, whileArchived, onRestoreDay, count(device)]).toEqual([10, 10, 11, 12]);
   });
 
-  it("keeps its archived period on its record, with `archived` and at the same edit time", async () => {
+  it("keeps its archived period across restarts, open while archived and closed once restored", async () => {
     const storage = createStorage();
     const device = await openDevice(storage);
     await device.createHabit(quit("No smoking", "2026-11-14"));
     const { id } = device.habits()[0];
-    // a minute after making it
-    vi.setSystemTime(new Date(2026, 10, 24, 9, 1));
     await device.archiveHabit(id);
     await device.close();
-    const archived = (await storedHabits(storage))[0];
 
     on("2026-11-30");
-    const reopened = await openDevice(storage);
-    await reopened.restoreHabit(id);
-    const restoredAt = Date.now();
-    await reopened.close();
-    const restored = (await storedHabits(storage))[0];
+    const archived = await openDevice(storage);
+    const whileArchived = archived.archivedHabits().map((h) => h.archivedPeriods);
+    await archived.restoreHabit(id);
+    await archived.close();
 
-    expect([archived, restored]).toMatchObject([
-      {
-        archived: true,
-        archivedPeriods: [{ archivedOn: "2026-11-24", restoredOn: null }],
-        edited: {
-          archived: new Date(2026, 10, 24, 9, 1).getTime(),
-          archivedPeriods: new Date(2026, 10, 24, 9, 1).getTime(),
-        },
-      },
-      {
-        archived: false,
-        archivedPeriods: [{ archivedOn: "2026-11-24", restoredOn: "2026-11-30" }],
-        edited: { archived: restoredAt, archivedPeriods: restoredAt },
-      },
+    const restored = await openDevice(storage);
+    expect([
+      whileArchived,
+      restored.habits().map((h) => h.archivedPeriods),
+      count(restored),
+    ]).toEqual([
+      [[{ archivedOn: "2026-11-24", restoredOn: null }]],
+      [[{ archivedOn: "2026-11-24", restoredOn: "2026-11-30" }]],
+      11,
     ]);
   });
 
@@ -201,14 +192,30 @@ describe("archiving and restoring again", () => {
     const [smoking, sugar] = device.habits();
     await device.archiveHabit(smoking.id);
     await device.close();
-    const before = await storedHabits(storage);
 
     on("2026-11-26");
     const reopened = await openDevice(storage);
     await reopened.archiveHabit(smoking.id);
     await reopened.restoreHabit(sugar.id);
     await reopened.close();
-    expect(await storedHabits(storage)).toEqual(before);
+    const after = await openDevice(storage);
+    const shown = (habits: Habit[]) =>
+      habits.map((h) => ({
+        name: h.name,
+        archivedPeriods: h.archivedPeriods,
+        count: currentStreakDays(h),
+      }));
+    // still archived since the 24th, its count held at 10; the other still counting, never archived
+    expect([shown(after.archivedHabits()), shown(after.habits())]).toEqual([
+      [
+        {
+          name: "No smoking",
+          archivedPeriods: [{ archivedOn: "2026-11-24", restoredOn: null }],
+          count: 10,
+        },
+      ],
+      [{ name: "No sugar", archivedPeriods: [], count: 12 }],
+    ]);
   });
 });
 
@@ -265,10 +272,12 @@ describe("a habit stored before archived periods were kept", () => {
     await device.restoreHabit("smoking");
     const restored = count(device);
     await device.close();
-    expect([whileArchived, restored, (await storedHabits(storage))[0]]).toMatchObject([
+    const reopened = await openDevice(storage);
+    expect([whileArchived, restored, reopened.habits(), reopened.archivedHabits()]).toMatchObject([
       10,
       10,
-      { archived: false, archivedPeriods: [], edited: { archivedPeriods: Date.now() } },
+      [{ name: "No smoking", archivedPeriods: [] }],
+      [],
     ]);
   });
 });

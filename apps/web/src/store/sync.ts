@@ -9,33 +9,24 @@
  * - a deleted habit stays deleted.
  */
 import type { Collection } from "@tanstack/db";
-import type { ApiFetch } from "./account.ts";
 import {
-  dayKey,
   EDITABLE_FIELDS,
-  type DayRecord,
+  PUSH_LIMIT,
+  SYNC_PATH,
   type EditableField,
-  type HabitRecord,
-  type KeyValueStorage,
-} from "./habit-store.ts";
-
-/** A habit as push and pull carry it: every field with its edit time and change id. */
-type SyncedHabit = Omit<HabitRecord, "edited" | "changeIds" | "pending" | "archivedPeriods"> & {
-  archivedPeriods: NonNullable<HabitRecord["archivedPeriods"]>;
-  edited: Record<EditableField, number>;
-  changeIds: Record<EditableField, string>;
-};
-type SyncedDay = Omit<DayRecord, "changeId" | "pending"> & { changeId: string };
-type Pulled = { habits: SyncedHabit[]; days: SyncedDay[]; version: number; more: boolean };
-/** A push's answer: where in its lists were the rows the server couldn't read. */
-type PushAnswer = { refused: { habits: number[]; days: number[] } };
+  type Pulled,
+  type PushAnswer,
+  type SyncedDay,
+  type SyncedHabit,
+} from "@streakky/contract";
+import type { ApiFetch } from "./account.ts";
+import { isRecord, readJSON, writeJSON, type KeyValueStorage } from "./key-value.ts";
+import { dayKey, type DayRecord, type HabitRecord } from "./records.ts";
 
 /** What a sync knows between runs, kept per account so another account starts afresh. */
 type Cursor = { email: string; version: number; lastSynced: number | null };
 
 const CURSOR_KEY = "streakky.sync";
-/** The Worker takes at most this many rows in one push (apps/api/src/sync.ts, PUSH_LIMIT). */
-const PUSH_LIMIT = 200;
 
 export type SyncTiming = {
   /** How long after a change on the device it syncs, gathering the changes made meanwhile. */
@@ -97,6 +88,22 @@ function mergeHabit(local: HabitRecord | undefined, remote: SyncedHabit): HabitR
   return { ...merged, pending: ahead };
 }
 
+/**
+ * Whether a pulled habit gives this device its goal or its quit day: it's new here, or the server
+ * holds a later edit of either. Its goal was then set, or reached by moving the quit day, on
+ * another device, which doesn't celebrate that (glossary, "Celebration"), so neither does this one.
+ */
+function setsGoal(local: HabitRecord | undefined, remote: SyncedHabit): boolean {
+  if (!local) return true;
+  const mine = syncedHabit(local);
+  return (["goal", "quitDay"] as const).some((field) =>
+    later(
+      [remote.edited[field], remote.changeIds[field]],
+      [mine.edited[field], mine.changeIds[field]],
+    ),
+  );
+}
+
 function mergeDay(local: DayRecord | undefined, remote: SyncedDay): DayRecord {
   if (!local) return { ...remote, pending: false };
   const mine = syncedDay(local);
@@ -130,8 +137,9 @@ export function openSync({
   now,
   timing,
   triggers,
-  changed,
+  statusChanged,
   sessionEnded,
+  goalsSetElsewhere,
 }: {
   api: ApiFetch;
   habitRecords: Collection<HabitRecord, string>;
@@ -143,29 +151,34 @@ export function openSync({
   timing: SyncTiming;
   /** The platform's moments to sync, such as coming back online or to the foreground. */
   triggers?: (sync: () => void) => () => void;
-  /** Sync's progress changed. */
-  changed: () => void;
+  /** Sync's progress changed: what waits for a push, the last sync, or whether it's failing. */
+  statusChanged: () => void;
   /** The server answered that this device isn't signed in. */
   sessionEnded: () => void;
+  /**
+   * The habits this pull gave a goal or a quit day from another device, or brought here for the
+   * first time. Called as soon as each page of pulled rows is in the collections, before anything
+   * can show them, so that the device can keep their reached goals as celebrated.
+   */
+  goalsSetElsewhere: (habitIds: ReadonlySet<string>) => void;
 }): Sync {
-  const readCursor = (email: string): Cursor => {
-    try {
-      const stored = JSON.parse(storage.getItem(CURSOR_KEY) ?? "null") as Partial<Cursor> | null;
-      if (stored?.email === email && Number.isSafeInteger(stored.version)) {
-        return { email, version: stored.version!, lastSynced: stored.lastSynced ?? null };
-      }
-    } catch {
-      // unreadable: start from the beginning, which is always safe
-    }
-    return { email, version: 0, lastSynced: null };
-  };
-  const saveCursor = (cursor: Cursor) => {
-    try {
-      storage.setItem(CURSOR_KEY, JSON.stringify(cursor));
-    } catch {
-      // full or blocked storage: the next sync pulls again from the last version saved
-    }
-  };
+  /** The account's cursor; none, another account's, or an unreadable one starts from the beginning. */
+  const readCursor = (email: string): Cursor =>
+    readJSON<Cursor>(
+      storage,
+      CURSOR_KEY,
+      (stored) =>
+        isRecord(stored) && stored.email === email && Number.isSafeInteger(stored.version)
+          ? {
+              email,
+              version: stored.version as number,
+              lastSynced: typeof stored.lastSynced === "number" ? stored.lastSynced : null,
+            }
+          : undefined,
+      { email, version: 0, lastSynced: null },
+    );
+  // with full or blocked storage, the next sync pulls again from the last version saved
+  const saveCursor = (cursor: Cursor) => writeJSON(storage, CURSOR_KEY, cursor);
 
   const request = async (path: string, init?: RequestInit): Promise<Response | null> => {
     const response = await api(path, init).catch(() => null);
@@ -207,7 +220,7 @@ export function openSync({
         habits: chunk.flatMap((row) => ("habit" in row ? [row.habit] : [])),
         days: chunk.flatMap((row) => ("day" in row ? [row.day] : [])),
       };
-      const response = await request("/api/sync/push", {
+      const response = await request(`${SYNC_PATH}/push`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -222,8 +235,16 @@ export function openSync({
     return true;
   };
 
-  /** Merges pulled rows into the device's records, all at once, so no edit lands in between. */
-  const applyPulled = async ({ habits, days }: Pulled) => {
+  /**
+   * Merges pulled rows into the device's records, all at once, so no edit lands in between. Adds
+   * to `setElsewhere` the habits whose goal or quit day comes from another device.
+   */
+  const applyPulled = async ({ habits, days }: Pulled, setElsewhere: Set<string>) => {
+    for (const remote of habits) {
+      if (!remote.deleted && setsGoal(habitRecords.get(remote.id), remote)) {
+        setElsewhere.add(remote.id);
+      }
+    }
     const writes: Promise<unknown>[] = [];
     const apply = <T extends object>(
       records: Collection<T, string>,
@@ -255,16 +276,27 @@ export function openSync({
       dayKey,
       days.map((remote) => ({ key: dayKey(remote), merged: (local) => mergeDay(local, remote) })),
     );
+    // the merged rows are in the collections already, waiting to be stored: nothing has shown
+    // them yet
+    goalsSetElsewhere(setElsewhere);
     await Promise.all(writes);
   };
 
   const pullChanges = async (email: string): Promise<boolean> => {
     let cursor = readCursor(email);
+    // The cursor lives apart from the records: with none of them left but a cursor past the
+    // start, the records were lost and the cursor kept (a browser clearing one store but not the
+    // other), and only a pull from the beginning brings them back. A pull always leaves a record.
+    if (cursor.version > 0 && habitRecords.size === 0 && dayRecords.size === 0) {
+      cursor = { ...cursor, version: 0 };
+    }
+    // across the pull's pages, since a new habit's days can come a page after it
+    const setElsewhere = new Set<string>();
     for (;;) {
-      const response = await request(`/api/sync/pull?since=${cursor.version}`);
+      const response = await request(`${SYNC_PATH}/pull?since=${cursor.version}`);
       if (!response) return false;
       const pulled = (await response.json()) as Pulled;
-      await applyPulled(pulled);
+      await applyPulled(pulled, setElsewhere);
       // only once the rows are stored, so a sync cut short pulls them again
       cursor = { ...cursor, version: pulled.version };
       saveCursor(cursor);
@@ -283,7 +315,7 @@ export function openSync({
     const pulled = await pullChanges(email);
     failing = !(pushed && pulled);
     if (!failing) saveCursor({ ...readCursor(email), lastSynced: now() });
-    changed();
+    statusChanged();
   };
 
   let running: Promise<void> | null = null;

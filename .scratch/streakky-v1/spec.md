@@ -171,6 +171,7 @@ The domain vocabulary is defined in `GLOSSARY.md`. This spec follows ADR-0001 (A
   - It owns the real screens: Home, Habit detail, New habit, Edit habit, Archived habits, Settings and Sign-in. Their designs come from the playground's phone and desktop layouts, built with the UI package.
   - It owns the **habit store**, the interface the screens call (see below).
   - It also owns the PWA manifest and the service worker that caches the app shell, and the Capacitor project.
+- **Contract package:** what the API Worker and the web app agree on over HTTP: the rows push and pull carry, the editable fields, how many rows a push takes, the push's answer, the auth and sync paths, and sign-in's code and error codes. Both import it, so neither side changes the shape alone. Only types and constants.
 - **API Worker:** a new Cloudflare Worker app, routed with Hono. It serves the web app's static build, with a fallback to the single-page app for unknown paths, plus `/api/auth/*` (better-auth) and `/api/sync/*` (push and pull). It's bound to one D1 database and attached to the custom domain `hb.nhutien.com`, whose zone is already on Cloudflare.
 - **Android widget (native):** Kotlin code in the Capacitor Android project, plus a small custom Capacitor plugin that the web app calls to write widget summaries and refresh widgets.
 
@@ -230,7 +231,10 @@ type DayRecord = {
   - A deleted habit stays deleted, and any of its day records still arriving are kept but ignored.
   - Ties in edit time are broken deterministically by change id.
   - Each row that changes gets the account's next server version.
+  - A row the server can't read is refused: the answer says which, that row keeps waiting on the device, and the rest are stored. A quit habit must have a quit day and a build habit none.
 - **Pull:** an authenticated device asks for every row changed since its last-seen server version. It gets the rows (deleted habits included) and a new version to remember.
+  - A version beyond the account's latest one means the account's data was made anew since the device saw it, so the pull starts from the beginning.
+  - The device keeps its version apart from its records. With no records left but a version past the start, it pulls from the beginning too.
 - **When a device syncs:** on app start, on regaining connectivity, on returning to the foreground, shortly after local changes (debounced), and periodically while open.
 - **First sign-in on a device:** every local habit and day record is pushed as it is, then the device pulls. There's no matching by name.
 - **Sign-out:** if the pending-push queue isn't empty, the app warns first. It then wipes the habit and day collections and the stored credentials, but keeps device settings.
@@ -245,10 +249,12 @@ type DayRecord = {
   - New accounts are only ever created for allowlisted addresses.
 - **Email:** codes are sent through Resend, from `hb@nhutien.com`. The Resend API key and the better-auth secret are Worker secrets.
 - **Web:** uses same-origin session cookies.
+- **Sessions:** a session lasts a year from the last day it was used. Checking it on a push or pull renews it once a day, and the answer carries the renewed cookie, as `/get-session`'s does.
 - **Android:**
   - The WebView origin is `https://localhost`, so cookies would be third-party. The app uses bearer tokens instead.
   - The API exposes the session token header through CORS, lists `https://localhost` as a trusted origin, and the app keeps the token in secure device storage.
-- **Rate limiting:** better-auth's rate limiting, keyed on Cloudflare's client IP header.
+- **Rate limiting:** better-auth's rate limiting, keyed on Cloudflare's client IP header: 3 code requests and 4 sign-in tries a minute per IP.
+- **Daily cap per address:** at most 10 code requests and 20 sign-in tries a UTC day for each address, whatever IPs they come from, counted in D1. It keeps guessing a code capped for someone with many IPs; the cost is that they can use up the owner's tries for the day. Requests refused for other reasons, such as an address off the allowlist or a code that isn't for sign-in, don't count. The Worker has done this since ticket 13; it's recorded here for the owner to decide on, and stays as it is until then.
 - Not used: passwords, Google or other social sign-in, magic links, passkeys, anonymous sessions.
 
 ### D1
