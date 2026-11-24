@@ -1,18 +1,24 @@
 import { X } from "lucide-react";
 import { Button } from "@streakky/ui/components/button";
 import { insideNativeApp } from "../platform.ts";
-import { useHabitStore, useHabits, useSettings, useSyncStatus } from "../store/react.tsx";
+import {
+  useArchivedHabits,
+  useHabitStore,
+  useHabits,
+  useSettings,
+  useSyncStatus,
+} from "../store/react.tsx";
 import { useNav } from "./stack.tsx";
 
 /**
  * Whether Home shows the signed-out note: on the web, while signed out and once there is a habit
- * to lose, until it's dismissed on this device. The Android app keeps its data in its own
+ * to lose, archived ones included, until it's dismissed on this device. The Android app keeps its data in its own
  * storage, so it never shows the note.
  */
 export function useSignedOutNoteShown(): boolean {
   const { signedIn } = useSyncStatus();
   const { signedOutNoteDismissed } = useSettings();
-  const hasHabits = useHabits().length > 0;
+  const hasHabits = useHabits().length + useArchivedHabits().length > 0;
   return !signedIn && !signedOutNoteDismissed && hasHabits && !insideNativeApp();
 }
 

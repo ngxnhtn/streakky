@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { applyAppearance } from "./appearance.ts";
+import { BottomNotices } from "./BottomNotices.tsx";
 import { ArchivedHabits } from "./screens/ArchivedHabits.tsx";
 import { HabitDetail } from "./screens/HabitDetail.tsx";
 import { Home } from "./screens/Home.tsx";
@@ -9,7 +10,10 @@ import { ScreenStack, type Route } from "./screens/stack.tsx";
 import { useSettings } from "./store/react.tsx";
 import { UpdatePrompt } from "./UpdatePrompt.tsx";
 
-/** The phone layout: a stack of screens filling the window, in this device's theme and palette. */
+/**
+ * The phone layout: a stack of screens filling the window, in this device's theme and palette,
+ * with the notices along the bottom over them.
+ */
 export function App() {
   const { theme, palette } = useSettings();
   // re-applies when the system switches between light and dark
@@ -18,8 +22,9 @@ export function App() {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden bg-background text-[0.9375rem] leading-[1.4] text-foreground transition-colors duration-300">
-      <ScreenStack screen={screenOf} />
-      <UpdatePrompt />
+      <BottomNotices appNotice={<UpdatePrompt />}>
+        <ScreenStack screen={screenOf} />
+      </BottomNotices>
     </div>
   );
 }

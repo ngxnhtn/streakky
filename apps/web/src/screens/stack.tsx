@@ -65,6 +65,13 @@ export function useInFront(): boolean {
   return useContext(InFrontContext);
 }
 
+const BelowContext = createContext<Route | null>(null);
+
+/** The screen this one opened over, which its back button goes back to; null on Home. */
+export function useScreenBelow(): Route | null {
+  return useContext(BelowContext);
+}
+
 /** The screens as the person sees them: all but the one sliding out. */
 const shownOf = ({ entries, leaving }: Stack) => entries.filter((e) => e.key !== leaving);
 
@@ -223,7 +230,9 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
               )}
             >
               <InFrontContext.Provider value={i === visibleTop}>
-                {screen(entry.route)}
+                <BelowContext.Provider value={entries[i - 1]?.route ?? null}>
+                  {screen(entry.route)}
+                </BelowContext.Provider>
               </InFrontContext.Provider>
             </section>
           );
@@ -233,10 +242,20 @@ export function ScreenStack({ screen }: { screen: (route: Route) => ReactNode })
   );
 }
 
-/** A screen's scrolling body under its app bar, with room left for the home indicator. */
+/**
+ * A screen's scrolling body under its app bar. Its end leaves room for the home indicator, and
+ * more while BottomNotices shows notices taller than that, so scrolled to the end nothing is
+ * left under them.
+ */
 export function ScreenScroll({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[4.5rem] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <main
+      className={cn(
+        "min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        // the notices' height, their offset from the bottom and a gap above them
+        "pb-[max(4.5rem,calc(var(--notices-height,0rem)_+_max(0.5rem,env(safe-area-inset-bottom))_+_0.5rem))]",
+      )}
+    >
       {children}
     </main>
   );

@@ -7,14 +7,16 @@ import { List } from "@streakky/ui/components/list";
 import { cn } from "@streakky/ui/lib/utils";
 import { useArchivedHabits, useHabitStore } from "../store/react.tsx";
 import { keepFocus, neighbourOfFocus } from "./focus.ts";
-import { ScreenScroll, useNav } from "./stack.tsx";
+import { ScreenScroll, useNav, useScreenBelow } from "./stack.tsx";
 
 /**
- * Archived habits, reached from Settings: hidden from Home, with their history kept. Each one
- * opens its Habit detail to look back on, and restoring one brings it back to Home.
+ * Archived habits, reached from Settings, or from Home when every habit is archived: hidden from
+ * Home, with their history kept. Each one opens its Habit detail to look back on, and restoring
+ * one brings it back to Home.
  */
 export function ArchivedHabits() {
   const { push, pop } = useNav();
+  const fromHome = useScreenBelow()?.name === "home";
   const store = useHabitStore();
   const habits = useArchivedHabits();
 
@@ -32,7 +34,12 @@ export function ArchivedHabits() {
     <>
       <AppBar
         left={
-          <Button variant="ghost" size="icon" aria-label="Back to settings" onClick={pop}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={fromHome ? "Back to habits" : "Back to settings"}
+            onClick={pop}
+          >
             <ChevronLeft strokeWidth={1.75} />
           </Button>
         }
