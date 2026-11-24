@@ -9,7 +9,7 @@ import { sendSignInCode } from "./email.ts";
 import { pull, push, readPush } from "./sync.ts";
 
 /** The Worker's bindings, and what a signed-in request carries past the session check. */
-type Worker = { Bindings: Env; Variables: { userId: string } };
+type WorkerEnv = { Bindings: Env; Variables: { userId: string } };
 
 /** A push's largest body: a full push of the longest habits is far smaller. */
 const MAX_PUSH_BYTES = 512 * 1024;
@@ -18,7 +18,7 @@ const MAX_PUSH_BYTES = 512 * 1024;
  * Sync's push and pull (src/sync.ts), for a signed-in device only: its session cookie, or the
  * bearer token the Android app sends.
  */
-const sync = new Hono<Worker>()
+const sync = new Hono<WorkerEnv>()
   .use(async (c, next) => {
     const session = await authFor(c.req.raw, c.env).api.getSession({ headers: c.req.raw.headers });
     if (!session) return c.json({ error: "Not signed in" }, 401);
@@ -49,7 +49,7 @@ const sync = new Hono<Worker>()
  * The Worker at hb.nhutien.com. The assets layer serves every file of the web app's build without
  * running it (see `assets` in wrangler.jsonc). It answers /api, and any path with no file.
  */
-const app = new Hono<Worker>()
+const app = new Hono<WorkerEnv>()
   .get("/api/health", async (c) => {
     // healthy once the Worker has reached its D1 database
     await openDatabase(c.env.DB).run(sql`select 1`);
@@ -68,7 +68,7 @@ export default app;
  * does for its own writes. A bearer token is never sent by the browser on its own, so a request
  * carrying one, such as the Android app's, needs no such check.
  */
-function sameOrigin(): MiddlewareHandler<Worker> {
+function sameOrigin(): MiddlewareHandler<WorkerEnv> {
   return async (c, next) => {
     const origin = c.req.header("Origin");
     const bearer = c.req.header("Authorization")?.startsWith("Bearer ");
@@ -107,14 +107,14 @@ function authFor(request: Request, env: Env) {
 
 /** Counts a sign-in step for an address in today's row (UTC), dropping rows from before yesterday. */
 async function countAttempt(db: Database, email: string, path: string): Promise<number> {
-  const day = Math.floor(Date.now() / 86_400_000);
+  const utcDay = Math.floor(Date.now() / 86_400_000);
   const [, counted] = await db.batch([
-    db.delete(signInAttempts).where(lt(signInAttempts.day, day - 1)),
+    db.delete(signInAttempts).where(lt(signInAttempts.utcDay, utcDay - 1)),
     db
       .insert(signInAttempts)
-      .values({ email, path, day, count: 1 })
+      .values({ email, path, utcDay, count: 1 })
       .onConflictDoUpdate({
-        target: [signInAttempts.email, signInAttempts.path, signInAttempts.day],
+        target: [signInAttempts.email, signInAttempts.path, signInAttempts.utcDay],
         set: { count: sql`${signInAttempts.count} + 1` },
       })
       .returning({ count: signInAttempts.count }),

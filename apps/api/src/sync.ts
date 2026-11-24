@@ -43,19 +43,19 @@ const columnName = (column: SQLiteColumn) => sql`${sql.identifier(column.name)}`
 /** The stored row's column, inside an upsert. */
 const stored = (column: SQLiteColumn) =>
   sql`${sql.identifier(getTableName(column.table))}.${columnName(column)}`;
-/** The pushed row's column, inside an upsert. */
-const pushed = (column: SQLiteColumn) => sql`excluded.${columnName(column)}`;
+/** The incoming row's column, the one the push carried, inside an upsert. */
+const incoming = (column: SQLiteColumn) => sql`excluded.${columnName(column)}`;
 
 /**
  * Whether the pushed edit is later than the stored one: by edit time, then by change id, so two
  * devices that edited at the same moment still agree on one winner.
  */
 const later = (edited: SQLiteColumn, changeId: SQLiteColumn) =>
-  sql`(${pushed(edited)}, ${pushed(changeId)}) > (${stored(edited)}, ${stored(changeId)})`;
+  sql`(${incoming(edited)}, ${incoming(changeId)}) > (${stored(edited)}, ${stored(changeId)})`;
 
 /** The pushed value of `column` where `wins`, the stored one otherwise. */
 const takeIf = (wins: SQL, column: SQLiteColumn) =>
-  sql`CASE WHEN ${wins} THEN ${pushed(column)} ELSE ${stored(column)} END`;
+  sql`CASE WHEN ${wins} THEN ${incoming(column)} ELSE ${stored(column)} END`;
 
 /**
  * The rows of a push, read from one JSON parameter (flat objects keyed by column name), in the
@@ -121,7 +121,7 @@ export async function push(
     [habits.deleted.name]: habit.deleted,
   }));
   const habitsChanged = sql.join(
-    [...fieldWins, sql`${pushed(habits.deleted)} > ${stored(habits.deleted)}`],
+    [...fieldWins, sql`${incoming(habits.deleted)} > ${stored(habits.deleted)}`],
     sql` OR `,
   );
   const upsertHabits = db
@@ -135,8 +135,8 @@ export async function push(
             FIELD_KEYS[field].map((key) => [key, takeIf(fieldWins[i], habitColumn[key])]),
           ),
         ),
-        deleted: sql`MAX(${stored(habits.deleted)}, ${pushed(habits.deleted)})`,
-        version: sql`CASE WHEN ${habitsChanged} THEN ${pushed(habits.version)} ELSE ${stored(habits.version)} END`,
+        deleted: sql`MAX(${stored(habits.deleted)}, ${incoming(habits.deleted)})`,
+        version: sql`CASE WHEN ${habitsChanged} THEN ${incoming(habits.version)} ELSE ${stored(habits.version)} END`,
       },
     });
 

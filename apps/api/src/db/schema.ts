@@ -99,8 +99,8 @@ export const signInAttempts = sqliteTable(
     /** The better-auth endpoint, such as /sign-in/email-otp. */
     path: text().notNull(),
     /** Days since 1970-01-01, in UTC. */
-    day: integer().notNull(),
+    utcDay: integer("day").notNull(),
     count: integer().notNull(),
   },
-  (table) => [primaryKey({ columns: [table.email, table.path, table.day] })],
+  (table) => [primaryKey({ columns: [table.email, table.path, table.utcDay] })],
 );
