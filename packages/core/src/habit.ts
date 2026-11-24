@@ -56,8 +56,10 @@ export type Habit = BuildHabit | QuitHabit;
 
 /**
  * An unbroken stretch of days.
- * build: `start` and `end` are its first and last check-ins.
- * quit: `start` is the quit day or a slip, `end` the slip that ended it; both exclusive.
+ * build: `start` and `end` are its first and last check-ins; a current streak of 0 days starts
+ * and ends today.
+ * quit: `start` is the quit day or a slip, exclusive. `end` is the slip that ended it, exclusive,
+ * or for the current streak today, inclusive.
  */
 export type Streak = { start: string; end: string; days: number; current: boolean };
 
@@ -120,12 +122,7 @@ export function archivedDays(h: Habit): string[] {
 }
 
 /** Whether `day` is one of a quit habit's archived days (see `archivedDays`). */
-const isArchivedDay = (h: QuitHabit, day: string) =>
-  day > effectiveQuitDay(h) &&
-  day <= todayISO() &&
-  h.archivedPeriods.some(
-    (p) => day > p.archivedOn && (p.restoredOn === null || day < p.restoredOn),
-  );
+const isArchivedDay = (h: QuitHabit, day: string) => archivedDays(h).includes(day);
 
 /** The day a habit was archived on, while it still is; null once restored, or if never archived. */
 export const archivedSince = (h: Habit): string | null =>

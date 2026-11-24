@@ -67,6 +67,13 @@ const nov = (day: number) => `2026-11-${String(day).padStart(2, "0")}`;
 const novDays = (from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, i) => nov(from + i));
 
+const withGoal = <H extends Habit>(habit: H, goal: number | null): H => ({ ...habit, goal });
+/** The goal date as YYYY-MM-DD, or null. */
+const goalDay = (habit: Habit) => {
+  const d = goalDate(habit);
+  return d && toISO(d);
+};
+
 describe("build habits", () => {
   it("counts consecutive check-ins up to today as the current streak", () => {
     const habit = build(["2026-11-22", "2026-11-23", "2026-11-24"]);
@@ -122,12 +129,6 @@ describe("longest streak", () => {
 });
 
 describe("goal date", () => {
-  const withGoal = (habit: Habit, goal: number): Habit => ({ ...habit, goal });
-  const goalDay = (habit: Habit) => {
-    const d = goalDate(habit);
-    return d && toISO(d);
-  };
-
   it("has none when the habit has no goal", () => {
     expect(goalDate(build(["2026-11-24"]))).toBeNull();
   });
@@ -142,11 +143,7 @@ describe("goal date", () => {
   });
 
   it("is the day a build streak reached its goal once it has", () => {
-    const checkIns = Array.from(
-      { length: 15 },
-      (_, i) => `2026-11-${String(10 + i).padStart(2, "0")}`,
-    );
-    expect(goalDay(withGoal(build(checkIns), 7))).toBe("2026-11-16");
+    expect(goalDay(withGoal(build(novDays(10, 24)), 7))).toBe("2026-11-16");
   });
 
   it("is the goal's number of clean days after a quit habit's streak began", () => {
@@ -365,72 +362,63 @@ describe("moving the quit day", () => {
 });
 
 describe("a goal", () => {
-  const withGoal = (habit: Habit, goal: number | null): Habit => ({ ...habit, goal });
-  const days = (from: number, to: number) =>
-    Array.from({ length: to - from + 1 }, (_, i) => `2026-11-${String(from + i).padStart(2, "0")}`);
-
   it("is reached once the current streak is as long as it", () => {
     expect([
-      goalReached(withGoal(build(days(18, 24)), 7)),
-      goalReached(withGoal(build(days(19, 24)), 7)),
-      goalReached(withGoal(build(days(18, 24)), null)),
+      goalReached(withGoal(build(novDays(18, 24)), 7)),
+      goalReached(withGoal(build(novDays(19, 24)), 7)),
+      goalReached(withGoal(build(novDays(18, 24)), null)),
     ]).toEqual([true, false, false]);
   });
 
   it("carries over to the next streak after a break", () => {
     // the first streak reached 7 days; the current one, since the 20th, has 5 and needs 2 more
-    const habit = withGoal(build([...days(1, 10), ...days(20, 24)]), 7);
-    const on = goalDate(habit);
-    expect([goalReached(habit), on && toISO(on)]).toEqual([false, "2026-11-26"]);
+    const habit = withGoal(build([...novDays(1, 10), ...novDays(20, 24)]), 7);
+    expect([goalReached(habit), goalDay(habit)]).toEqual([false, "2026-11-26"]);
   });
 });
 
 describe("a goal's celebration", () => {
-  const withGoal = (habit: Habit, goal: number): Habit => ({ ...habit, goal });
-  const days = (from: number, to: number) =>
-    Array.from({ length: to - from + 1 }, (_, i) => `2026-11-${String(from + i).padStart(2, "0")}`);
-
   it("is due once the current streak reaches the goal, and not before", () => {
     expect([
-      celebrationDue(withGoal(build(days(19, 23)), 7), null),
-      celebrationDue(withGoal(build(days(18, 24)), 7), null),
+      celebrationDue(withGoal(build(novDays(19, 23)), 7), null),
+      celebrationDue(withGoal(build(novDays(18, 24)), 7), null),
     ]).toEqual([false, true]);
   });
 
   it("plays once for a streak, however long it grows", () => {
-    const reached = withGoal(build(days(17, 23)), 7);
+    const reached = withGoal(build(novDays(17, 23)), 7);
     const kept = celebrated(reached, null);
     expect([
       celebrationDue(reached, kept),
-      celebrationDue(withGoal(build(days(17, 24)), 7), kept),
+      celebrationDue(withGoal(build(novDays(17, 24)), 7), kept),
     ]).toEqual([false, false]);
   });
 
   it("is due again on the next streak after a break", () => {
     vi.setSystemTime(new Date(2026, 10, 10, 12));
-    const kept = celebrated(withGoal(build(days(1, 10)), 7), null);
+    const kept = celebrated(withGoal(build(novDays(1, 10)), 7), null);
     vi.setSystemTime(new Date(2026, 10, 24, 12));
-    const nextStreak = withGoal(build([...days(1, 10), ...days(18, 24)]), 7);
+    const nextStreak = withGoal(build([...novDays(1, 10), ...novDays(18, 24)]), 7);
     expect(celebrationDue(nextStreak, kept)).toBe(true);
   });
 
   it("is due again when the same streak reaches a higher goal", () => {
-    const kept = celebrated(withGoal(build(days(1, 24)), 7), null);
+    const kept = celebrated(withGoal(build(novDays(1, 24)), 7), null);
     expect([
-      celebrationDue(withGoal(build(days(1, 24)), 21), kept),
-      celebrationDue(withGoal(build(days(1, 24)), 30), kept),
+      celebrationDue(withGoal(build(novDays(1, 24)), 21), kept),
+      celebrationDue(withGoal(build(novDays(1, 24)), 30), kept),
     ]).toEqual([true, false]);
   });
 
   it("isn't due again when a missed day before the streak is backfilled", () => {
-    const kept = celebrated(withGoal(build([...days(10, 12), ...days(14, 24)]), 7), null);
-    expect(celebrationDue(withGoal(build(days(10, 24)), 7), kept)).toBe(false);
+    const kept = celebrated(withGoal(build([...novDays(10, 12), ...novDays(14, 24)]), 7), null);
+    expect(celebrationDue(withGoal(build(novDays(10, 24)), 7), kept)).toBe(false);
   });
 
   it("remembers the higher goal after the goal is lowered", () => {
-    const at21 = celebrated(withGoal(build(days(1, 24)), 21), null);
-    const at7 = celebrated(withGoal(build(days(1, 24)), 7), at21);
-    expect(celebrationDue(withGoal(build(days(1, 24)), 21), at7)).toBe(false);
+    const at21 = celebrated(withGoal(build(novDays(1, 24)), 21), null);
+    const at7 = celebrated(withGoal(build(novDays(1, 24)), 7), at21);
+    expect(celebrationDue(withGoal(build(novDays(1, 24)), 21), at7)).toBe(false);
   });
 
   it("is due for a quit habit on the day its goal is reached", () => {
@@ -576,12 +564,6 @@ describe("a quit habit's archived days", () => {
 });
 
 describe("a quit habit's goal across archived days", () => {
-  const withGoal = (habit: QuitHabit, goal: number): QuitHabit => ({ ...habit, goal });
-  const goalDay = (habit: Habit) => {
-    const d = goalDate(habit);
-    return d && toISO(d);
-  };
-
   it("is reached on the day its clean days reach it, archived days left out", () => {
     // clean on the 11th and 12th, archived the 13th to the 19th, clean again from the 20th
     const habit = quit("2026-11-10", [], [archivedNov(12, 20)]);
