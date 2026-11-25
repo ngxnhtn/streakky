@@ -1,6 +1,21 @@
 apply plugin: 'com.android.application'
 apply plugin: 'kotlin-android'
 
+/**
+ * A release's version from its tag, vX.Y.Z, which the release workflow passes as `releaseTag`
+ * (ticket 18): the name X.Y.Z, and a code that grows with every release, X·1000000 + Y·1000 + Z,
+ * so Android installs each one over the last.
+ */
+def releaseVersion(String tag) {
+    def parts = (tag =~ /^v(\d+)\.(\d+)\.(\d+)$/)
+    if (!parts.matches()) throw new GradleException("A release tag is vX.Y.Z, not \"${tag}\"")
+    def (major, minor, patch) = (1..3).collect { parts.group(it) as int }
+    if (minor > 999 || patch > 999) throw new GradleException("A release's minor and patch go up to 999: ${tag}")
+    return [code: major * 1_000_000 + minor * 1_000 + patch, name: "${major}.${minor}.${patch}"]
+}
+def releaseTag = project.findProperty("releaseTag")
+def tagVersion = releaseTag ? releaseVersion(releaseTag as String) : null
+
 android {
     namespace = "com.ngxnhtn.streakky"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -8,8 +23,9 @@ android {
         applicationId "com.ngxnhtn.streakky"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // a build from a release tag carries its version; any other is version 1, "dev"
+        versionCode tagVersion ? tagVersion.code : 1
+        versionName tagVersion ? tagVersion.name : "dev"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -28,11 +44,40 @@ android {
         // the widget's rule runs over core's own widget cases (packages/core/src/widget.test.ts)
         test.resources.srcDirs += '../../../../packages/core/fixtures'
     }
+    signingConfigs {
+        // The release key, from where the release workflow puts it (ticket 18); never in the repo.
+        // Without it a release build fails, rather than coming out signed with another key, which
+        // Android wouldn't install over the last.
+        release {
+            def keystore = System.getenv("STREAKKY_KEYSTORE")
+            if (keystore) {
+                storeFile file(keystore)
+                storePassword System.getenv("STREAKKY_KEYSTORE_PASSWORD")
+                keyAlias "streakky"
+                // a PKCS12 keystore has one password, for the store and its key alike
+                keyPassword System.getenv("STREAKKY_KEYSTORE_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
         }
+        // Debug builds are an app of their own, "Streakky Dev", so one can sit beside the release
+        // from Obtainium: Android won't put a build signed with the debug key over it.
+        debug {
+            applicationIdSuffix ".debug"
+        }
+    }
+}
+
+// A release is always a tagged one: without its tag it would be version 1, "dev", under the
+// release key, which a phone with a real release wouldn't take.
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        if (!releaseTag) throw new GradleException("A release build needs its tag: -PreleaseTag=vX.Y.Z")
     }
 }
 

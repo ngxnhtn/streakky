@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='utf-8'?>
+<!-- A debug build's own name, told apart from the release beside it on the phone (ticket 18). -->
+<resources>
+    <string name="app_name">Streakky Dev</string>
+    <string name="title_activity_main">Streakky Dev</string>
+</resources>

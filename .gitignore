@@ -34,3 +34,7 @@ dist-ssr
 !.vscode/
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# signing keys never go in the repo (ADR-0003); the release key lives outside it
+*.jks
+*.keystore

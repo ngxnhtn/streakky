@@ -324,9 +324,10 @@ type DayRecord = {
   - **Tapping:** opens the app on that habit through a deep link.
   - **Display-only:** there are no check-ins from the widget.
 - **Release:**
-  - A GitHub Actions workflow runs on version tags. It builds the web app, syncs Capacitor, builds a release APK signed with a keystore stored in repository secrets, and attaches the APK to a GitHub Release.
-  - The Android version code is derived from the tag.
-  - Obtainium tracks the repository's releases. If the repo is private, Obtainium needs a read-only token.
+  - A GitHub Actions workflow runs on version tags, `vX.Y.Z`. It runs the checks, the tests and the widget's Kotlin test, builds the web app, syncs Capacitor, builds a release APK signed with a keystore stored in repository secrets, and attaches the APK to a GitHub Release named after the tag.
+  - The Android version code is derived from the tag: X·1000000 + Y·1000 + Z, with the version name X.Y.Z. The workflow refuses a tag that isn't above the latest release, and an APK not signed with the release key (by its SHA-256 fingerprint).
+  - The repository is public, at github.com/ngxnhtn/streakky, and Obtainium tracks its releases.
+  - Debug builds are an app of their own, "Streakky Dev" (`com.ngxnhtn.streakky.debug`), so one can sit beside the release on the same phone.
 
 ### Deploy
 

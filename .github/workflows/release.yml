@@ -1,0 +1,99 @@
+# A version tag, vX.Y.Z, builds the Android app, signs it with the release key and attaches it to a
+# GitHub Release named after the tag, where Obtainium finds it (ticket 18, ADR-0003). The checks
+# and tests run first, the widget's Kotlin rule among them, so a release never ships a failing one.
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+# Nothing may write by default: only the publishing job, which never sees the key, may.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Every action is pinned to a commit, as this job holds the signing key.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Android won't install a lower version code over a higher one, nor the same one again.
+      - name: Refuse a version that isn't above the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          latest=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
+          if [ -n "$latest" ]; then
+            highest=$(printf '%s\n%s\n' "$latest" "$TAG" | sort -V | tail -1)
+            if [ "$latest" = "$TAG" ] || [ "$highest" != "$TAG" ]; then
+              echo "::error::$TAG isn't above the latest release, $latest"
+              exit 1
+            fi
+          fi
+
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          node-version: "26"
+          # no cache shared with other runs in a job that holds the signing key
+          cache: false
+
+      # Gradle 8.14 runs on Java 21; the runner's Android SDK is found from ANDROID_HOME.
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - run: vp check
+      - run: vp test
+      - run: vp run web#android-test
+
+      - name: Build the signed APK
+        env:
+          STREAKKY_KEYSTORE: ${{ runner.temp }}/streakky-release.jks
+          STREAKKY_KEYSTORE_BASE64: ${{ secrets.STREAKKY_KEYSTORE_BASE64 }}
+          STREAKKY_KEYSTORE_PASSWORD: ${{ secrets.STREAKKY_KEYSTORE_PASSWORD }}
+          ORG_GRADLE_PROJECT_releaseTag: ${{ github.ref_name }}
+        run: |
+          printf '%s' "$STREAKKY_KEYSTORE_BASE64" | base64 --decode > "$STREAKKY_KEYSTORE"
+          vp run web#android-release
+          rm "$STREAKKY_KEYSTORE"
+
+      # The key must never change (ADR-0003): a replaced secret fails here, not on the phone.
+      - name: Check the APK is signed with the release key
+        env:
+          RELEASE_KEY_SHA256: 8056bdf91809aca963fbbbed39b48b5ef8de1c0cfa95bdbd9763533098c5bff0
+        run: |
+          apk=apps/web/android/app/build/outputs/apk/release/app-release.apk
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -1)apksigner"
+          if ! "$apksigner" verify --print-certs "$apk" | grep -q "SHA-256 digest: $RELEASE_KEY_SHA256"; then
+            echo "::error::The APK isn't signed with the release key"
+            exit 1
+          fi
+          cp "$apk" "streakky-${GITHUB_REF_NAME}.apk"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: apk
+          path: streakky-${{ github.ref_name }}.apk
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: apk
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "streakky-${GITHUB_REF_NAME}.apk" \
+            --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
